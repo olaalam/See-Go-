@@ -7,11 +7,13 @@ import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from 'react-redux';
 import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading"; 
+import { useNavigate } from "react-router-dom";
 
 export default function AddApartment() {
   const dispatch = useDispatch();
     const token = localStorage.getItem("token");
   const isLoading = useSelector((state) => state.loader.isLoading); 
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", image: null },
@@ -56,6 +58,7 @@ export default function AddApartment() {
       } else {
         toast.error("Failed to add apartment.", { position: "top-right", autoClose: 3000 });
       }
+      navigate("/apartments")
     } catch (error) {
       console.error("Error submitting apartment:", error);
       toast.error("An error occurred!", { position: "top-right", autoClose: 3000 });

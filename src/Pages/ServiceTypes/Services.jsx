@@ -10,10 +10,10 @@ import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
 
-const Apartment = () => {
+const Services = () => {
     const dispatch = useDispatch();
     const isLoading = useSelector((state) => state.loader.isLoading);
-    const [apartment, setApartment] = useState([]);
+    const [services, setServices] = useState([]);
     const token = localStorage.getItem("token");
     const [selectedRow, setSelectedRow] = useState(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -28,10 +28,10 @@ const Apartment = () => {
         setImageErrors((prev) => ({ ...prev, [id]: true }));
     };
 
-    const fetchApartment = async () => {
+    const fetchservices = async () => {
         dispatch(showLoader());
         try {
-            const response = await fetch("https://bcknd.sea-go.org/admin/appartment_type", {
+            const response = await fetch("https://bcknd.sea-go.org/admin/service_type", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -42,22 +42,22 @@ const Apartment = () => {
             const result = await response.json();
             const currentLang = localStorage.getItem("lang") || "en";
 
-            const formatted = result.appartment_types.map((appartment_types) => {
-                const translations = appartment_types.translations.reduce((acc, t) => {
+            const formatted = result.service_types.map((service) => {
+                const translations = service.translations.reduce((acc, t) => {
                     if (!acc[t.locale]) acc[t.locale] = {};
                     acc[t.locale][t.key] = t.value;
                     return acc;
                 }, {});
 
-                const name = translations[currentLang]?.name || appartment_types.name || "—";
-                const description = translations[currentLang]?.description || appartment_types.description || "—";
+                const name = translations[currentLang]?.name || service.name || "—";
+                const description = translations[currentLang]?.description || service.description || "—";
 
-                const image = appartment_types?.image_link && !imageErrors[appartment_types.id] ? (
+                const image = service?.image_link && !imageErrors[service.id] ? (
                     <img
-                        src={appartment_types.image_link}
+                        src={service.image_link}
                         alt={name}
                         className="w-12 h-12 rounded-md object-cover aspect-square"
-                        onError={() => handleImageError(appartment_types.id)}
+                        onError={() => handleImageError(service.id)}
                     />
                 ) : (
                     <Avatar className="w-12 h-12">
@@ -66,45 +66,44 @@ const Apartment = () => {
                 );
 
                 return {
-                    id: appartment_types.id,
+                    id: service.id,
                     name,
                     description,
                     img: image,
-                    numberOfVillages: appartment_types.villages_count ?? "0",
-                    status: appartment_types.status === 1 ? "Active" : "Inactive",
-                    image_link: appartment_types.image_link, // Keep the raw link for updating
+                    numberOfVillages: service.villages_count ?? "0",
+                    status: service.status === 1 ? "Active" : "Inactive",
+                    image_link: service.image_link, // Keep the raw link for updating
                 };
             });
 
-            setApartment(formatted);
+            setServices(formatted);
         } catch (error) {
-            console.error("Error fetching apartment:", error);
+            console.error("Error fetching services:", error);
         } finally {
             dispatch(hideLoader());
         }
     };
 
     useEffect(() => {
-        fetchApartment();
+        fetchservices();
     }, []);
 
-    const handleEdit = (appartment_types) => {
-      setSelectedRow(appartment_types);
+    const handleEdit = (service) => {
+      setSelectedRow(service);
       setIsEditOpen(true);
   };
 
-    const handleDelete = (appartment_types) => {
-        setSelectedRow(appartment_types);
+    const handleDelete = (service) => {
+        setSelectedRow(service);
         setIsDeleteOpen(true);
     };
 
     const handleSave = async () => {
         if (!selectedRow) return;
-        const { id, name, status, imageFile } = selectedRow;
+        const { id, name,  status, imageFile } = selectedRow;
 
         const formData = new FormData();
         formData.append("name", name);
-
         formData.append("status", status === "Active" ? 1 : 0);
 
         if (imageFile) {
@@ -112,38 +111,38 @@ const Apartment = () => {
         }
 
         try {
-            const response = await fetch(`https://bcknd.sea-go.org/admin/appartment_type/update/${id}`, {
+            const response = await fetch(`https://bcknd.sea-go.org/admin/service_type/update/${id}`, {
                 method: "POST",
                 headers: getAuthHeaders(),
                 body: formData,
             });
 
             if (response.ok) {
-                toast.success("Apartment updated successfully!");
+                toast.success("Service updated successfully!");
                 const responseData = await response.json();
 
-                setApartment((prev) =>
-                    prev.map((apartment) =>
-                        apartment.id === id
+                setServices((prev) =>
+                    prev.map((service) =>
+                        service.id === id
                             ? {
-                                ...apartment,
-                                name: responseData?.apartment?.name || name,
-                                status: responseData?.apartment?.status === 1 ? "Active" : "Inactive",
-                                image_link: responseData?.apartment?.image_link || apartment.image_link,
-                                img: responseData?.apartment?.image_link ? (
+                                ...service,
+                                name: responseData?.service?.name || name,
+                                status: responseData?.service?.status === 1 ? "Active" : "Inactive",
+                                image_link: responseData?.service?.image_link || service.image_link,
+                                img: responseData?.service?.image_link ? (
                                     <img
-                                        src={responseData.apartment.image_link}
-                                        alt={responseData?.apartment?.name || name}
+                                        src={responseData.service.image_link}
+                                        alt={responseData?.service?.name || name}
                                         className="w-12 h-12 rounded-md object-cover aspect-square"
                                         onError={() => { }}
                                     />
                                 ) : (
                                     <Avatar className="w-12 h-12">
-                                        <AvatarFallback>{responseData?.zone?.name?.charAt(0) || name?.charAt(0)}</AvatarFallback>
+                                        <AvatarFallback>{responseData?.service?.name?.charAt(0) || name?.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                 ),
                             }
-                            : apartment
+                            : service
                     )
                 );
                 setIsEditOpen(false);
@@ -151,18 +150,18 @@ const Apartment = () => {
             } else {
                 const errorData = await response.json();
                 console.error("Update failed:", errorData);
-                toast.error("Failed to update Apartment!");
+                toast.error("Failed to update service!");
             }
         } catch (error) {
-            console.error("Error updating apartment:", error);
-            toast.error("Error occurred while updating apartment!");
+            console.error("Error updating service:", error);
+            toast.error("Error occurred while updating service!");
         }
     };
 
     const handleDeleteConfirm = async () => {
         try {
             const response = await fetch(
-                `https://bcknd.sea-go.org/admin/appartment_type/delete/${selectedRow.id}`,
+                `https://bcknd.sea-go.org/admin/service_type/delete/${selectedRow.id}`,
                 {
                     method: "DELETE",
                     headers: getAuthHeaders(),
@@ -170,15 +169,15 @@ const Apartment = () => {
             );
 
             if (response.ok) {
-                toast.success("Apartment deleted successfully!");
-                setApartment(apartment.filter((apartment) => apartment.id !== selectedRow.id));
+                toast.success("Service deleted successfully!");
+                setServices(services.filter((service) => service.id !== selectedRow.id));
                 setIsDeleteOpen(false);
             } else {
-                toast.error("Failed to delete apartment!");
+                toast.error("Failed to delete service!");
             }
         } catch (error) {
-            console.error("Error deleting apartment:", error);
-            toast.error("Error occurred while deleting apartment!");
+            console.error("Error deleting service:", error);
+            toast.error("Error occurred while deleting service!");
         }
     };
 
@@ -186,26 +185,26 @@ const Apartment = () => {
         const { id } = row;
 
         try {
-            const response = await fetch(`https://bcknd.sea-go.org/admin/appartment_type/status/${id}?status=${newStatus}`, {
+            const response = await fetch(`https://bcknd.sea-go.org/admin/service_type/status/${id}?status=${newStatus}`, {
                 method: "PUT",
                 headers: getAuthHeaders(),
             });
 
             if (response.ok) {
-                toast.success("Apartment status updated successfully!");
-                setApartment((prevApartment) =>
-                    prevApartment.map((apartment) =>
-                        apartment.id === id ? { ...apartment, status: newStatus === 1 ? "Active" : "Inactive" } : apartment
+                toast.success("service status updated successfully!");
+                setServices((prevservices) =>
+                    prevservices.map((service) =>
+                        service.id === id ? { ...service, status: newStatus === 1 ? "Active" : "Inactive" } : service
                     )
                 );
             } else {
                 const errorData = await response.json();
-                console.error("Failed to update apartment status:", errorData);
-                toast.error("Failed to update apartment status!");
+                console.error("Failed to update service status:", errorData);
+                toast.error("Failed to update service status!");
             }
         } catch (error) {
-            console.error("Error updating apartment status:", error);
-            toast.error("Error occurred while updating apartment status!");
+            console.error("Error updating service status:", error);
+            toast.error("Error occurred while updating service status!");
         }
     };
 
@@ -227,7 +226,7 @@ const Apartment = () => {
     };
 
     const columns = [
-        { key: "name", label: "Apartment Name" },
+        { key: "name", label: "Service Name" },
         { key: "img", label: "Image" },
         { key: "status", label: "Status" },
     ];
@@ -238,9 +237,9 @@ const Apartment = () => {
             <ToastContainer />
 
             <DataTable
-                data={apartment}
+                data={services}
                 columns={columns}
-                addRoute="/apartments/add"
+                addRoute="/services/add"
                 className="table-compact"
                 onEdit={handleEdit}
                 onDelete={handleDelete}
@@ -251,36 +250,47 @@ const Apartment = () => {
 
             {selectedRow && (
                 <>
-                    <EditDialog
-                        open={isEditOpen}
-                        onOpenChange={setIsEditOpen}
-                        onSave={handleSave}
-                        selectedRow={selectedRow}
-                        columns={columns}
-                        onChange={onChange}
-                    >
-                        <label htmlFor="name" className="text-gray-400 !pb-3">
-                            Apartment Name
-                        </label>
-                        <Input
-                            id="name"
-                            value={selectedRow?.name || ""}
-                            onChange={(e) => onChange("name", e.target.value)}
-                            className="!my-2 text-bg-primary !p-4"
-                        />
+<EditDialog
+    open={isEditOpen}
+    onOpenChange={setIsEditOpen}
+    onSave={handleSave}
+    selectedRow={selectedRow}
+    columns={columns}
+    onChange={onChange}
+>
+    <label htmlFor="name" className="text-gray-400 !pb-3">
+        Service Name
+    </label>
+    <Input
+        id="name"
+        value={selectedRow?.name || ""}
+        onChange={(e) => onChange("name", e.target.value)}
+        className="!my-2 text-bg-primary !p-4"
+    />
 
+    {selectedRow?.image_link && (
+        <div className="mb-4">
+            <p className="text-gray-400 mb-1">Current Image</p>
+            <img
+                src={selectedRow.image_link}
+                alt="Current"
+                className="w-24 h-24 rounded-md object-cover"
+            />
+        </div>
+    )}
 
-                        <label htmlFor="image" className="text-gray-400 !pb-3">
-                            Image
-                        </label>
-                        <Input
-                            type="file"
-                            id="image"
-                            accept="image/*"
-                            className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                            onChange={handleImageChange}
-                        />
-                    </EditDialog>
+    <label htmlFor="image" className="text-gray-400 !pb-3">
+        Upload New Image
+    </label>
+    <Input
+        type="file"
+        id="image"
+        accept="image/*"
+        className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+        onChange={handleImageChange}
+/>
+</EditDialog>
+
                     <DeleteDialog
                         open={isDeleteOpen}
                         onOpenChange={setIsDeleteOpen}
@@ -293,4 +303,4 @@ const Apartment = () => {
     );
 };
 
-export default Apartment;
+export default Services;

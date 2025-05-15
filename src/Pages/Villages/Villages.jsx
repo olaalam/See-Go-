@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
@@ -18,8 +17,10 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
 const Villages = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [villages, setVillages] = useState([]);
@@ -27,11 +28,12 @@ const Villages = () => {
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const token = localStorage.getItem("token");
 
   // Utility function for headers
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    Authorization: "Bearer 1|lT28bSsFeyAMSLJGnHcIYMDekPJRx3M1T6ROsQlmf0208b31",
+    Authorization: `Bearer ${token}`,
   });
 
   const fetchZones = async () => {
@@ -75,6 +77,18 @@ const Villages = () => {
         }, {});
 
         const name = translations[currentLang]?.name || village.name || "—";
+        const rawName = name;
+
+        const nameClickable = (
+          <span
+            onClick={() =>
+              ( navigate(`/villages/single-page-v/${village.id}`))
+            }
+            className="text-bg-primary hover:text-teal-800 cursor-pointer "
+          >
+            {name}
+          </span>
+        );
         const description =
           translations[currentLang]?.description || village.description || "—";
         const zoneName =
@@ -97,16 +111,16 @@ const Villages = () => {
           </Avatar>
         );
 
-        // جلب location و population_count من الـ API إذا كانوا موجودين
-        const location = village.location || "—"; // أو تعيين القيمة الافتراضية إذا لم تكن موجودة
-        const population = village.population_count || "—"; // تعيين القيمة الافتراضية
+        const location = village.location || "—";
+        const population = village.population_count || "—";
 
         return {
           id: village.id,
-          name,
+          name: nameClickable,
+          rawName,
           description,
           img: image,
-          numberOfVillages: village.villages_count ?? "0",
+          numberOfUnits: village.units_count ?? "0",
           status: village.status === 1 ? "Active" : "Inactive",
           zone_id: village.zone_id,
           zoneName,
@@ -124,7 +138,6 @@ const Villages = () => {
   };
 
   useEffect(() => {
-    // Fetch zones and villages in one go
     const fetchData = async () => {
       await Promise.all([fetchVillages(), fetchZones()]);
     };
@@ -133,7 +146,11 @@ const Villages = () => {
 
   const handleEdit = (village) => {
     console.log("تم النقر على تعديل القرية:", village);
-    setselectedRow(village);
+    const editableVillage = {
+      ...village,
+      name: village.rawName,
+    };
+    setselectedRow(editableVillage);
     setIsEditOpen(true);
     console.log("isEditOpen:", isEditOpen);
     console.log("selectedRow:", selectedRow);
@@ -149,11 +166,13 @@ const Villages = () => {
       id,
       name,
       description,
-      numberOfVillages,
       status,
       zone_id,
       location,
       population,
+      numberOfVillages,
+
+      imageFile,
     } = selectedRow;
 
     if (!zone_id || isNaN(zone_id)) {
@@ -161,25 +180,28 @@ const Villages = () => {
       return;
     }
 
-    const updatedVillage = {
-      name,
-      description,
-      villages_count: parseInt(numberOfVillages),
-      status: status === "Active" ? 1 : 0,
-      zone_id: parseInt(zone_id),
-      location,
-      population_count: parseInt(population) || 0,
-    };
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("description", description);
+    formData.append("status", status === "Active" ? "1" : "0");
+    formData.append("zone_id", zone_id.toString());
+    formData.append("location", location);
+    formData.append("population_count", population.toString());
+    formData.append("villages_count", parseInt(numberOfVillages));
 
-    console.log("Sending updated village data:", updatedVillage);
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village/update/${id}`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(updatedVillage),
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         }
       );
 
@@ -190,8 +212,21 @@ const Villages = () => {
             village.id === id
               ? {
                   ...village,
-                  ...updatedVillage,
-                  status: updatedVillage.status === 1 ? "Active" : "Inactive",
+                  name: (
+                    <span
+                      onClick={() =>
+                        (window.location.href = `/villages/single-page-v/${id}`)
+                      }
+                      className="text-bg-primary hover:text-teal-800 cursor-pointer"
+                    >
+                      {name}
+                    </span>
+                  ),
+                  description,
+                  status: status === "Active" ? "Active" : "Inactive",
+                  zone_id,
+                  location,
+                  population,
                 }
               : village
           )
@@ -240,15 +275,14 @@ const Villages = () => {
     }));
   };
   const handleImageChange = (event) => {
-     const file = event.target.files[0];
-     if (file) {
-
-   setselectedRow((prev) => ({
-    ...prev,
-    imageFile: file, // قم بتخزين الملف
-   }));
-     }
-     };
+    const file = event.target.files[0];
+    if (file) {
+      setselectedRow((prev) => ({
+        ...prev,
+        imageFile: file,
+      }));
+    }
+  };
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
@@ -302,6 +336,7 @@ const Villages = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+        searchKeys={["name", "description"]}
       />
       {selectedRow && (
         <>
@@ -315,11 +350,10 @@ const Villages = () => {
                 zones={zones}
                 onChange={onChange}
               >
-
                 <label htmlFor="name" className="text-gray-400 !pb-3">
                   Village Name
                 </label>
-               
+
                 <Input
                   label="Village Name"
                   id="name"
@@ -341,7 +375,7 @@ const Villages = () => {
                 />
 
                 <label htmlFor="zone" className="text-gray-400 !pb-3">
-                Zone 
+                  Zone
                 </label>
                 <Select
                   value={selectedRow?.zone_id?.toString()}
@@ -354,23 +388,20 @@ const Villages = () => {
                     <SelectValue placeholder="Select Zone" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    
                     {zones.map((zone) => (
                       <SelectItem
                         key={zone.id}
                         value={zone.id.toString()}
                         className="text-bg-primary "
                       >
-                       {zone.name}
+                        {zone.name}
                       </SelectItem>
                     ))}
-                    
                   </SelectContent>
-                 
                 </Select>
-               
+
                 <label htmlFor="location" className="text-gray-400 !pb-3">
-                  Location 
+                  Location
                 </label>
 
                 <Input
@@ -382,12 +413,12 @@ const Villages = () => {
                 />
 
                 <label htmlFor="image" className="text-gray-400 !pb-3">
-                    Image
+                  Image
                 </label>
                 <Input
                   type="file"
                   id="image"
-                  accept="image/*" 
+                  accept="image/*"
                   className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
                   onChange={handleImageChange}
                 />

@@ -4,15 +4,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDispatch, useSelector } from 'react-redux';
-import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
-import FullPageLoader from "@/components/Loading"; 
+import { useDispatch, useSelector } from "react-redux";
+import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
+import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
-export default function AddZone() {
-  const dispatch = useDispatch();
-  const isLoading = useSelector((state) => state.loader.isLoading); 
-  const navigate = useNavigate();
 
+export default function AddService() {
+  const dispatch = useDispatch();
+  const isLoading = useSelector((state) => state.loader.isLoading);
+  const token = localStorage.getItem("token");
+    const navigate = useNavigate();
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", image: null },
     ar: { name: "", description: "", status: "", image: null },
@@ -33,43 +34,52 @@ export default function AddZone() {
 
     const body = new FormData();
     body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
     body.append("status", formData.en.status === "active" ? "1" : "0");
     body.append("image", formData.en.image);
     body.append("ar_name", formData.ar.name);
     body.append("ar_description", formData.ar.description);
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/zone/add", {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer 1|lT28bSsFeyAMSLJGnHcIYMDekPJRx3M1T6ROsQlmf0208b31",
-        },
-        body,
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/service_type/add",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body,
+        }
+      );
 
       if (response.ok) {
-        toast.success("Zone added successfully!", { position: "top-right", autoClose: 3000 });
+        toast.success("Service added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
         setFormData({
           en: { name: "", description: "", status: "", image: null },
           ar: { name: "", description: "", status: "", image: null },
         });
-        navigate("/zones");
       } else {
-        toast.error("Failed to add zone.", { position: "top-right", autoClose: 3000 });
+        toast.error("Failed to add Service.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
       }
+      navigate("/services")
     } catch (error) {
-      console.error("Error submitting zone:", error);
-      toast.error("An error occurred!", { position: "top-right", autoClose: 3000 });
+      console.error("Error submitting Service:", error);
+      toast.error("An error occurred!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } finally {
       dispatch(hideLoader());
     }
   };
 
   const fieldsEn = [
-    { type: "input", placeholder: "Zone Name", name: "name" },
-    { type: "input", placeholder: "Description", name: "description" },
-    { type: "file", name: "image" },
+    { type: "input", placeholder: "Service Name", name: "name" },
     {
       type: "select",
       placeholder: "Status",
@@ -79,23 +89,24 @@ export default function AddZone() {
         { value: "inactive", label: "Inactive" },
       ],
     },
+    { type: "file", name: "image" },
+
   ];
 
   const fieldsAr = [
     { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
-    { type: "file", name: "image" },
     {
       type: "select",
-      placeholder: "Status",
+      placeholder: "الحالة",
       name: "status",
       options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
+        { value: "active", label: "نشط" },
+        { value: "inactive", label: "غير نشط" },
       ],
     },
+    { type: "file", name: "image" },
+
   ];
-  
 
   return (
     <div className="w-full p-6 relative">
@@ -103,24 +114,44 @@ export default function AddZone() {
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Zones
+        Add Services
       </h2>
 
       <Tabs defaultValue="english" className="w-full ">
         <TabsList className="grid w-[50%] !ms-3 grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger value="english"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
+          <TabsTrigger
+            value="english"
+            className="rounded-[10px] border text-bg-primary py-2 transition-all 
               data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">English</TabsTrigger>
-          <TabsTrigger value="arabic"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
+              hover:bg-teal-100 hover:text-teal-700"
+          >
+            English
+          </TabsTrigger>
+          <TabsTrigger
+            value="arabic"
+            className="rounded-[10px] border text-bg-primary py-2 transition-all 
               data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">Arabic</TabsTrigger>
+              hover:bg-teal-100 hover:text-teal-700"
+          >
+            Arabic
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="english">
-          <Add fields={fieldsEn} lang="en" values={formData.en} onChange={handleFieldChange} />
+          <Add
+            fields={fieldsEn}
+            lang="en"
+            values={formData.en}
+            onChange={handleFieldChange}
+          />
         </TabsContent>
         <TabsContent value="arabic">
-          <Add fields={fieldsAr} lang="ar" values={formData.ar} onChange={handleFieldChange} />
+          <Add
+            fields={fieldsAr}
+            lang="ar"
+            values={formData.ar}
+            onChange={handleFieldChange}
+          />
         </TabsContent>
       </Tabs>
 

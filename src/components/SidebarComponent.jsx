@@ -1,6 +1,18 @@
-import { useLocation } from "react-router-dom"; // مهم لتحديد المسار الحالي
-import { 
-  Home, Map, Building2, Building, User, Settings, Users, CreditCard, DollarSign 
+import { useLocation } from "react-router-dom";
+import {
+  Home,
+  Map,
+  Building2,
+  Building,
+  User,
+  Settings,
+  Users,
+  CreditCard,
+  DollarSign,
+  Shield,
+  UserCog,
+  LayoutGrid,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -22,25 +34,37 @@ const navItems = [
   { label: "Users", to: "/users", icon: <User size={20} /> },
   { label: "Service Types", to: "/services", icon: <Settings size={20} /> },
   { label: "Providers", to: "/providers", icon: <Users size={20} /> },
-  { label: "Subscription", to: "/subscriptions", icon: <CreditCard size={20} /> },
+  {
+    label: "Packages",
+    to: "/packages",
+    icon: <CreditCard size={20} />,
+  },
   { label: "Subscribers", to: "/subscribers", icon: <Users size={20} /> },
   { label: "Payments", to: "/payments", icon: <DollarSign size={20} /> },
-  { label: "Payment Methods", to: "/payment-methods", icon: <CreditCard size={20} /> },
+  {
+    label: "Payment Methods",
+    to: "/payment-methods",
+    icon: <CreditCard size={20} />,
+  },
   { label: "For Rent", to: "/for-rent", icon: <Building2 size={20} /> },
   { label: "For Sale", to: "/for-sale", icon: <Building2 size={20} /> },
+  { label: "Admin", to: "/admin", icon: <Shield size={20} /> },
+  //{ label: "Admin Role", to: "/admin-role", icon: <UserCog size={20} /> },
+  { label: "Gallery", to: "/gallery", icon: <LayoutGrid size={20} /> },
+ // { label: "Invoice Village", to: "/invoice", icon: <FileText size={20} /> },
 ];
 
 export function AppSidebar() {
-  const location = useLocation(); // جلب المسار الحالي
-  const isSidebarOpen = true; // ممكن تعدله لاحقًا حسب حالتك
+  const location = useLocation();
+  const isSidebarOpen = true;
 
   return (
     <Sidebar className="bg-teal-600 !me-20 border-none sm:border-none rounded-tr-4xl rounded-br-4xl overflow-x-hidden !pb-10 !pt-10 h-full shadow-lg transition-all duration-300">
-      <SidebarContent 
+      <SidebarContent
         className="bg-teal-600 !p-6 text-white mt-10 border-none overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        style={{ 
-          msOverflowStyle: 'none', 
-          scrollbarWidth: 'none'
+        style={{
+          msOverflowStyle: "none",
+          scrollbarWidth: "none",
         }}
       >
         <SidebarGroup>

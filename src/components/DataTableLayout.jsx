@@ -37,53 +37,79 @@ export default function DataTable({
   data,
   columns,
   addRoute,
+    onAdd,
   onEdit,
   onDelete,
   onToggleStatus,
+  showAddButton = true,
+  showFilter = true,   
+  showActions = true,  
+
+  searchKeys = [],
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [filterValue, setFilterValue] = useState("");
   const navigate = useNavigate();
-
+  
+const getNestedValue = (obj, path) => {
+  return path.split(".").reduce((acc, part) => acc && acc[part], obj);
+};
   // Memoized filtered data
-  const filteredData = useMemo(() => {
-    return data.filter((row) => {
-      const matchesSearch = row.name
-        ?.toLowerCase()
-        .includes(searchValue.toLowerCase());
-      const matchesFilter =
-        !filterValue || row.status?.toLowerCase() === filterValue.toLowerCase();
-      return matchesSearch && matchesFilter;
+const filteredData = useMemo(() => {
+  console.log("Filtered Data:", data);
+  return data.filter((row) => {
+    const matchesSearch = searchKeys.some((key) => {
+      const value = getNestedValue(row, key);
+      const searchableValue = value?.toString() || "";
+      return searchableValue.toLowerCase().includes(searchValue.toLowerCase());
     });
-  }, [data, searchValue, filterValue]);
+
+    const matchesFilter =
+      !filterValue || row.status?.toLowerCase() === filterValue.toLowerCase();
+
+    return matchesSearch && matchesFilter;
+  });
+}, [data, searchValue, filterValue, searchKeys]);
+
+console.log("columns", columns);
+
 
   return (
     <div className="w-full !p-3 space-y-6">
       <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-        <Input
-          placeholder="Search..."
-          className="w-full md:!ms-3 sm:!ms-0 !ps-3  sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-        />
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={filterValue} onValueChange={setFilterValue}>
-            <SelectTrigger className="w-[120px] border-bg-primary focus:ring-bg-primary rounded-[10px] !px-2">
-              <SelectValue placeholder="Filter by" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border-bg-primary rounded-md shadow-lg !p-3">
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <>
+            <Input
+              placeholder="Search..."
+              className="w-full md:!ms-3 sm:!ms-0 !ps-3  sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+            />
+                    {showFilter && (
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={filterValue} onValueChange={setFilterValue}>
+                <SelectTrigger className="w-[120px] border-bg-primary focus:ring-bg-primary rounded-[10px] !px-2">
+                  <SelectValue placeholder="Filter by" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-bg-primary rounded-md shadow-lg !p-3">
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+                      {showAddButton && ( 
           <Button
-            onClick={() => navigate(addRoute)}
+             onClick={() => onAdd ? onAdd() : navigate(addRoute)}
             className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
           >
             <Plus className="w-5 h-5 !mr-2" />
             Add
           </Button>
-        </div>
+        )}
+            </div>
+         
+        )}
+         </>
+
       </div>
 
       {/* Table */}
@@ -99,9 +125,11 @@ export default function DataTable({
                   {col.label}
                 </TableHead>
               ))}
-              <TableHead className="text-bg-primary font-semibold">
-                Action
-              </TableHead>
+              {showActions && ( 
+                <TableHead className="text-bg-primary font-semibold">
+                  Action
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody >
@@ -136,74 +164,72 @@ export default function DataTable({
                           />
                         </Switch>
                       ) : (
-                        row[col.key]
+                        col.render ? col.render(row) : row[col.key]
                       )}
                     </TableCell>
                   ))}
-                  <TableCell className="!py-3">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          console.log("Edit clicked for row:", row);
-                          onEdit?.(row)}}
-                      >
-                        <Edit className="w-4 h-4 text-bg-primary" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete?.(row)}
-                      >
-                        <Trash className="w-4 h-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {showActions && ( // إظهار خانة الأكشنز فقط لو showActions بترو
+                    <TableCell className="!py-3">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            console.log("Edit clicked for row:", row);
+                            onEdit?.(row)}}
+                        >
+                          <Edit className="w-4 h-4 text-bg-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete?.(row)}
+                        >
+                          <Trash className="w-4 h-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length + 1}
+                  colSpan={columns.length + (showActions ? 1 : 0)} // تعديل colspan بناءً على ظهور الأكشنز
                   className="text-center text-gray-500 py-4"
                 >
                   No data found
                 </TableCell>
               </TableRow>
             )}
-
-
           </TableBody>
-
-
         </Table>
         <div className="w-full !mb-10 max-w-[1200px] mx-auto">
-  <Pagination className="!mb-2 flex justify-center items-center m-auto">
-    <PaginationContent className="text-bg-primary font-semibold flex gap-2">
-      <PaginationItem>
-        <PaginationPrevious href="#" className="text-bg-primary" />
-      </PaginationItem>
-    
-      <PaginationItem>
-        <PaginationLink 
-          className="border border-gray-400 hover:bg-gray-200 transition-all   px-3 py-1 rounded-lg text-bg-primary"
-          href="#"
-        >
-          1
-        </PaginationLink>
-      </PaginationItem>
-      
-      <PaginationItem>
-        <PaginationEllipsis className="text-bg-primary" />
-      </PaginationItem>
-      
-      <PaginationItem>
-        <PaginationNext href="#" className="text-bg-primary" />
-      </PaginationItem>
-    </PaginationContent>
-  </Pagination>
-</div>
+          <Pagination className="!mb-2 flex justify-center items-center m-auto">
+            <PaginationContent className="text-bg-primary font-semibold flex gap-2">
+              <PaginationItem>
+                <PaginationPrevious href="#" className="text-bg-primary" />
+              </PaginationItem>
+
+              <PaginationItem>
+                <PaginationLink
+                  className="border border-gray-400 hover:bg-gray-200 transition-all   px-3 py-1 rounded-lg text-bg-primary"
+                  href="#"
+                >
+                  1
+                </PaginationLink>
+              </PaginationItem>
+
+              <PaginationItem>
+                <PaginationEllipsis className="text-bg-primary" />
+              </PaginationItem>
+
+              <PaginationItem>
+                <PaginationNext href="#" className="text-bg-primary" />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       </div>
     </div>
   );

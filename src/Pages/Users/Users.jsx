@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
@@ -90,11 +89,7 @@ const Users = () => {
               <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>
             </Avatar>
           ),
-          village_id: u.village_id,
-          villageName:
-            u.village?.translations?.find(
-              (t) => t.locale === lang && t.key === "name"
-            )?.value || u.village?.name || "—",
+
           password: "",
           birthDate: u.birthDate || "",
           rent_from: u.rent_from || "",
@@ -125,9 +120,9 @@ const Users = () => {
   };
 
   const handleSave = async () => {
-    const { id, name, email, phone, password, gender, birthDate, user_type, status, village_id, rent_from, rent_to } = selectedRow;
+    const { id, name, email, phone, password, gender, birthDate, user_type, status, rent_from, rent_to } = selectedRow;
 
-    if (!name || !email || !phone || !password || !gender || !birthDate || !user_type || !village_id) {
+    if (!name || !email || !phone || !password || !gender || !birthDate || !user_type ) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -143,7 +138,6 @@ const Users = () => {
       rent_from,
       rent_to,
       status: status === "Active" ? 1 : 0,
-      village_id: parseInt(village_id),
     };
 
     try {
@@ -162,8 +156,7 @@ const Users = () => {
                   ...user,
                   ...updatedUser,
                   status: updatedUser.status === 1 ? "Active" : "Inactive",
-                  villageName:
-                    villages.find((v) => v.id === updatedUser.village_id)?.name || "—",
+
                 }
               : user
           )
@@ -229,7 +222,6 @@ const Users = () => {
     { key: "phone", label: "Phone" },
     { key: "user_type", label: "Account Type" },
     { key: "status", label: "Status" },
-    { key: "villageName", label: "Village" },
     { key: "gender", label: "Gender" },
   ];
 
@@ -244,6 +236,8 @@ const Users = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+          searchKeys={["name", "email"]}
+
       />
       {selectedRow && (
         <>
@@ -269,21 +263,6 @@ const Users = () => {
                 </>
               )}
 
-              <div>
-                <Label htmlFor="village_id" className="text-sm text-gray-500">Village</Label>
-                <Select                 value={selectedRow.village_id?.toString()} onValueChange={(val) => onChange("village_id", val)}>
-                  <SelectTrigger                 className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    {villages.map((v) => (
-                      <SelectItem key={v.id} value={v.id.toString()}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </EditDialog>
 

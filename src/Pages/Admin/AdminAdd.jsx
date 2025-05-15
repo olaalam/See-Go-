@@ -8,11 +8,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading"; 
 import { useNavigate } from "react-router-dom";
+
 export default function AddZone() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading); 
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", image: null },
     ar: { name: "", description: "", status: "", image: null },
@@ -54,7 +54,7 @@ export default function AddZone() {
           en: { name: "", description: "", status: "", image: null },
           ar: { name: "", description: "", status: "", image: null },
         });
-        navigate("/zones");
+        navigate("/admin")
       } else {
         toast.error("Failed to add zone.", { position: "top-right", autoClose: 3000 });
       }

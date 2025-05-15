@@ -7,8 +7,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MapPin } from "lucide-react";
+import { useState } from "react";
+import MapModal from "@/components/MapModel";
 
 export default function Add({ fields, lang, values, onChange }) {
+
+const [showMap, setShowMap] = useState(false);
+
   const commonInputClass =
     "rounded-[15px] border border-gray-300  focus:border-bg-primary focus:ring-bg-primary";
 
@@ -46,7 +52,17 @@ export default function Add({ fields, lang, values, onChange }) {
                       className={`!ms-1 !px-5 !py-6 ${commonInputClass}`}
                     />
                   );
-
+    case "time":
+      return (
+        <div key={field.name} className="mb-4">
+          <input
+            type="time"
+            name={field.name}
+            value={values[field.name]}
+            onChange={(e) => onChange(lang, field.name, e.target.value)}
+ className={`!ms-1 !px-10 !py-4 ${commonInputClass}`}          />
+        </div>
+      );
                 case "textarea":
                   return (
                     <Textarea
@@ -66,9 +82,40 @@ export default function Add({ fields, lang, values, onChange }) {
                       key={index}
                       type="file"
                       onChange={(e) => handleChange(field.name, e.target.files?.[0])}
-                      className={`h-[54px] flex items-center text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
+                      className={`h-[54px] !mt-4 flex items-center text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
                     />
                   );
+
+case "location":
+  return (
+    <div key={index} className="relative">
+      <Input
+        id={field.name}
+        type="text"
+        placeholder={field.placeholder}
+        value={value}
+        onChange={(e) => handleChange(field.name, e.target.value)}
+        className={`!ms-1 !px-12 !py-6 ${commonInputClass}`}
+      />
+      <MapPin
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-600 cursor-pointer"
+        onClick={() => setShowMap(true)}
+      />
+      {showMap && (
+        <MapModal
+          onClose={() => setShowMap(false)}
+          onSelect={(address) => {
+            handleChange(field.name, address);
+            setShowMap(false);
+          }}
+        />
+      )}
+    </div>
+  );
+
+
+
+
 
                 case "select":
                   return (

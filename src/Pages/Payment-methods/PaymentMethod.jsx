@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
@@ -10,10 +11,10 @@ import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
 
-const Apartment = () => {
+const Payment_methods = () => {
     const dispatch = useDispatch();
     const isLoading = useSelector((state) => state.loader.isLoading);
-    const [apartment, setApartment] = useState([]);
+    const [payment_methods, setPaymentMethods] = useState([]);
     const token = localStorage.getItem("token");
     const [selectedRow, setSelectedRow] = useState(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -28,10 +29,10 @@ const Apartment = () => {
         setImageErrors((prev) => ({ ...prev, [id]: true }));
     };
 
-    const fetchApartment = async () => {
+    const fetchpayment_methods = async () => {
         dispatch(showLoader());
         try {
-            const response = await fetch("https://bcknd.sea-go.org/admin/appartment_type", {
+            const response = await fetch("https://bcknd.sea-go.org/admin/payment_method", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -42,127 +43,110 @@ const Apartment = () => {
             const result = await response.json();
             const currentLang = localStorage.getItem("lang") || "en";
 
-            const formatted = result.appartment_types.map((appartment_types) => {
-                const translations = appartment_types.translations.reduce((acc, t) => {
+            const formatted = result.payment_methods.map((payment_method) => {
+                const translations = payment_method.translations.reduce((acc, t) => {
                     if (!acc[t.locale]) acc[t.locale] = {};
                     acc[t.locale][t.key] = t.value;
                     return acc;
                 }, {});
 
-                const name = translations[currentLang]?.name || appartment_types.name || "—";
-                const description = translations[currentLang]?.description || appartment_types.description || "—";
-
-                const image = appartment_types?.image_link && !imageErrors[appartment_types.id] ? (
+                const name = translations[currentLang]?.name || payment_method.name || "—";
+                const description = translations[currentLang]?.description || payment_method.description || "—";
+                const createdDate = new Date(payment_method.created_at);
+                const created_at = `${createdDate.getFullYear()}/${(createdDate.getMonth() + 1)
+                    .toString()
+                    .padStart(2, "0")}/${createdDate.getDate().toString().padStart(2, "0")}`;
+                
+                const image = payment_method?.logo_link && !imageErrors[payment_method.id] ? (
                     <img
-                        src={appartment_types.image_link}
+                        src={payment_method.logo_link}
                         alt={name}
                         className="w-12 h-12 rounded-md object-cover aspect-square"
-                        onError={() => handleImageError(appartment_types.id)}
+                        onError={() => handleImageError(payment_method.id)}
                     />
                 ) : (
                     <Avatar className="w-12 h-12">
                         <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                 );
+                
 
                 return {
-                    id: appartment_types.id,
+                    id: payment_method.id,
                     name,
                     description,
                     img: image,
-                    numberOfVillages: appartment_types.villages_count ?? "0",
-                    status: appartment_types.status === 1 ? "Active" : "Inactive",
-                    image_link: appartment_types.image_link, // Keep the raw link for updating
+                    created_at,
+                    status: payment_method.status === 1 ? "Active" : "Inactive",
+                    logo_link: payment_method.logo_link, 
                 };
+                
             });
 
-            setApartment(formatted);
+            setPaymentMethods(formatted);
         } catch (error) {
-            console.error("Error fetching apartment:", error);
+            console.error("Error fetching payment_methods:", error);
         } finally {
             dispatch(hideLoader());
         }
     };
 
     useEffect(() => {
-        fetchApartment();
+        fetchpayment_methods();
     }, []);
 
-    const handleEdit = (appartment_types) => {
-      setSelectedRow(appartment_types);
+    const handleEdit = (payment_method) => {
+      setSelectedRow(payment_method);
       setIsEditOpen(true);
   };
 
-    const handleDelete = (appartment_types) => {
-        setSelectedRow(appartment_types);
+    const handleDelete = (payment_method) => {
+        setSelectedRow(payment_method);
         setIsDeleteOpen(true);
     };
 
     const handleSave = async () => {
         if (!selectedRow) return;
-        const { id, name, status, imageFile } = selectedRow;
-
+        const { id, name, description, status, imageFile } = selectedRow;
+    
         const formData = new FormData();
         formData.append("name", name);
-
+        formData.append("description", description);
         formData.append("status", status === "Active" ? 1 : 0);
-
+    
         if (imageFile) {
-            formData.append("image", imageFile);
+            formData.append("logo", imageFile); 
         }
-
+    
         try {
-            const response = await fetch(`https://bcknd.sea-go.org/admin/appartment_type/update/${id}`, {
+            const response = await fetch(`https://bcknd.sea-go.org/admin/payment_method/update/${id}`, {
                 method: "POST",
                 headers: getAuthHeaders(),
                 body: formData,
             });
-
+    
             if (response.ok) {
-                toast.success("Apartment updated successfully!");
-                const responseData = await response.json();
-
-                setApartment((prev) =>
-                    prev.map((apartment) =>
-                        apartment.id === id
-                            ? {
-                                ...apartment,
-                                name: responseData?.apartment?.name || name,
-                                status: responseData?.apartment?.status === 1 ? "Active" : "Inactive",
-                                image_link: responseData?.apartment?.image_link || apartment.image_link,
-                                img: responseData?.apartment?.image_link ? (
-                                    <img
-                                        src={responseData.apartment.image_link}
-                                        alt={responseData?.apartment?.name || name}
-                                        className="w-12 h-12 rounded-md object-cover aspect-square"
-                                        onError={() => { }}
-                                    />
-                                ) : (
-                                    <Avatar className="w-12 h-12">
-                                        <AvatarFallback>{responseData?.zone?.name?.charAt(0) || name?.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                ),
-                            }
-                            : apartment
-                    )
-                );
+                const data = await response.json();
+                toast.success("Payment method updated successfully!");
+                fetchpayment_methods();
                 setIsEditOpen(false);
                 setSelectedRow(null);
             } else {
                 const errorData = await response.json();
                 console.error("Update failed:", errorData);
-                toast.error("Failed to update Apartment!");
+                toast.error("Failed to update payment method!");
             }
         } catch (error) {
-            console.error("Error updating apartment:", error);
-            toast.error("Error occurred while updating apartment!");
+            console.error("Error updating payment method:", error);
+            toast.error("Error occurred while updating payment method!");
         }
     };
+    
 
     const handleDeleteConfirm = async () => {
         try {
             const response = await fetch(
-                `https://bcknd.sea-go.org/admin/appartment_type/delete/${selectedRow.id}`,
+                `https://bcknd.sea-go.org/admin/payment_method/delete/${selectedRow.id}`,
                 {
                     method: "DELETE",
                     headers: getAuthHeaders(),
@@ -170,15 +154,15 @@ const Apartment = () => {
             );
 
             if (response.ok) {
-                toast.success("Apartment deleted successfully!");
-                setApartment(apartment.filter((apartment) => apartment.id !== selectedRow.id));
+                toast.success("payment_method deleted successfully!");
+                setPaymentMethods(payment_methods.filter((payment_method) => payment_method.id !== selectedRow.id));
                 setIsDeleteOpen(false);
             } else {
-                toast.error("Failed to delete apartment!");
+                toast.error("Failed to delete payment_method!");
             }
         } catch (error) {
-            console.error("Error deleting apartment:", error);
-            toast.error("Error occurred while deleting apartment!");
+            console.error("Error deleting payment_method:", error);
+            toast.error("Error occurred while deleting payment_method!");
         }
     };
 
@@ -186,26 +170,26 @@ const Apartment = () => {
         const { id } = row;
 
         try {
-            const response = await fetch(`https://bcknd.sea-go.org/admin/appartment_type/status/${id}?status=${newStatus}`, {
+            const response = await fetch(`https://bcknd.sea-go.org/admin/payment_method/status/${id}?status=${newStatus}`, {
                 method: "PUT",
                 headers: getAuthHeaders(),
             });
 
             if (response.ok) {
-                toast.success("Apartment status updated successfully!");
-                setApartment((prevApartment) =>
-                    prevApartment.map((apartment) =>
-                        apartment.id === id ? { ...apartment, status: newStatus === 1 ? "Active" : "Inactive" } : apartment
+                toast.success("payment_method status updated successfully!");
+                setPaymentMethods((prevpayment_methods) =>
+                    prevpayment_methods.map((payment_method) =>
+                        payment_method.id === id ? { ...payment_method, status: newStatus === 1 ? "Active" : "Inactive" } : payment_method
                     )
                 );
             } else {
                 const errorData = await response.json();
-                console.error("Failed to update apartment status:", errorData);
-                toast.error("Failed to update apartment status!");
+                console.error("Failed to update payment_method status:", errorData);
+                toast.error("Failed to update payment_method status!");
             }
         } catch (error) {
-            console.error("Error updating apartment status:", error);
-            toast.error("Error occurred while updating apartment status!");
+            console.error("Error updating payment_method status:", error);
+            toast.error("Error occurred while updating payment_method status!");
         }
     };
 
@@ -227,7 +211,9 @@ const Apartment = () => {
     };
 
     const columns = [
-        { key: "name", label: "Apartment Name" },
+        { key: "name", label: "Payment Method" },
+        { key: "description", label: "Description" },
+        { key: "created_at", label: "Added Date" },
         { key: "img", label: "Image" },
         { key: "status", label: "Status" },
     ];
@@ -238,15 +224,14 @@ const Apartment = () => {
             <ToastContainer />
 
             <DataTable
-                data={apartment}
+                data={payment_methods}
                 columns={columns}
-                addRoute="/apartments/add"
+                addRoute="/payment-methods/add"
                 className="table-compact"
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onToggleStatus={handleToggleStatus}
-                  searchKeys={["name"]}
-
+                 searchKeys={[ "description","name"]}
             />
 
             {selectedRow && (
@@ -260,7 +245,7 @@ const Apartment = () => {
                         onChange={onChange}
                     >
                         <label htmlFor="name" className="text-gray-400 !pb-3">
-                            Apartment Name
+                            Payment Method
                         </label>
                         <Input
                             id="name"
@@ -268,6 +253,17 @@ const Apartment = () => {
                             onChange={(e) => onChange("name", e.target.value)}
                             className="!my-2 text-bg-primary !p-4"
                         />
+
+                        <label htmlFor="description" className="text-gray-400 !pb-3">
+                            Description
+                        </label>
+                        <Input
+                            id="description"
+                            value={selectedRow?.description || ""}
+                            onChange={(e) => onChange("description", e.target.value)}
+                            className="!my-2 text-bg-primary !p-4"
+                        />
+
 
 
                         <label htmlFor="image" className="text-gray-400 !pb-3">
@@ -293,4 +289,4 @@ const Apartment = () => {
     );
 };
 
-export default Apartment;
+export default Payment_methods;

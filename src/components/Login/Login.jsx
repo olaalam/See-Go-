@@ -66,19 +66,19 @@ const Login = () => {
               <Input
                 type="text"
                 placeholder="Email"
-                className="border-bg-primary w-full sm:w-[60%] rounded-[10px] !p-2 !mb-2 text-gray-500 focus:border-bg-primary focus:ring-bg-primary"
+                className="border-bg-primary w-full xl:w-[70%] rounded-[10px] !p-2 !mb-2 text-gray-500 focus:border-bg-primary focus:ring-bg-primary"
                 value={emailOrUsername}
                 onChange={(e) => setEmailOrUsername(e.target.value)}
               />
               <Input
                 type="password"
                 placeholder="Password"
-                className="border-bg-primary w-full sm:w-[60%] rounded-[10px] !p-2 !mb-2 text-gray-500 focus:border-bg-primary focus:ring-bg-primary"
+                className="border-bg-primary w-full xl:w-[70%] rounded-[10px] !p-2 !mb-2 text-gray-500 focus:border-bg-primary focus:ring-bg-primary"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <Button
-                className="w-full sm:w-[60%] rounded-[10px] bg-bg-primary cursor-pointer hover:bg-teal-600 text-white"
+                className="w-full xl:w-[70%] rounded-[10px] bg-bg-primary cursor-pointer hover:bg-teal-600 text-white"
                 type="submit"
               >
                 Send
@@ -87,11 +87,11 @@ const Login = () => {
           </CardContent>
         </Card>
       </div>
-      <div className="sm:hidden md:flex w-1/2">
+      <div className="hidden md:flex w-1/2">
         <img
           src={image}
           alt="login"
-          className="object-cover !m-auto w-full h-[98%]"
+          className="object-cover  !m-auto w-full h-[98%]"
         />
       </div>
     </div>
