@@ -6,13 +6,11 @@ import {
   Building,
   User,
   Settings,
-  Users,
   CreditCard,
   DollarSign,
   Shield,
-  UserCog,
-  LayoutGrid,
-  FileText,
+  Wrench,
+  Users,
 } from "lucide-react";
 
 import {
@@ -50,8 +48,19 @@ const navItems = [
   { label: "For Sale", to: "/for-sale", icon: <Building2 size={20} /> },
   { label: "Admin", to: "/admin", icon: <Shield size={20} /> },
   //{ label: "Admin Role", to: "/admin-role", icon: <UserCog size={20} /> },
-  { label: "Gallery", to: "/gallery", icon: <LayoutGrid size={20} /> },
- // { label: "Invoice Village", to: "/invoice", icon: <FileText size={20} /> },
+ // { label: "Gallery", to: "/gallery", icon: <LayoutGrid size={20} /> },
+  {
+    label: "Maintenance Types",
+    to: "/maintenance",
+    icon: <Wrench size={20} />,
+  },
+  {
+    label: "Service Provider",
+    to: "/service-provider",
+    icon: <Users size={20} />,
+  },
+
+  // { label: "Invoice Village", to: "/invoice", icon: <FileText size={20} /> },
 ];
 
 export function AppSidebar() {

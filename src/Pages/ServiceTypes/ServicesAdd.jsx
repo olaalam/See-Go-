@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDispatch, useSelector } from "react-redux";
-import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
+import { useDispatch, useSelector } from 'react-redux';
+import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
@@ -13,7 +12,8 @@ export default function AddService() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", image: null },
     ar: { name: "", description: "", status: "", image: null },
@@ -60,13 +60,13 @@ export default function AddService() {
           en: { name: "", description: "", status: "", image: null },
           ar: { name: "", description: "", status: "", image: null },
         });
+        navigate("/services");
       } else {
         toast.error("Failed to add Service.", {
           position: "top-right",
           autoClose: 3000,
         });
       }
-      navigate("/services")
     } catch (error) {
       console.error("Error submitting Service:", error);
       toast.error("An error occurred!", {
@@ -78,8 +78,9 @@ export default function AddService() {
     }
   };
 
-  const fieldsEn = [
-    { type: "input", placeholder: "Service Name", name: "name" },
+  // Combine English and Arabic fields into a single array
+  const fields = [
+    { type: "input", placeholder: "Service Name", name: "name", lang: "en" },
     {
       type: "select",
       placeholder: "Status",
@@ -88,23 +89,10 @@ export default function AddService() {
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
+      lang: "en",
     },
-    { type: "file", name: "image" },
-
-  ];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    {
-      type: "select",
-      placeholder: "الحالة",
-      name: "status",
-      options: [
-        { value: "active", label: "نشط" },
-        { value: "inactive", label: "غير نشط" },
-      ],
-    },
-    { type: "file", name: "image" },
+    { type: "file", name: "image", lang: "en" },
+        { type: "input", placeholder: " (اختياري) اسم الخدمة ", name: "name", lang: "ar" }, 
 
   ];
 
@@ -117,43 +105,14 @@ export default function AddService() {
         Add Services
       </h2>
 
-      <Tabs defaultValue="english" className="w-full ">
-        <TabsList className="grid w-[50%] !ms-3 grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger
-            value="english"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            English
-          </TabsTrigger>
-          <TabsTrigger
-            value="arabic"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            Arabic
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add
-            fields={fieldsEn}
-            lang="en"
-            values={formData.en}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add
-            fields={fieldsAr}
-            lang="ar"
-            values={formData.ar}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="w-[90%] mx-auto">
+        {/* Pass all fields to a single Add component */}
+        <Add
+          fields={fields}
+          values={{ en: formData.en, ar: formData.ar }}
+          onChange={handleFieldChange}
+        />
+      </div>
 
       <div className="!my-6">
         <Button

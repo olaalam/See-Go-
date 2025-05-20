@@ -106,7 +106,7 @@ export default function SomePage() {
 
   return(
     <>
-      <SinglePageCompo data={villageData} status={status} adminColumns={adminColumns} />
+      <SinglePageCompo data={villageData} status={status} adminColumns={adminColumns} entityType="village" />
       <Outlet/>
     </>
   )

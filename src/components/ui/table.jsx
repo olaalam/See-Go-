@@ -82,20 +82,27 @@ function TableHead({
   );
 }
 
-function TableCell({
-  className,
-  ...props
-}) {
+function TableCell({ className, children, ...props }) {
+  const containsImage =
+    React.Children.toArray(children).some(
+      (child) => React.isValidElement(child) && child.type === "img"
+    );
+
   return (
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle text-center whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-2 align-middle whitespace-nowrap",
+        containsImage ? "text-center flex justify-center items-center" : "text-center",
         className
       )}
-      {...props} />
+      {...props}
+    >
+      {children}
+    </td>
   );
 }
+
 
 function TableCaption({
   className,

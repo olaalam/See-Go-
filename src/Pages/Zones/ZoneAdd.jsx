@@ -1,30 +1,32 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from 'react-redux';
 import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
-import FullPageLoader from "@/components/Loading"; 
+import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
+
 export default function AddZone() {
   const dispatch = useDispatch();
-  const isLoading = useSelector((state) => state.loader.isLoading); 
+  const isLoading = useSelector((state) => state.loader.isLoading);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
   const [formData, setFormData] = useState({
-    en: { name: "", description: "", status: "", image: null },
-    ar: { name: "", description: "", status: "", image: null },
+    name: "",
+    description: "",
+    status: "",
+    image: null,
+    ar_name: "",
+    ar_description: "",
   });
 
-  const handleFieldChange = (lang, name, value) => {
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
+      [name]: value,
     }));
   };
 
@@ -32,18 +34,18 @@ export default function AddZone() {
     dispatch(showLoader());
 
     const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
-    body.append("image", formData.en.image);
-    body.append("ar_name", formData.ar.name);
-    body.append("ar_description", formData.ar.description);
+    body.append("name", formData.name);
+    body.append("description", formData.description);
+    body.append("status", formData.status === "active" ? "1" : "0");
+    body.append("image", formData.image);
+    body.append("ar_name", formData.ar_name);
+    body.append("ar_description", formData.ar_description);
 
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/zone/add", {
         method: "POST",
         headers: {
-          Authorization: "Bearer 1|lT28bSsFeyAMSLJGnHcIYMDekPJRx3M1T6ROsQlmf0208b31",
+          Authorization: `Bearer ${token}`,
         },
         body,
       });
@@ -51,8 +53,12 @@ export default function AddZone() {
       if (response.ok) {
         toast.success("Zone added successfully!", { position: "top-right", autoClose: 3000 });
         setFormData({
-          en: { name: "", description: "", status: "", image: null },
-          ar: { name: "", description: "", status: "", image: null },
+          name: "",
+          description: "",
+          status: "",
+          image: null,
+          ar_name: "",
+          ar_description: "",
         });
         navigate("/zones");
       } else {
@@ -66,10 +72,22 @@ export default function AddZone() {
     }
   };
 
-  const fieldsEn = [
-    { type: "input", placeholder: "Zone Name", name: "name" },
-    { type: "input", placeholder: "Description", name: "description" },
-    { type: "file", name: "image" },
+  // Combine English and Arabic fields into a single array
+  const fields = [
+    {
+      type: "input",
+      placeholder: "Zone Name (English)",
+      name: "name",
+    },
+    {
+      type: "input",
+      placeholder: "Description (English)",
+      name: "description",
+    },
+    {
+      type: "file",
+      name: "image",
+    },
     {
       type: "select",
       placeholder: "Status",
@@ -79,23 +97,17 @@ export default function AddZone() {
         { value: "inactive", label: "Inactive" },
       ],
     },
-  ];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
-    { type: "file", name: "image" },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
+      type: "input",
+      placeholder: "اسم المنطقة (اختياري)",
+      name: "ar_name",
+    },
+    {
+      type: "input",
+      placeholder: "الوصف (اختياري)",
+      name: "ar_description",
     },
   ];
-  
 
   return (
     <div className="w-full p-6 relative">
@@ -106,23 +118,10 @@ export default function AddZone() {
         Add Zones
       </h2>
 
-      <Tabs defaultValue="english" className="w-full ">
-        <TabsList className="grid w-[50%] !ms-3 grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger value="english"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">English</TabsTrigger>
-          <TabsTrigger value="arabic"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">Arabic</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add fields={fieldsEn} lang="en" values={formData.en} onChange={handleFieldChange} />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add fields={fieldsAr} lang="ar" values={formData.ar} onChange={handleFieldChange} />
-        </TabsContent>
-      </Tabs>
+      <div className="w-[90%] mx-auto">
+        {/* Pass all fields to a single Add component */}
+        <Add fields={fields} values={formData} onChange={handleInputChange} />
+      </div>
 
       <div className="!my-6">
         <Button

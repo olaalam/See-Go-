@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -9,34 +8,32 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
-export default function Addprovider() {
+export default function AddProvider() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const [village, setVillage] = useState([]);
   const navigate = useNavigate();
-  const [services, setservices] = useState([]);
-
-const [formData, setFormData] = useState({
-  en: {
-    name: "",
-    description: "",
-    phone: "",
-    service_id: "",
-    village: "",
-    location: "",
-    status: "",
-    image: null,
-    open_from: "",
-    open_to: "",
-  },
-  ar: {
-    name: "",
-    description: "",
-  },
-});
-
-
+  const [services, setServices] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [formData, setFormData] = useState({
+    en: {
+      name: "",
+      description: "",
+      phone: "",
+      service_id: "",
+      village: "",
+      location: "",
+      status: "",
+      image: null,
+      open_from: "",
+      open_to: "",
+    },
+    ar: {
+      name: "",
+      description: "",
+    },
+  });
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -51,7 +48,7 @@ const [formData, setFormData] = useState({
         );
         const data = await response.json();
         if (data.service_types) {
-          setservices(
+          setServices(
             data.service_types.map((service) => ({
               label: service.name,
               value: service.id.toString(),
@@ -65,32 +62,56 @@ const [formData, setFormData] = useState({
 
     fetchServices();
   }, []);
-
-useEffect(() => {
-  const fetchVillage = async () => {
-    try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/village", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (data.villages) {
-        setVillage(
-          data.villages.map((village) => ({
-            label: village.name,
-            value: village.id.toString(),
-          }))
-        );
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        const response = await fetch("https://bcknd.sea-go.org/admin/zone", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        if (data.zones) {
+          setZones(
+            data.zones.map((zone) => ({
+              label: zone.name,
+              value: zone.id.toString(),
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching zones", error);
       }
-    } catch (error) {
-      console.error("Error fetching Village", error);
-    }
-  };
+    };
 
-  fetchVillage();
-}, []);
+    fetchZones();
+  }, []);
+
+  useEffect(() => {
+    const fetchVillage = async () => {
+      try {
+        const response = await fetch("https://bcknd.sea-go.org/admin/village", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+
+        if (data.villages) {
+          setVillage(
+            data.villages.map((village) => ({
+              label: village.name,
+              value: village.id.toString(),
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching Village", error);
+      }
+    };
+
+    fetchVillage();
+  }, []);
 
   const handleFieldChange = (lang, name, value) => {
     setFormData((prev) => ({
@@ -108,20 +129,20 @@ useEffect(() => {
     const body = new FormData();
     body.append("name", formData.en.name);
     body.append("description", formData.en.description);
-    body.append("service_id", formData.en.service);
-body.append("village_id", formData.en.village);
+    body.append("service_id", formData.en.service_id);
+    body.append("village_id", formData.en.village);
     body.append("location", formData.en.location);
+    body.append("zone_id", formData.en.zone);
+
     body.append("phone", formData.en.phone);
     body.append("status", formData.en.status === "active" ? "1" : "0");
     const formatTimeWithSeconds = (time) => {
-  if (!time) return "";
-  return time.length === 5 ? `${time}:00` : time; // لو HH:mm زود :00
-};
+      if (!time) return "";
+      return time.length === 5 ? `${time}:00` : time; // لو HH:mm زوّد :00
+    };
 
-body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
-body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
-
-
+    body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
+    body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
 
     if (formData.en.image) {
       body.append("image", formData.en.image);
@@ -137,7 +158,7 @@ body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
       "Submitting form with data:",
       Object.fromEntries(body.entries())
     );
-    navigate("/providers")
+    navigate("/providers");
 
     try {
       const response = await fetch(
@@ -152,7 +173,7 @@ body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
       );
 
       if (response.ok) {
-        toast.success("provider added successfully!", {
+        toast.success("Provider added successfully!", {
           position: "top-right",
           autoClose: 3000,
         });
@@ -165,7 +186,10 @@ body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
             location: "",
             status: "",
             village: "",
+            zone: "",
             image: null,
+            open_from: "",
+            open_to: "",
           },
           ar: {
             name: "",
@@ -191,30 +215,63 @@ body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
     }
   };
 
-const fieldsEn = [
-  { type: "input", placeholder: "Provider Name", name: "name" },
-  { type: "input", placeholder: "Description", name: "description" },
-  { type: "select", placeholder: "service", name: "service", options: services },
-  { type: "select", placeholder: "village", name: "village", options: village },
-  { type: "input", placeholder: "Location", name: "location" },
-  { type: "input", placeholder: "Phone", name: "phone" },
-  { type: "time",placeholder:"OPen_From" ,name: "open_from"},
-  { type: "time", placeholder:"Open_To",name: "open_to"},
-  { type: "file", name: "image" },
-  {
-    type: "select",
-    placeholder: "Status",
-    name: "status",
-    options: [
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
-];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
+  // Combine English and Arabic fields into a single array
+  const fields = [
+    { type: "input", placeholder: "Provider Name", name: "name", lang: "en" },
+    {
+      type: "input",
+      placeholder: "Description",
+      name: "description",
+      lang: "en",
+    },
+    {
+      type: "select",
+      placeholder: "Service Type",
+      name: "service_id",
+      options: services,
+      lang: "en",
+    },
+    {
+      type: "select",
+      placeholder: "Village (Optional)",
+      name: "village",
+      options: village,
+      lang: "en",
+    },
+    {
+      type: "select",
+      placeholder: "Zone",
+      name: "zone",
+      options: zones,
+      lang: "en",
+    },
+    { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
+    { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
+    { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
+    { type: "file", name: "image", lang: "en" },
+    {
+      type: "select",
+      placeholder: "Status",
+      name: "status",
+      options: [
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+      lang: "en",
+    },
+    {
+      type: "input",
+      placeholder: " (اختياري) الوصف",
+      name: "description",
+      lang: "ar",
+    },
+    {
+      type: "input",
+      placeholder: " (اختياري) اسم المزود ",
+      name: "name",
+      lang: "ar",
+    },
+    { type: "map", placeholder: "Location", name: "location", lang: "en" },
   ];
 
   return (
@@ -226,43 +283,14 @@ const fieldsEn = [
         Add Provider
       </h2>
 
-      <Tabs defaultValue="english" className="w-full">
-        <TabsList className="grid  !ms-3 w-[50%] grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger
-            value="english"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            English
-          </TabsTrigger>
-          <TabsTrigger
-            value="arabic"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            Arabic
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add
-            fields={fieldsEn}
-            lang="en"
-            values={formData.en}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add
-            fields={fieldsAr}
-            lang="ar"
-            values={formData.ar}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="w-[90%] mx-auto">
+        {/* Pass all fields to a single Add component */}
+        <Add
+          fields={fields}
+          values={{ en: formData.en, ar: formData.ar }}
+          onChange={handleFieldChange}
+        />
+      </div>
 
       <div className="!my-6">
         <Button

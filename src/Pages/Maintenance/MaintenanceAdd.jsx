@@ -8,11 +8,11 @@ import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading"; 
 import { useNavigate } from "react-router-dom";
 
-export default function AddApartment() {
+export default function AddMaintenanceType() {
   const dispatch = useDispatch();
-  const token = localStorage.getItem("token");
   const isLoading = useSelector((state) => state.loader.isLoading); 
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", image: null },
@@ -37,10 +37,9 @@ export default function AddApartment() {
     body.append("status", formData.en.status === "active" ? "1" : "0");
     body.append("image", formData.en.image);
     body.append("ar_name", formData.ar.name);
-    body.append("ar_description", formData.ar.description);
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/appartment_type/add", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/maintenance_type/add", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -49,17 +48,17 @@ export default function AddApartment() {
       });
 
       if (response.ok) {
-        toast.success("Apartment added successfully!", { position: "top-right", autoClose: 3000 });
+        toast.success("Maintenance type added successfully!", { position: "top-right", autoClose: 3000 });
         setFormData({
-          en: { name: "", description: "", status: "", image: null },
-          ar: { name: "", description: "", status: "", image: null },
+          en: { name: "", status: "", image: null },
+          ar: { name: "", status: "", image: null },
         });
-        navigate("/apartments");
+        navigate("/maintenance");
       } else {
-        toast.error("Failed to add apartment.", { position: "top-right", autoClose: 3000 });
+        toast.error("Failed to add maintenance type.", { position: "top-right", autoClose: 3000 });
       }
     } catch (error) {
-      console.error("Error submitting apartment:", error);
+      console.error("Error submitting maintenance type:", error);
       toast.error("An error occurred!", { position: "top-right", autoClose: 3000 });
     } finally {
       dispatch(hideLoader());
@@ -68,7 +67,7 @@ export default function AddApartment() {
 
   // Combine English and Arabic fields into a single array
   const fields = [
-    { type: "input", placeholder: "Apartment Name", name: "name", lang: "en" },
+    { type: "input", placeholder: "Name", name: "name", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     {
       type: "select",
@@ -80,7 +79,7 @@ export default function AddApartment() {
       ],
       lang: "en",
     },
-        { type: "input", placeholder: " (اختياري)اسم المنطقة", name: "name", lang: "ar" },
+        { type: "input", placeholder: "الاسم", name: "name", lang: "ar" }, 
 
   ];
 
@@ -90,7 +89,7 @@ export default function AddApartment() {
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Apartments
+        Add Maintenance Types
       </h2>
 
       <div className="w-[90%] mx-auto">

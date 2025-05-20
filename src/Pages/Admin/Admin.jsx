@@ -9,11 +9,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
-const Zones = () => {
+const Admins = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [zones, setZones] = useState([]);
+  const [admins, setadmins] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -28,10 +35,10 @@ const Zones = () => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-  const fetchZones = async () => {
+  const fetchadmins = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/zone", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/admins", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -40,26 +47,31 @@ const Zones = () => {
       });
 
       const result = await response.json();
+
       const currentLang = localStorage.getItem("lang") || "en";
 
-      const formatted = result.zones.map((zone) => {
-        const translations = zone.translations.reduce((acc, t) => {
+      const formatted = result.admins.map((admin) => {
+        const translations = (admin.translations || []).reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name = translations[currentLang]?.name || zone.name || "—";
-        const description =
-          translations[currentLang]?.description || zone.description || "—";
+        const name = translations[currentLang]?.name || admin.name || "—";
+        const email = translations[currentLang]?.email || admin.email || "—";
+        const phone = translations[currentLang]?.phone || admin.phone || "—";
+        const role =
+          translations[currentLang]?.provider_only ||
+          admin.provider_only ||
+          "—";
 
         const image =
-          zone?.image_link && !imageErrors[zone.id] ? (
+          admin?.image_link && !imageErrors[admin.id] ? (
             <img
-              src={zone.image_link}
+              src={admin.image_link}
               alt={name}
               className="w-12 h-12 rounded-md object-cover aspect-square"
-              onError={() => handleImageError(zone.id)}
+              onError={() => handleImageError(admin.id)}
             />
           ) : (
             <Avatar className="w-12 h-12">
@@ -68,47 +80,63 @@ const Zones = () => {
           );
 
         return {
-          id: zone.id,
+          id: admin.id,
           name,
-          description,
+          email,
+          role: admin.provider_only,
+          phone,
           img: image,
-          numberOfVillages: zone.villages_count ?? "0",
-          status: zone.status === 1 ? "Active" : "Inactive",
-          image_link: zone.image_link, // Keep the raw link for updating
+          status: admin.status === 1 ? "Active" : "Inactive",
+          image_link: admin.image_link,
+          gender: admin.gender || "—",
         };
       });
 
-      setZones(formatted);
+      setadmins(formatted);
     } catch (error) {
-      console.error("Error fetching zones:", error);
+      console.error("Error fetching admins:", error);
     } finally {
       dispatch(hideLoader());
     }
   };
 
   useEffect(() => {
-    fetchZones();
+    fetchadmins();
   }, []);
 
-  const handleEdit = (zone) => {
-    setSelectedRow(zone);
+  const handleEdit = (admin) => {
+    setSelectedRow(admin);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (zone) => {
-    setSelectedRow(zone);
+  const handleDelete = (admin) => {
+    setSelectedRow(admin);
     setIsDeleteOpen(true);
   };
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, description, numberOfVillages, status, imageFile } =
-      selectedRow;
+    const {
+      id,
+      name,
+      phone,
+      email,
+      role,
+      status,
+      gender,
+      password,
+      imageFile,
+    } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
-    formData.append("description", description);
-    formData.append("villages_count", parseInt(numberOfVillages));
+    formData.append("phone", phone);
+    formData.append("email", email);
+    formData.append("role", role);
+    formData.append("password", password);
+
+    formData.append("provider_only", role);
+    formData.append("gender", gender);
     formData.append("status", status === "Active" ? 1 : 0);
 
     if (imageFile) {
@@ -117,7 +145,7 @@ const Zones = () => {
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/update/${id}`,
+        `https://bcknd.sea-go.org/admin/admins/update/${id}`,
         {
           method: "POST",
           headers: getAuthHeaders(),
@@ -126,38 +154,40 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone updated successfully!");
+        toast.success("admin updated successfully!");
         const responseData = await response.json();
 
-        setZones((prev) =>
-          prev.map((zone) =>
-            zone.id === id
+        setadmins((prev) =>
+          prev.map((admin) =>
+            admin.id === id
               ? {
-                  ...zone,
-                  name: responseData?.zone?.name || name,
-                  description: responseData?.zone?.description || description,
-                  villages_count:
-                    responseData?.zone?.villages_count ||
-                    parseInt(numberOfVillages),
+                  ...admin,
+                  name: responseData?.admin?.name || name,
+                  phone: responseData?.admin?.phone || phone,
+                  email: responseData?.admin?.email || email,
+                  role: responseData?.admin?.provider_only, // Update with the boolean value
+                  gender: responseData?.admin?.gender || gender,
                   status:
-                    responseData?.zone?.status === 1 ? "Active" : "Inactive",
-                  image_link: responseData?.zone?.image_link || zone.image_link,
-                  img: responseData?.zone?.image_link ? (
+                    responseData?.admin?.status === 1 ? "Active" : "Inactive",
+                  image_link:
+                    responseData?.admin?.image_link || admin.image_link,
+                  img: responseData?.admin?.image_link ? (
                     <img
-                      src={responseData.zone.image_link}
-                      alt={responseData?.zone?.name || name}
+                      src={responseData.admin.image_link}
+                      alt={responseData?.admin?.name || name}
                       className="w-12 h-12 rounded-md object-cover aspect-square"
-                      onError={() => {}}
+                      onError={() => handleImageError(id)}
                     />
                   ) : (
                     <Avatar className="w-12 h-12">
                       <AvatarFallback>
-                        {responseData?.zone?.name?.charAt(0) || name?.charAt(0)}
+                        {responseData?.admin?.name?.charAt(0) ||
+                          name?.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                   ),
                 }
-              : zone
+              : admin
           )
         );
         setIsEditOpen(false);
@@ -165,18 +195,18 @@ const Zones = () => {
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error("Failed to update zone!");
+        toast.error("Failed to update admin!");
       }
     } catch (error) {
-      console.error("Error updating zone:", error);
-      toast.error("Error occurred while updating zone!");
+      console.error("Error updating admin:", error);
+      toast.error("Error occurred while updating admin!");
     }
   };
 
   const handleDeleteConfirm = async () => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/delete/${selectedRow.id}`,
+        `https://bcknd.sea-go.org/admin/admins/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
@@ -184,15 +214,15 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone deleted successfully!");
-        setZones(zones.filter((zone) => zone.id !== selectedRow.id));
+        toast.success("admin deleted successfully!");
+        setadmins(admins.filter((admin) => admin.id !== selectedRow.id));
         setIsDeleteOpen(false);
       } else {
-        toast.error("Failed to delete zone!");
+        toast.error("Failed to delete admin!");
       }
     } catch (error) {
-      console.error("Error deleting zone:", error);
-      toast.error("Error occurred while deleting zone!");
+      console.error("Error deleting admin:", error);
+      toast.error("Error occurred while deleting admin!");
     }
   };
 
@@ -201,7 +231,7 @@ const Zones = () => {
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/status/${id}?status=${newStatus}`,
+        `https://bcknd.sea-go.org/admin/admins/status/${id}?status=${newStatus}`,
         {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -209,22 +239,22 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone status updated successfully!");
-        setZones((prevZones) =>
-          prevZones.map((zone) =>
-            zone.id === id
-              ? { ...zone, status: newStatus === 1 ? "Active" : "Inactive" }
-              : zone
+        toast.success("admin status updated successfully!");
+        setadmins((prevadmins) =>
+          prevadmins.map((admin) =>
+            admin.id === id
+              ? { ...admin, status: newStatus === 1 ? "Active" : "Inactive" }
+              : admin
           )
         );
       } else {
         const errorData = await response.json();
-        console.error("Failed to update zone status:", errorData);
-        toast.error("Failed to update zone status!");
+        console.error("Failed to update admin status:", errorData);
+        toast.error("Failed to update admin status!");
       }
     } catch (error) {
-      console.error("Error updating zone status:", error);
-      toast.error("Error occurred while updating zone status!");
+      console.error("Error updating admin status:", error);
+      toast.error("Error occurred while updating admin status!");
     }
   };
 
@@ -236,7 +266,7 @@ const Zones = () => {
   };
 
   const handleImageChange = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (file) {
       setSelectedRow((prev) => ({
         ...prev,
@@ -246,11 +276,17 @@ const Zones = () => {
   };
 
   const columns = [
-    { key: "name", label: "Zone Name" },
-    { key: "description", label: "Description" },
-    { key: "numberOfVillages", label: "Number of Villages" },
+    { key: "name", label: "Name" },
+    { key: "phone", label: "Phone" },
+    { key: "email", label: "Email" },
+    {
+      key: "role",
+      label: "Role",
+      render: (row) => (row.role === 1 ? "Provider" : "Admin"), // Display "Provider" or "Admin"
+    },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
+    { key: "gender", label: "Gender" },
   ];
 
   return (
@@ -259,14 +295,14 @@ const Zones = () => {
       <ToastContainer />
 
       <DataTable
-        data={zones}
+        data={admins}
         columns={columns}
-        addRoute="/zones/add"
+        addRoute="/admin/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description"]}
+        searchKeys={["name", "phone"]}
       />
 
       {selectedRow && (
@@ -279,34 +315,110 @@ const Zones = () => {
             columns={columns}
             onChange={onChange}
           >
-            <label htmlFor="name" className="text-gray-400 !pb-3">
-              Zone Name
-            </label>
-            <Input
-              id="name"
-              value={selectedRow?.name || ""}
-              onChange={(e) => onChange("name", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
-            <label htmlFor="description" className="text-gray-400 !pb-3">
-              Description
-            </label>
-            <Input
-              id="description"
-              value={selectedRow?.description || ""}
-              onChange={(e) => onChange("description", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
-            <label htmlFor="image" className="text-gray-400 !pb-3">
-              Image
-            </label>
-            <Input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-              onChange={handleImageChange}
-            />
+            <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <label htmlFor="name" className="text-gray-400 !pb-3">
+                Name
+              </label>
+              <Input
+                id="name"
+                value={selectedRow?.name || ""}
+                onChange={(e) => onChange("name", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="email" className="text-gray-400 !pb-3">
+                Email
+              </label>
+              <Input
+                id="email"
+                value={selectedRow?.email || ""}
+                onChange={(e) => onChange("email", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="role" className="text-gray-400 !pb-3">
+                Role
+              </label>
+              {selectedRow?.role === 1 ? (
+                <Input
+                  id="role"
+                  value="Provider"
+                  
+                  className="!my-2 text-bg-primary !p-4"
+                />
+              ) : (
+                <Select
+                  value={selectedRow?.role?.toString()}
+                  onValueChange={(value) =>
+                    onChange("role", value === "all" ? 0 : 1)
+                  } 
+                >
+                  <SelectTrigger
+                    id="role"
+                    className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                  >
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                    <SelectItem value="0" className="text-bg-primary">
+                      All/Admin
+                    </SelectItem>
+                    <SelectItem value="1" className="text-bg-primary">
+                      Provider
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <label htmlFor="phone" className="text-gray-400 !pb-3">
+                Phone
+              </label>
+
+              <Input
+                id="phone"
+                value={selectedRow?.phone || ""}
+                onChange={(e) => onChange("phone", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="gender" className="text-gray-400 !pb-3">
+                Gender
+              </label>
+              <Select
+                value={selectedRow?.gender}
+                onValueChange={(value) => onChange("gender", value)}
+              >
+                <SelectTrigger
+                  id="gender"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[8px]"
+                >
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  <SelectItem value="male" className="text-bg-primary">
+                    Male
+                  </SelectItem>
+                  <SelectItem value="female" className="text-bg-primary">
+                    Female
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <label htmlFor="password" className="text-gray-400 !pb-3">
+                Password
+              </label>
+              <Input
+                id="password"
+                value={selectedRow?.password || ""}
+                onChange={(e) => onChange("password", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="image" className="text-gray-400 !pb-3">
+                Image
+              </label>
+              <Input
+                type="file"
+                id="image"
+                accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={handleImageChange}
+              />
+            </div>
           </EditDialog>
           <DeleteDialog
             open={isDeleteOpen}
@@ -320,4 +432,4 @@ const Zones = () => {
   );
 };
 
-export default Zones;
+export default Admins;

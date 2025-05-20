@@ -171,7 +171,6 @@ export default function AddVillage() {
       placeholder: "User Type",
       name: "user_type",
       options: [
-        { value: "rent", label: "Rent" },
         { value: "owner", label: "Owner" },
         { value: "visitor", label: "Visitor" },
       ],
@@ -179,7 +178,7 @@ export default function AddVillage() {
   ];
 
   return (
-    <div className="w-full p-6 relative">
+    <div className="w-[90%] p-6 relative">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">

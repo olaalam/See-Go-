@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDispatch, useSelector } from 'react-redux';
-import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
+import { useDispatch, useSelector } from "react-redux";
+import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +13,7 @@ export default function AddPaymentMethod() {
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     en: { name: "", description: "", status: "", logo: null },
     ar: { name: "", description: "", status: "", logo: null },
@@ -60,36 +60,54 @@ export default function AddPaymentMethod() {
     }
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/payment_method/add", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body,
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/payment_method/add",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body,
+        }
+      );
 
       if (response.ok) {
-        toast.success("Payment Method added successfully!", { position: "top-right", autoClose: 3000 });
+        toast.success("Payment Method added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
         setFormData({
           en: { name: "", description: "", status: "", logo: null },
           ar: { name: "", description: "", status: "", logo: null },
         });
-        navigate("/payment-methods")
+        navigate("/payment-methods");
       } else {
-        toast.error("Failed to add Payment Method.", { position: "top-right", autoClose: 3000 });
+        toast.error("Failed to add Payment Method.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
       }
     } catch (error) {
       console.error("Error submitting Payment Method:", error);
-      toast.error("An error occurred!", { position: "top-right", autoClose: 3000 });
+      toast.error("An error occurred!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } finally {
       dispatch(hideLoader());
     }
   };
 
-  const fieldsEn = [
-    { type: "input", placeholder: "Payment Method", name: "name" },
-    { type: "input", placeholder: "Description", name: "description" },
-    { type: "file", name: "logo" },
+  // Combine English and Arabic fields into a single array
+  const fields = [
+    { type: "input", placeholder: "Payment Method", name: "name", lang: "en" },
+    {
+      type: "input",
+      placeholder: "Description",
+      name: "description",
+      lang: "en",
+    },
+    { type: "file", name: "logo", lang: "en" },
     {
       type: "select",
       placeholder: "Status",
@@ -98,22 +116,10 @@ export default function AddPaymentMethod() {
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
+      lang: "en",
     },
-  ];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "طريقة الدفع", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
-    { type: "file", name: "logo" },
-    {
-      type: "select",
-      placeholder: "status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
+    { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
+    { type: "input", placeholder: " (اختياري) طريقة الدفع", name: "name", lang: "ar" },
   ];
 
   return (
@@ -125,19 +131,14 @@ export default function AddPaymentMethod() {
         Add Payment Methods
       </h2>
 
-      <Tabs defaultValue="english" className="w-full ">
-        <TabsList className="grid w-[50%] !ms-3 grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger value="english" className="rounded-[10px] border text-bg-primary py-2 transition-all data-[state=active]:bg-bg-primary data-[state=active]:text-white hover:bg-teal-100 hover:text-teal-700">English</TabsTrigger>
-          <TabsTrigger value="arabic" className="rounded-[10px] border text-bg-primary py-2 transition-all data-[state=active]:bg-bg-primary data-[state=active]:text-white hover:bg-teal-100 hover:text-teal-700">Arabic</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add fields={fieldsEn} lang="en" values={formData.en} onChange={handleFieldChange} />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add fields={fieldsAr} lang="ar" values={formData.ar} onChange={handleFieldChange} />
-        </TabsContent>
-      </Tabs>
+      <div className="w-[90%] mx-auto">
+        {/* Pass all fields to a single Add component */}
+        <Add
+          fields={fields}
+          values={{ en: formData.en, ar: formData.ar }}
+          onChange={handleFieldChange}
+        />
+      </div>
 
       <div className="!my-6">
         <Button

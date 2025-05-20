@@ -23,7 +23,6 @@ export default function VAdmin() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [villageOptions, setVillageOptions] = useState([]);
-
   const [villagePositions, setVillagePositions] = useState([]);
   const { id } = useParams();
   const token = localStorage.getItem("token");
@@ -33,49 +32,6 @@ export default function VAdmin() {
     { label: "Email", key: "email" },
     { label: "Phone Number", key: "phone" },
     { label: "Role", key: "role" },
-    {
-      label: "Profile",
-      key: "profile",
-      render: (row) =>
-        row.profile ? (
-          <img
-            src={row.profile}
-            alt="profile"
-            className="w-10 h-10 rounded-full"
-          />
-        ) : (
-          "—"
-        ),
-    },
-    {
-      label: "Cover",
-      key: "cover",
-      render: (row) =>
-        row.cover ? (
-          <img src={row.cover} alt="cover" className="w-16 h-10 rounded" />
-        ) : (
-          "—"
-        ),
-    },
-    {
-      label: "Gallery",
-      key: "gallery",
-      render: (row) =>
-        Array.isArray(row.gallery) && row.gallery.length > 0 ? (
-          <div className="flex gap-1">
-            {row.gallery.slice(0, 3).map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt={`gallery-${i}`}
-                className="w-10 h-10 rounded object-cover"
-              />
-            ))}
-          </div>
-        ) : (
-          "—"
-        ),
-    },
     { key: "status", label: "Status" },
   ];
 

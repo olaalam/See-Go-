@@ -34,7 +34,10 @@ import Admin from "./Pages/Admin/Admin";
 import AdminAdd from "./Pages/Admin/AdminAdd";
 import Invoice from "./Pages/Invoice/Invoice";
 import InvoiceEdit from "./Pages/Invoice/InvoiceEdit";
-
+import Maintenance_types from "./Pages/Maintenance/Maintenance";
+import Addmaintenance_type from "./Pages/Maintenance/MaintenanceAdd";
+import ServiceProvider from "./Pages/ServiceProvider/ServiceProvider";
+import ServiceProviderAdd from "./Pages/ServiceProvider/ServiceProviderAdd";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
@@ -157,6 +160,23 @@ const router = createBrowserRouter([
           { path: "edit", element: <InvoiceEdit /> },
         ],
       },
+            
+            {
+        path: "maintenance",
+        children: [
+          { index: true, element: <Maintenance_types /> },
+          { path: "add", element: <Addmaintenance_type /> },
+        ],
+      },
+                  {
+        path: "service-provider",
+        children: [
+          { index: true, element: <ServiceProvider /> },
+          { path: "add", element: <ServiceProviderAdd /> },
+        ],
+      },
+      
+
       {
         path: "*",
         element: <NotFound />,

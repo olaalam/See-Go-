@@ -10,10 +10,10 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
 
-const Zones = () => {
+const Maintenance_types = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [zones, setZones] = useState([]);
+  const [maintenance_types, setmaintenance_types] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -28,10 +28,10 @@ const Zones = () => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-  const fetchZones = async () => {
+  const fetchmaintenance_types = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/zone", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/maintenance_type", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -42,24 +42,22 @@ const Zones = () => {
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      const formatted = result.zones.map((zone) => {
-        const translations = zone.translations.reduce((acc, t) => {
+      const formatted = result.maintenance_types.map((maintenance_type) => {
+        const translations = maintenance_type.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name = translations[currentLang]?.name || zone.name || "—";
-        const description =
-          translations[currentLang]?.description || zone.description || "—";
+        const name = translations[currentLang]?.name || maintenance_type.name || "—";
 
         const image =
-          zone?.image_link && !imageErrors[zone.id] ? (
+          maintenance_type?.image_link && !imageErrors[maintenance_type.id] ? (
             <img
-              src={zone.image_link}
+              src={maintenance_type.image_link}
               alt={name}
               className="w-12 h-12 rounded-md object-cover aspect-square"
-              onError={() => handleImageError(zone.id)}
+              onError={() => handleImageError(maintenance_type.id)}
             />
           ) : (
             <Avatar className="w-12 h-12">
@@ -68,55 +66,52 @@ const Zones = () => {
           );
 
         return {
-          id: zone.id,
+          id: maintenance_type.id,
           name,
-          description,
           img: image,
-          numberOfVillages: zone.villages_count ?? "0",
-          status: zone.status === 1 ? "Active" : "Inactive",
-          image_link: zone.image_link, // Keep the raw link for updating
+          status: maintenance_type.status === 1 ? "Active" : "Inactive",
+          image_link: maintenance_type.image_link, // Keep the raw link for updating
         };
       });
 
-      setZones(formatted);
+      setmaintenance_types(formatted);
     } catch (error) {
-      console.error("Error fetching zones:", error);
+      console.error("Error fetching maintenance_types:", error);
     } finally {
       dispatch(hideLoader());
     }
   };
 
   useEffect(() => {
-    fetchZones();
+    fetchmaintenance_types();
   }, []);
 
-  const handleEdit = (zone) => {
-    setSelectedRow(zone);
+  const handleEdit = (maintenance_type) => {
+    setSelectedRow(maintenance_type);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (zone) => {
-    setSelectedRow(zone);
+  const handleDelete = (maintenance_type) => {
+    setSelectedRow(maintenance_type);
     setIsDeleteOpen(true);
   };
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, description, numberOfVillages, status, imageFile } =
+    const { id, name, status, imageFile } =
       selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
-    formData.append("description", description);
     formData.append("status", status === "Active" ? 1 : 0);
- formData.append("zone_id", id);
+
     if (imageFile) {
       formData.append("image", imageFile);
     }
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/update/${id}`,
+        `https://bcknd.sea-go.org/admin/maintenance_type/update/${id}`,
         {
           method: "POST",
           headers: getAuthHeaders(),
@@ -125,38 +120,34 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone updated successfully!");
+        toast.success("maintenance_type updated successfully!");
         const responseData = await response.json();
 
-        setZones((prev) =>
-          prev.map((zone) =>
-            zone.id === id
+        setmaintenance_types((prev) =>
+          prev.map((maintenance_type) =>
+            maintenance_type.id === id
               ? {
-                  ...zone,
-                  name: responseData?.zone?.name || name,
-                  description: responseData?.zone?.description || description,
-                  villages_count:
-                    responseData?.zone?.villages_count ||
-                    parseInt(numberOfVillages),
+                  ...maintenance_type,
+                  name: responseData?.maintenance_type?.name || name,
                   status:
-                    responseData?.zone?.status === 1 ? "Active" : "Inactive",
-                  image_link: responseData?.zone?.image_link || zone.image_link,
-                  img: responseData?.zone?.image_link ? (
+                    responseData?.maintenance_type?.status === 1 ? "Active" : "Inactive",
+                  image_link: responseData?.maintenance_type?.image_link || maintenance_type.image_link,
+                  img: responseData?.maintenance_type?.image_link ? (
                     <img
-                      src={responseData.zone.image_link}
-                      alt={responseData?.zone?.name || name}
+                      src={responseData.maintenance_type.image_link}
+                      alt={responseData?.maintenance_type?.name || name}
                       className="w-12 h-12 rounded-md object-cover aspect-square"
                       onError={() => {}}
                     />
                   ) : (
                     <Avatar className="w-12 h-12">
                       <AvatarFallback>
-                        {responseData?.zone?.name?.charAt(0) || name?.charAt(0)}
+                        {responseData?.maintenance_type?.name?.charAt(0) || name?.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                   ),
                 }
-              : zone
+              : maintenance_type
           )
         );
         setIsEditOpen(false);
@@ -164,18 +155,18 @@ const Zones = () => {
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error("Failed to update zone!");
+        toast.error("Failed to update maintenance_type!");
       }
     } catch (error) {
-      console.error("Error updating zone:", error);
-      toast.error("Error occurred while updating zone!");
+      console.error("Error updating maintenance_type:", error);
+      toast.error("Error occurred while updating maintenance_type!");
     }
   };
 
   const handleDeleteConfirm = async () => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/delete/${selectedRow.id}`,
+        `https://bcknd.sea-go.org/admin/maintenance_type/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
@@ -183,15 +174,15 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone deleted successfully!");
-        setZones(zones.filter((zone) => zone.id !== selectedRow.id));
+        toast.success("maintenance_type deleted successfully!");
+        setmaintenance_types(maintenance_types.filter((maintenance_type) => maintenance_type.id !== selectedRow.id));
         setIsDeleteOpen(false);
       } else {
-        toast.error("Failed to delete zone!");
+        toast.error("Failed to delete maintenance_type!");
       }
     } catch (error) {
-      console.error("Error deleting zone:", error);
-      toast.error("Error occurred while deleting zone!");
+      console.error("Error deleting maintenance_type:", error);
+      toast.error("Error occurred while deleting maintenance_type!");
     }
   };
 
@@ -200,7 +191,7 @@ const Zones = () => {
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/zone/status/${id}?status=${newStatus}`,
+        `https://bcknd.sea-go.org/admin/maintenance_type/status/${id}?status=${newStatus}`,
         {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -208,22 +199,22 @@ const Zones = () => {
       );
 
       if (response.ok) {
-        toast.success("Zone status updated successfully!");
-        setZones((prevZones) =>
-          prevZones.map((zone) =>
-            zone.id === id
-              ? { ...zone, status: newStatus === 1 ? "Active" : "Inactive" }
-              : zone
+        toast.success("maintenance_type status updated successfully!");
+        setmaintenance_types((prevmaintenance_types) =>
+          prevmaintenance_types.map((maintenance_type) =>
+            maintenance_type.id === id
+              ? { ...maintenance_type, status: newStatus === 1 ? "Active" : "Inactive" }
+              : maintenance_type
           )
         );
       } else {
         const errorData = await response.json();
-        console.error("Failed to update zone status:", errorData);
-        toast.error("Failed to update zone status!");
+        console.error("Failed to update maintenance_type status:", errorData);
+        toast.error("Failed to update maintenance_type status!");
       }
     } catch (error) {
-      console.error("Error updating zone status:", error);
-      toast.error("Error occurred while updating zone status!");
+      console.error("Error updating maintenance_type status:", error);
+      toast.error("Error occurred while updating maintenance_type status!");
     }
   };
 
@@ -245,9 +236,7 @@ const Zones = () => {
   };
 
   const columns = [
-    { key: "name", label: "Zone Name" },
-    { key: "description", label: "Description" },
-    { key: "numberOfVillages", label: "Number of Villages" },
+    { key: "name", label: "maintenance_type Name" },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
@@ -258,9 +247,9 @@ const Zones = () => {
       <ToastContainer />
 
       <DataTable
-        data={zones}
+        data={maintenance_types}
         columns={columns}
-        addRoute="/zones/add"
+        addRoute="/maintenance/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
@@ -279,7 +268,7 @@ const Zones = () => {
             onChange={onChange}
           >
             <label htmlFor="name" className="text-gray-400 !pb-3">
-              Zone Name
+              maintenance_type Name
             </label>
             <Input
               id="name"
@@ -287,15 +276,7 @@ const Zones = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
-            <label htmlFor="description" className="text-gray-400 !pb-3">
-              Description
-            </label>
-            <Input
-              id="description"
-              value={selectedRow?.description || ""}
-              onChange={(e) => onChange("description", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
+
             <label htmlFor="image" className="text-gray-400 !pb-3">
               Image
             </label>
@@ -319,4 +300,4 @@ const Zones = () => {
   );
 };
 
-export default Zones;
+export default Maintenance_types;

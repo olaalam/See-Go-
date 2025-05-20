@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 
 export default function DeleteDialog({   open,
-  onOpenChange, onDelete, selectedRow }) {
+  onOpenChange, onDelete, selectedRow ,name }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white !p-10 rounded-lg shadow-md max-w-md">
@@ -12,7 +12,7 @@ export default function DeleteDialog({   open,
           </DialogTitle>
         </DialogHeader>
         <p className="text-gray-600">
-          Are you sure you want to delete the row "{selectedRow?.name}"? This action cannot be undone.
+          Are you sure you want to delete the row "{name || selectedRow?.name}"? This action cannot be undone.
         </p>
         <DialogFooter className="mt-6">
           <Button

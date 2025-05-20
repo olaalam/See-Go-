@@ -213,7 +213,7 @@ export default function Addvillage_admin() {
   ];
 
   return (
-    <div className="w-full p-6 relative">
+    <div className="w-[90%] p-6 relative">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 

@@ -120,9 +120,29 @@ const Users = () => {
   };
 
   const handleSave = async () => {
-    const { id, name, email, phone, password, gender, birthDate, user_type, status, rent_from, rent_to } = selectedRow;
+    const {
+      id,
+      name,
+      email,
+      phone,
+      password,
+      gender,
+      birthDate,
+      user_type,
+      status,
+      rent_from,
+      rent_to,
+    } = selectedRow;
 
-    if (!name || !email || !phone || !password || !gender || !birthDate || !user_type ) {
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !password ||
+      !gender ||
+      !birthDate ||
+      !user_type
+    ) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -141,11 +161,14 @@ const Users = () => {
     };
 
     try {
-      const res = await fetch(`https://bcknd.sea-go.org/admin/user/update/${id}`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(updatedUser),
-      });
+      const res = await fetch(
+        `https://bcknd.sea-go.org/admin/user/update/${id}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updatedUser),
+        }
+      );
 
       if (res.ok) {
         toast.success("User updated successfully!");
@@ -156,7 +179,6 @@ const Users = () => {
                   ...user,
                   ...updatedUser,
                   status: updatedUser.status === 1 ? "Active" : "Inactive",
-
                 }
               : user
           )
@@ -164,7 +186,6 @@ const Users = () => {
         setIsEditOpen(false);
         setselectedRow(null);
         console.log("Payload being sent:", updatedUser);
-
       } else {
         toast.error("Failed to update user.");
       }
@@ -207,7 +228,9 @@ const Users = () => {
         toast.success("Status updated!");
         setUsers((prev) =>
           prev.map((u) =>
-            u.id === row.id ? { ...u, status: newStatus === 1 ? "Active" : "Inactive" } : u
+            u.id === row.id
+              ? { ...u, status: newStatus === 1 ? "Active" : "Inactive" }
+              : u
           )
         );
       } else toast.error("Failed to update status.");
@@ -236,33 +259,91 @@ const Users = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-          searchKeys={["name", "email"]}
-
+        searchKeys={["name", "email"]}
       />
       {selectedRow && (
         <>
           <EditDialog
-          className="!p-4"
+            className="!p-4"
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <InputField     label="Name" id="name" value={selectedRow.name} onChange={(val) => onChange("name", val)} />
-              <InputField     label="Email" id="email" value={selectedRow.email} onChange={(val) => onChange("email", val)} />
-              <InputField     label="Phone" id="phone" value={selectedRow.phone} onChange={(val) => onChange("phone", val)} />
-              <InputField     label="Password" id="password" type="password" value={selectedRow.password} onChange={(val) => onChange("password", val)} />
-              <InputField     label="Birth Date" id="birthDate" type="date" value={selectedRow.birthDate} onChange={(val) => onChange("birthDate", val)} />
-              <InputField     label="Gender" id="gender" value={selectedRow.gender} onChange={(val) => onChange("gender", val)} />
-              <InputField     label="Account Type" id="user_type" value={selectedRow.user_type} onChange={(val) => onChange("user_type", val)} />
+              <InputField
+                label="Name"
+                id="name"
+                value={selectedRow.name}
+                onChange={(val) => onChange("name", val)}
+              />
+              <InputField
+                label="Email"
+                id="email"
+                value={selectedRow.email}
+                onChange={(val) => onChange("email", val)}
+              />
+              <InputField
+                label="Phone"
+                id="phone"
+                value={selectedRow.phone}
+                onChange={(val) => onChange("phone", val)}
+              />
+              <InputField
+                label="Password"
+                id="password"
+                type="password"
+                value={selectedRow.password}
+                onChange={(val) => onChange("password", val)}
+              />
+              <InputField
+                label="Birth Date"
+                id="birthDate"
+                type="date"
+                value={selectedRow.birthDate}
+                onChange={(val) => onChange("birthDate", val)}
+              />
+              <InputField
+                label="Gender"
+                id="gender"
+                value={selectedRow.gender}
+                onChange={(val) => onChange("gender", val)}
+              />
+              <div>
+                <Label htmlFor="user_type" className="text-gray-400 !pb-1">
+                  Account Type
+                </Label>
+                <Select
+                  value={selectedRow.user_type}
+                  onValueChange={(val) => onChange("user_type", val)}
+                >
+                  <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                    <SelectValue placeholder="Select Account Type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                    <SelectItem  className="text-bg-primary "  value="owner">Owner</SelectItem>
+                    <SelectItem  className="text-bg-primary " value="visitor">Visitor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {selectedRow.user_type === "rent" && (
                 <>
-                  <InputField label="Rent From" id="rent_from" type="date" value={selectedRow.rent_from} onChange={(val) => onChange("rent_from", val)} />
-                  <InputField label="Rent To" id="rent_to" type="date" value={selectedRow.rent_to} onChange={(val) => onChange("rent_to", val)} />
+                  <InputField
+                    label="Rent From"
+                    id="rent_from"
+                    type="date"
+                    value={selectedRow.rent_from}
+                    onChange={(val) => onChange("rent_from", val)}
+                  />
+                  <InputField
+                    label="Rent To"
+                    id="rent_to"
+                    type="date"
+                    value={selectedRow.rent_to}
+                    onChange={(val) => onChange("rent_to", val)}
+                  />
                 </>
               )}
-
             </div>
           </EditDialog>
 
@@ -280,13 +361,15 @@ const Users = () => {
 
 const InputField = ({ label, id, value, onChange, type = "text" }) => (
   <div>
-    <Label htmlFor={id} className="text-gray-400 !pb-1">{label}</Label>
+    <Label htmlFor={id} className="text-gray-400 !pb-1">
+      {label}
+    </Label>
     <Input
       id={id}
       type={type}
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
- className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
     />
   </div>
 );

@@ -1,22 +1,31 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDispatch, useSelector } from 'react-redux';
-import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
-import FullPageLoader from "@/components/Loading"; 
+import { useDispatch, useSelector } from "react-redux";
+import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
+import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
-export default function AddZone() {
+export default function Addadmin() {
   const dispatch = useDispatch();
-  const isLoading = useSelector((state) => state.loader.isLoading); 
+  const isLoading = useSelector((state) => state.loader.isLoading);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   const [formData, setFormData] = useState({
-    en: { name: "", description: "", status: "", image: null },
-    ar: { name: "", description: "", status: "", image: null },
+    en: {
+      name: "",
+      phone: "",
+      email: "",
+      password: "",
+      gender: "",
+      role: "",
+      status: "",
+      image: null,
+    },
   });
+  const { name, phone, email, password, gender, role, status, image } = formData.en;
 
   const handleFieldChange = (lang, name, value) => {
     setFormData((prev) => ({
@@ -31,44 +40,90 @@ export default function AddZone() {
   const handleSubmit = async () => {
     dispatch(showLoader());
 
-    const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
-    body.append("image", formData.en.image);
-    body.append("ar_name", formData.ar.name);
-    body.append("ar_description", formData.ar.description);
+    const backendRoleValue = role === "provider" ? 1 : 0;
+    const statusValue = status === "active" ? 1 : 0;
+
+    const formDataToSend = new FormData();
+    formDataToSend.append("name", name);
+    formDataToSend.append("phone", phone);
+    formDataToSend.append("email", email);
+    formDataToSend.append("password", password);
+    formDataToSend.append("provider_only", backendRoleValue);
+    formDataToSend.append("gender", gender);
+    formDataToSend.append("status", statusValue);
+
+    if (image) {
+      formDataToSend.append("image", image);
+    }
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/zone/add", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/admins/add", {
         method: "POST",
         headers: {
-          Authorization: "Bearer 1|lT28bSsFeyAMSLJGnHcIYMDekPJRx3M1T6ROsQlmf0208b31",
+          Authorization: `Bearer ${token}`,
         },
-        body,
+        body: formDataToSend,
       });
 
       if (response.ok) {
-        toast.success("Zone added successfully!", { position: "top-right", autoClose: 3000 });
-        setFormData({
-          en: { name: "", description: "", status: "", image: null },
-          ar: { name: "", description: "", status: "", image: null },
+        toast.success("admin added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
         });
-        navigate("/admin")
+        setFormData({
+          en: {
+            name: "",
+            phone: "",
+            email: "",
+            password: "",
+            gender: "",
+            role: "",
+            status: "",
+            image: null,
+          },
+        });
+        navigate("/admin");
       } else {
-        toast.error("Failed to add zone.", { position: "top-right", autoClose: 3000 });
+        toast.error("Failed to add admin.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
       }
     } catch (error) {
-      console.error("Error submitting zone:", error);
-      toast.error("An error occurred!", { position: "top-right", autoClose: 3000 });
+      console.error("Error submitting admin:", error);
+      toast.error("An error occurred!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } finally {
       dispatch(hideLoader());
     }
   };
 
   const fieldsEn = [
-    { type: "input", placeholder: "Zone Name", name: "name" },
-    { type: "input", placeholder: "Description", name: "description" },
+    { type: "input", placeholder: "Name", name: "name" },
+    { type: "input", placeholder: "Phone", name: "phone" },
+    { type: "input", placeholder: "Email", name: "email" },
+    { type: "input", inputType: "password", placeholder: "Password", name: "password" },
+    {
+      type: "select",
+      placeholder: "Gender",
+      name: "gender",
+      options: [
+        { value: "male", label: "Male" },
+        { value: "female", label: "Female" },
+      ],
+    },
+    {
+      type: "select",
+      placeholder: "Role",
+      name: "role",
+      options: [
+        { value: "all", label: "All" },
+        { value: "admin", label: "Admin" },
+        { value: "provider", label: "Provider" },
+      ],
+    },
     { type: "file", name: "image" },
     {
       type: "select",
@@ -80,49 +135,22 @@ export default function AddZone() {
       ],
     },
   ];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
-    { type: "file", name: "image" },
-    {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
-  ];
-  
 
   return (
-    <div className="w-full p-6 relative">
+    <div className="w-[90%] p-6 relative">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Zones
+        Add admin
       </h2>
 
-      <Tabs defaultValue="english" className="w-full ">
-        <TabsList className="grid w-[50%] !ms-3 grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger value="english"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">English</TabsTrigger>
-          <TabsTrigger value="arabic"             className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700">Arabic</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add fields={fieldsEn} lang="en" values={formData.en} onChange={handleFieldChange} />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add fields={fieldsAr} lang="ar" values={formData.ar} onChange={handleFieldChange} />
-        </TabsContent>
-      </Tabs>
+      <Add
+        fields={fieldsEn}
+        lang="en"
+        values={formData.en}
+        onChange={handleFieldChange}
+      />
 
       <div className="!my-6">
         <Button

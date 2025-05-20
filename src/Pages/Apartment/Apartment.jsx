@@ -72,7 +72,7 @@ const Apartment = () => {
                     img: image,
                     numberOfVillages: appartment_types.villages_count ?? "0",
                     status: appartment_types.status === 1 ? "Active" : "Inactive",
-                    image_link: appartment_types.image_link, // Keep the raw link for updating
+                    image_link: appartment_types.image_link, 
                 };
             });
 

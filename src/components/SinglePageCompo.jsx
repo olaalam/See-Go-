@@ -1,10 +1,20 @@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, FileText, Home, Users, Phone, Clock, Globe } from "lucide-react";
+import {
+  MapPin,
+  FileText,
+  Home,
+  Users,
+  Phone,
+  Clock,
+  Globe,
+} from "lucide-react";
 import VAdmin from "@/Pages/Villages/VAdmin";
 import PAdmin from "@/Pages/Providers/PAdmin";
 import { useLocation } from "react-router-dom";
+import Units from "@/Pages/Villages/Units";
+import Gallery from "./Gallery";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -14,24 +24,24 @@ const formatTime = (time) => {
     const ampm = hour >= 12 ? "PM" : "AM";
     hour = hour % 12 || 12;
     return `${hour}:${minutes} ${ampm}`;
-  } catch (error) {
-    return time; 
+  } catch {
+    return time;
   }
 };
 
-export default function VillageDetailsCard({ data, status = "Active" }) {
-    const location = useLocation();
+export default function VillageDetailsCard({
+  data,
+  status = "Active",
+  entityType,
+}) {
+  const location = useLocation();
   const isProviderPage = location.pathname.includes("/providers/");
   if (!data) return null;
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <h2 className="text-center text-xl text-bg-primary font-semibold mb-4">
-        Single Page View
-      </h2>
-
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid !ms-3 w-[90%] grid-cols-2 gap-6 bg-transparent !my-6">
+        <TabsList className="grid  !ms-3 w-[90%] grid-cols-4 gap-6 bg-transparent !my-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
                   data-[state=active]:bg-bg-primary data-[state=active]:text-white
@@ -48,6 +58,26 @@ export default function VillageDetailsCard({ data, status = "Active" }) {
           >
             Admin Users
           </TabsTrigger>
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 transition-all
+                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                  hover:bg-teal-100 hover:text-teal-700"
+            value="gallery"
+          >
+            Gallery
+          </TabsTrigger>
+
+          {/* Conditionally render the "Units" tab */}
+          {entityType === "village" && (
+            <TabsTrigger
+              className="rounded-[10px] border text-bg-primary py-2 transition-all
+                    data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                    hover:bg-teal-100 hover:text-teal-700"
+              value="units"
+            >
+              Units
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="info">
@@ -140,6 +170,12 @@ export default function VillageDetailsCard({ data, status = "Active" }) {
 
         <TabsContent value="admin">
           {isProviderPage ? <PAdmin /> : <VAdmin />}
+        </TabsContent>
+        <TabsContent value="gallery">
+          <Gallery />
+        </TabsContent>
+        <TabsContent value="units">
+          <Units />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -14,7 +13,7 @@ export default function AddSubscription() {
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
-  const [services, setservices] = useState([]);
+  const [services, setServices] = useState([]);
 
   const [formData, setFormData] = useState({
     en: {
@@ -46,14 +45,17 @@ export default function AddSubscription() {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await fetch("https://bcknd.sea-go.org/admin/service_type", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          "https://bcknd.sea-go.org/admin/service_type",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         const data = await response.json();
         if (data.service_types) {
-          setservices(
+          setServices(
             data.service_types.map((service) => ({
               label: service.name,
               value: service.id.toString(),
@@ -85,9 +87,9 @@ export default function AddSubscription() {
     body.append("name", formData.en.name);
     body.append("description", formData.en.description);
     if (formData.en.type === "provider") {
-        body.append("service_id", formData.en.service);
-      }
-          body.append("type", formData.en.type);
+      body.append("service_id", formData.en.service);
+    }
+    body.append("type", formData.en.type);
     body.append("price", formData.en.price);
     body.append("discount", formData.en.discount);
     body.append("status", formData.en.status === "active" ? "1" : "0");
@@ -102,18 +104,22 @@ export default function AddSubscription() {
 
     body.append("ar_name", formData.ar.name);
     body.append("ar_description", formData.ar.description);
-navigate("/packages")
+    navigate("/packages");
+
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/subscription/add", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body,
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/subscription/add",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body,
+        }
+      );
 
       if (response.ok) {
-        toast.success("subscription added successfully!");
+        toast.success("Subscription added successfully!");
         setFormData({
           en: {
             name: "",
@@ -154,9 +160,15 @@ navigate("/packages")
 
   const selectedType = formData.en.type;
 
-  const fieldsEn = [
-    { type: "input", placeholder: " Name", name: "name" },
-    { type: "input", placeholder: "Description", name: "description" },
+  // Combine English and Arabic fields into a single array
+  const fields = [
+    { type: "input", placeholder: "Name", name: "name", lang: "en" },
+    {
+      type: "input",
+      placeholder: "Description",
+      name: "description",
+      lang: "en",
+    },
     ...(selectedType === "provider"
       ? [
           {
@@ -164,6 +176,7 @@ navigate("/packages")
             placeholder: "Service",
             name: "service",
             options: services,
+            lang: "en",
           },
         ]
       : []),
@@ -175,10 +188,11 @@ navigate("/packages")
         { label: "Provider", value: "provider" },
         { label: "Village", value: "village" },
       ],
+      lang: "en",
     },
-    { type: "input", placeholder: "Discount", name: "discount" },
-    { type: "input", placeholder: "Price", name: "price" },
-    { type: "input", placeholder: "Feez", name: "feez" },
+    { type: "input", placeholder: "Discount", name: "discount", lang: "en" },
+    { type: "input", placeholder: "Price", name: "price", lang: "en" },
+    { type: "input", placeholder: "Fees", name: "feez", lang: "en" },
     {
       type: "select",
       placeholder: "Status",
@@ -187,11 +201,35 @@ navigate("/packages")
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
+      lang: "en",
     },
+    {
+      type: "input",
+      placeholder: " (اختياري) الاسم",
+      name: "name",
+      lang: "ar",
+    },
+    {
+      type: "input",
+      placeholder: " (اختياري) الوصف",
+      name: "description",
+      lang: "ar",
+    },
+
     ...(selectedType === "village"
       ? [
-          { type: "input", placeholder: "Admin Number", name: "admin_num" },
-          { type: "input", placeholder: "Security Number", name: "security_num" },
+          {
+            type: "input",
+            placeholder: "Admin Number",
+            name: "admin_num",
+            lang: "en",
+          },
+          {
+            type: "input",
+            placeholder: "Security Number",
+            name: "security_num",
+            lang: "en",
+          },
           {
             type: "select",
             placeholder: "Maintenance Module",
@@ -200,6 +238,7 @@ navigate("/packages")
               { label: "Enabled", value: "1" },
               { label: "Disabled", value: "0" },
             ],
+            lang: "en",
           },
           {
             type: "select",
@@ -209,40 +248,10 @@ navigate("/packages")
               { label: "Enabled", value: "1" },
               { label: "Disabled", value: "0" },
             ],
+            lang: "en",
           },
         ]
       : []),
-  ];
-
-  const fieldsAr = [
-    { type: "input", placeholder: "اسم المنطقة", name: "name" },
-    { type: "input", placeholder: "الوصف", name: "description" },
-    { type: "input", placeholder: "السعر", name: "price" },
-    { type: "input", placeholder: "الخصم", name: "discount" },
-    {
-      type: "select",
-      placeholder: "نوع المنطقة",
-      name: "type",
-      options: [
-        { label: "موردين", value: "provider" },
-        { label: "قرية", value: "village" },
-      ],
-    },
-    {
-      type: "select",
-      placeholder: "الحالة",
-      name: "status",
-      options: [
-        { value: "active", label: "نشط" },
-        { value: "inactive", label: "غير نشط" },
-      ],
-    },
-    {
-      type: "select",
-      placeholder: "الخدمة",
-      name: "service",
-      options: services,
-    },
   ];
 
   return (
@@ -251,46 +260,17 @@ navigate("/packages")
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Subscription
+        Add Packages
       </h2>
 
-      <Tabs defaultValue="english" className="w-full">
-        <TabsList className="grid !ms-3 w-[50%] grid-cols-2 gap-4 bg-transparent !mb-6">
-          <TabsTrigger
-            value="english"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            English
-          </TabsTrigger>
-          <TabsTrigger
-            value="arabic"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all 
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white 
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            Arabic
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="english">
-          <Add
-            fields={fieldsEn}
-            lang="en"
-            values={formData.en}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-        <TabsContent value="arabic">
-          <Add
-            fields={fieldsAr}
-            lang="ar"
-            values={formData.ar}
-            onChange={handleFieldChange}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="w-[90%] mx-auto">
+        {/* Pass all fields to a single Add component */}
+        <Add
+          fields={fields}
+          values={{ en: formData.en, ar: formData.ar }}
+          onChange={handleFieldChange}
+        />
+      </div>
 
       <div className="!my-6">
         <Button
