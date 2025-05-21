@@ -29,13 +29,15 @@ const Villages = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const token = localStorage.getItem("token");
+  const [imageErrors, setImageErrors] = useState({});
 
-  // Utility function for headers
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
-
+  const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  };
   const fetchZones = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/zone", {
@@ -81,10 +83,8 @@ const Villages = () => {
 
         const nameClickable = (
           <span
-            onClick={() =>
-              ( navigate(`/villages/single-page-v/${village.id}`))
-            }
-            className="text-bg-primary hover:text-teal-800 cursor-pointer "
+            onClick={() => navigate(`/villages/single-page-v/${village.id}`)}
+            className="text-bg-primary hover:text-teal-800 cursor-pointer"
           >
             {name}
           </span>
@@ -98,18 +98,22 @@ const Villages = () => {
           village.zone?.name ||
           "—";
 
-        const image = village?.image_link ? (
+        const image = village?.image_link && !imageErrors[village.id]?  (
           <img
-            src={village.image_link}
+            src={village?.image_link}
             alt={name}
             className="w-12 h-12 rounded-md object-cover aspect-square"
-            onError={() => {}}
+            onError={() => handleImageError(village.id)}
           />
         ) : (
           <Avatar className="w-12 h-12">
             <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
           </Avatar>
         );
+
+
+
+
 
         const location = village.location || "—";
         const population = village.population_count || "—";
@@ -126,6 +130,7 @@ const Villages = () => {
           zoneName,
           location,
           population,
+          image_link: village.image_link,
         };
       });
 
@@ -145,15 +150,12 @@ const Villages = () => {
   }, []);
 
   const handleEdit = (village) => {
-    console.log("تم النقر على تعديل القرية:", village);
     const editableVillage = {
       ...village,
       name: village.rawName,
     };
     setselectedRow(editableVillage);
     setIsEditOpen(true);
-    console.log("isEditOpen:", isEditOpen);
-    console.log("selectedRow:", selectedRow);
   };
 
   const handleDelete = (village) => {
@@ -171,7 +173,7 @@ const Villages = () => {
       location,
       population,
       numberOfVillages,
-
+      image_link,
       imageFile,
     } = selectedRow;
 
@@ -207,30 +209,7 @@ const Villages = () => {
 
       if (response.ok) {
         toast.success("Village updated successfully!");
-        setVillages((prev) =>
-          prev.map((village) =>
-            village.id === id
-              ? {
-                  ...village,
-                  name: (
-                    <span
-                      onClick={() =>
-                        (window.location.href = `/villages/single-page-v/${id}`)
-                      }
-                      className="text-bg-primary hover:text-teal-800 cursor-pointer"
-                    >
-                      {name}
-                    </span>
-                  ),
-                  description,
-                  status: status === "Active" ? "Active" : "Inactive",
-                  zone_id,
-                  location,
-                  population,
-                }
-              : village
-          )
-        );
+        await fetchVillages();
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
@@ -260,6 +239,7 @@ const Villages = () => {
           villages.filter((village) => village.id !== selectedRow.id)
         );
         setIsDeleteOpen(false);
+        setselectedRow(null);
       } else {
         toast.error("Failed to delete village!");
       }
@@ -274,6 +254,7 @@ const Villages = () => {
       [key]: key === "zone_id" ? parseInt(value, 10) : value,
     }));
   };
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -338,99 +319,94 @@ const Villages = () => {
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "description"]}
       />
+
       {selectedRow && (
         <>
-          {selectedRow && (
-            <>
-              <EditDialog
-                open={isEditOpen}
-                onOpenChange={setIsEditOpen}
-                onSave={handleSave}
-                selectedRow={selectedRow}
-                zones={zones}
-                onChange={onChange}
+          <EditDialog
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            onSave={handleSave}
+            selectedRow={selectedRow}
+            zones={zones}
+            onChange={onChange}
+          >
+            <label htmlFor="name" className="text-gray-400 !pb-3">
+              Village Name
+            </label>
+            <Input
+              id="name"
+              value={selectedRow?.name || ""}
+              onChange={(e) => onChange("name", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
+
+            <label htmlFor="description" className="text-gray-400 !pb-3">
+              Description
+            </label>
+            <Input
+              id="description"
+              value={selectedRow?.description || ""}
+              onChange={(e) => onChange("description", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
+
+            <label htmlFor="zone" className="text-gray-400 !pb-3">
+              Zone
+            </label>
+            <Select
+              value={selectedRow?.zone_id?.toString()}
+              onValueChange={(value) => onChange("zone_id", value)}
+            >
+              <SelectTrigger
+                id="zone"
+                className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
               >
-                <label htmlFor="name" className="text-gray-400 !pb-3">
-                  Village Name
-                </label>
-
-                <Input
-                  label="Village Name"
-                  id="name"
-                  value={selectedRow?.name || ""}
-                  onChange={(e) => onChange("name", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
-                />
-
-                <label htmlFor="description" className="text-gray-400 !pb-3">
-                  Description
-                </label>
-
-                <Input
-                  label="Description"
-                  id="description"
-                  value={selectedRow?.description || ""}
-                  onChange={(e) => onChange("description", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
-                />
-
-                <label htmlFor="zone" className="text-gray-400 !pb-3">
-                  Zone
-                </label>
-                <Select
-                  value={selectedRow?.zone_id?.toString()}
-                  onValueChange={(value) => onChange("zone_id", value)}
-                >
-                  <SelectTrigger
-                    id="zone"
-                    className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                <SelectValue placeholder="Select Zone" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                {zones.map((zone) => (
+                  <SelectItem
+                    key={zone.id}
+                    value={zone.id.toString()}
+                    className="text-bg-primary"
                   >
-                    <SelectValue placeholder="Select Zone" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    {zones.map((zone) => (
-                      <SelectItem
-                        key={zone.id}
-                        value={zone.id.toString()}
-                        className="text-bg-primary "
-                      >
-                        {zone.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    {zone.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                <label htmlFor="location" className="text-gray-400 !pb-3">
-                  Location
-                </label>
+            <label htmlFor="location" className="text-gray-400 !pb-3">
+              Location
+            </label>
+            <Input
+              id="location"
+              value={selectedRow?.location || ""}
+              onChange={(e) => onChange("location", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
 
-                <Input
-                  id="location"
-                  label="Location"
-                  value={selectedRow?.location || ""}
-                  onChange={(e) => onChange("location", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
+            <label htmlFor="image" className="text-gray-400">
+              Image
+            </label>
+            {selectedRow?.image_link && (
+              <div className="flex items-center gap-4 mb-2">
+                <img
+                  src={selectedRow.image_link}
+                  alt="Current"
+                  className="w-12 h-12 rounded-md object-cover border"
                 />
+              </div>
+            )}
+            <Input
+              type="file"
+              id="image"
+              accept="image/*"
+              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+              onChange={handleImageChange}
+            />
+          </EditDialog>
 
-                <label htmlFor="image" className="text-gray-400 !pb-3">
-                  Image
-                </label>
-                <Input
-                  type="file"
-                  id="image"
-                  accept="image/*"
-                  className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                  onChange={handleImageChange}
-                />
-              </EditDialog>
-              <DeleteDialog
-                open={isDeleteOpen}
-                onOpenChange={setIsDeleteOpen}
-                onDelete={handleDeleteConfirm}
-                name={selectedRow.name}
-              />
-            </>
-          )}
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}

@@ -14,7 +14,6 @@ export default function Addadmin() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const [formData, setFormData] = useState({
-    en: {
       name: "",
       phone: "",
       email: "",
@@ -23,17 +22,12 @@ export default function Addadmin() {
       role: "",
       status: "",
       image: null,
-    },
   });
-  const { name, phone, email, password, gender, role, status, image } = formData.en;
-
-  const handleFieldChange = (lang, name, value) => {
+  const { name, phone, email, password, gender, role, status, image } = formData;
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
+      [name]: value,
     }));
   };
 
@@ -71,7 +65,6 @@ export default function Addadmin() {
           autoClose: 3000,
         });
         setFormData({
-          en: {
             name: "",
             phone: "",
             email: "",
@@ -80,7 +73,6 @@ export default function Addadmin() {
             role: "",
             status: "",
             image: null,
-          },
         });
         navigate("/admin");
       } else {
@@ -147,9 +139,9 @@ export default function Addadmin() {
 
       <Add
         fields={fieldsEn}
-        lang="en"
-        values={formData.en}
-        onChange={handleFieldChange}
+
+        values={formData}
+        onChange={handleInputChange}
       />
 
       <div className="!my-6">

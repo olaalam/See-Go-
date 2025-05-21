@@ -79,8 +79,7 @@ export default function Addsubscrier() {
 
     fetchOptions();
   }, []);
-
-  const handleFieldChange = (name, value) => {
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -136,7 +135,7 @@ const handleSubmit = async () => {
         village_id: "",
         provider_id: "",
       });
-        navigate("/subscripers");
+        navigate("/subscribers");
     } else {
       const errorData = await response.json();
       console.error("Error response:", errorData);
@@ -222,9 +221,8 @@ const handleSubmit = async () => {
 
       <Add
         fields={fields}
-        lang="en"
         values={formData}
-        onChange={(lang, name, value) => handleFieldChange(name, value)}
+        onChange={ handleInputChange}
       />
 
       <div className="!my-6">

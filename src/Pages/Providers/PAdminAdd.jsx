@@ -16,7 +16,7 @@ export default function Addprovider_admin() {
   const { id } = useParams();
 
 const [formData, setFormData] = useState({
-  en: {
+
     name: "",
     email: "",
     phone: "",
@@ -24,7 +24,7 @@ const [formData, setFormData] = useState({
     admin_position_id: "",
     status: "active",
     provider_id: "",
-  },
+
 });
 
 
@@ -100,13 +100,10 @@ useEffect(() => {
 }, [token]);
 
 
-  const handleFieldChange = (lang, name, value) => {
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
+      [name]: value,
     }));
   };
 
@@ -114,7 +111,7 @@ useEffect(() => {
     dispatch(showLoader());
 
     try {
-      const dataToSubmit = formData.en;
+      const dataToSubmit = formData;
       const response = await fetch("https://bcknd.sea-go.org/admin/provider_admin/add", {
         method: "POST",
         headers: getAuthHeaders(),
@@ -140,7 +137,7 @@ if (response.ok) {
   });
 
   setFormData({
-    en: {
+
       name: "",
       email: "",
       phone: "",
@@ -148,7 +145,7 @@ if (response.ok) {
       admin_position_id: "",
       status: "active",
       provider_id: "",
-    },
+
   });
 
   navigate(-1);
@@ -210,9 +207,8 @@ if (response.ok) {
 
       <Add
         fields={fields}
-        lang="en"
-        values={formData.en}
-        onChange={handleFieldChange}
+        values={formData}
+        onChange={handleInputChange}
       />
       <div className="!my-6">
         <Button

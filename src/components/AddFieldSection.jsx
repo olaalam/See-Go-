@@ -1,4 +1,3 @@
-// Add.jsx
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,16 +18,18 @@ export default function Add({ fields, values, onChange }) {
   const commonInputClass =
     "rounded-[15px] border border-gray-300 focus:border-bg-primary focus:ring-bg-primary";
 
-  // Modified handleChange to include 'lang'
   const handleChange = (lang, name, value) => {
-    if (onChange) {
-      onChange(lang, name, value); // Pass lang to the parent's onChange
+    // If a lang is provided, structure the change for multilingual data
+    if (lang) {
+      onChange(lang, name, value);
+    } else {
+      // For fields without a lang (e.g., image, status), just pass name and value
+      onChange(name, value);
     }
   };
 
-  // Separate map fields from other fields
-  const mapFields = fields.filter(field => field.type === "map");
-  const otherFields = fields.filter(field => field.type !== "map");
+  const mapFields = fields.filter((field) => field.type === "map");
+  const otherFields = fields.filter((field) => field.type !== "map");
 
   return (
     <>
@@ -36,13 +37,18 @@ export default function Add({ fields, values, onChange }) {
         {otherFields.map((field, index) => {
           if (field.showIf && !field.showIf(values)) return null;
 
-          // Access value using lang and name
-          const value = values?.[field.lang]?.[field.name] || "";
+          // Determine the value based on if 'lang' exists for the field
+          const value = field.lang
+            ? values?.[field.lang]?.[field.name] || ""
+            : values?.[field.name] || "";
 
           return (
-            <div key={`${field.lang}-${field.name}-${index}`} className="space-y-2 !ms-3">
+            <div
+              key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+              className="space-y-2 !ms-3"
+            >
               <label
-                htmlFor={`${field.lang}-${field.name}`} // Use a unique ID
+                htmlFor={`${field.lang || "no-lang"}-${field.name}`}
                 className="block text-sm !p-3 font-medium text-gray-700"
               >
                 {field.placeholder}
@@ -52,25 +58,27 @@ export default function Add({ fields, values, onChange }) {
                   case "input":
                     return (
                       <Input
-                        id={`${field.lang}-${field.name}`}
-                        key={`${field.lang}-${field.name}-${index}`}
+                        id={`${field.lang || "no-lang"}-${field.name}`}
+                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
                         type={field.inputType || "text"}
                         placeholder={field.placeholder}
                         value={value}
-                        onChange={(e) => handleChange(field.lang, field.name, e.target.value)} // Pass lang
+                        onChange={(e) =>
+                          handleChange(field.lang, field.name, e.target.value)
+                        }
                         className={`!ms-1 !px-5 !py-6 ${commonInputClass}`}
                       />
                     );
                   case "time":
-                    // Note: Your time input uses values[field.name] directly, which is incorrect
-                    // It should be values[field.lang][field.name]
                     return (
-                      <div key={`${field.lang}-${field.name}`} className="mb-4">
+                      <div key={`${field.lang || "no-lang"}-${field.name}`} className="mb-4">
                         <input
                           type="time"
                           name={field.name}
-                          value={values?.[field.lang]?.[field.name] || ""} // Corrected value access
-                          onChange={(e) => handleChange(field.lang, field.name, e.target.value)} // Pass lang
+                          value={value}
+                          onChange={(e) =>
+                            handleChange(field.lang, field.name, e.target.value)
+                          }
                           className={`!ms-1 !px-10 !py-4 ${commonInputClass}`}
                         />
                       </div>
@@ -78,36 +86,41 @@ export default function Add({ fields, values, onChange }) {
                   case "textarea":
                     return (
                       <Textarea
-                        id={`${field.lang}-${field.name}`}
-                        key={`${field.lang}-${field.name}-${index}`}
+                        id={`${field.lang || "no-lang"}-${field.name}`}
+                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
                         placeholder={field.placeholder}
                         value={value}
-                        onChange={(e) => handleChange(field.lang, field.name, e.target.value)} // Pass lang
+                        onChange={(e) =>
+                          handleChange(field.lang, field.name, e.target.value)
+                        }
                         className={`min-h-[40px] !px-5 !py-6 ${commonInputClass}`}
                       />
                     );
                   case "file":
                     return (
                       <Input
-                        id={`${field.lang}-${field.name}`}
-                        key={`${field.lang}-${field.name}-${index}`}
+                        id={`${field.lang || "no-lang"}-${field.name}`}
+                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
                         type="file"
                         onChange={(e) =>
-                          handleChange(field.lang, field.name, e.target.files?.[0]) // Pass lang
+                          handleChange(field.lang, field.name, e.target.files?.[0])
                         }
                         className={`h-[54px] !mt-4 flex items-center text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
                       />
                     );
-                  case "location": // This will now work correctly for direct location input if you decide to use it
+                  case "location":
                     return (
-                      <div key={`${field.lang}-${field.name}-${index}`} className="relative">
+                      <div
+                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        className="relative"
+                      >
                         <Input
-                          id={`${field.lang}-${field.name}`}
+                          id={`${field.lang || "no-lang"}-${field.name}`}
                           type="text"
                           placeholder={field.placeholder}
                           value={value}
                           onChange={(e) =>
-                            handleChange(field.lang, field.name, e.target.value) // Pass lang
+                            handleChange(field.lang, field.name, e.target.value)
                           }
                           className={`!ms-1 !px-12 !py-6 ${commonInputClass}`}
                         />
@@ -119,7 +132,7 @@ export default function Add({ fields, values, onChange }) {
                           <MapModal
                             onClose={() => setShowMap(false)}
                             onSelect={(address) => {
-                              handleChange(field.lang, field.name, address); // Pass lang
+                              handleChange(field.lang, field.name, address);
                               setShowMap(false);
                             }}
                           />
@@ -129,10 +142,12 @@ export default function Add({ fields, values, onChange }) {
                   case "select":
                     return (
                       <Select
-                        id={`${field.lang}-${field.name}`}
-                        key={`${field.lang}-${field.name}-${index}`}
+                        id={`${field.lang || "no-lang"}-${field.name}`}
+                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
                         value={value}
-                        onValueChange={(val) => handleChange(field.lang, field.name, val)} // Pass lang
+                        onValueChange={(val) =>
+                          handleChange(field.lang, field.name, val)
+                        }
                       >
                         <SelectTrigger
                           className={`w-full !ms-1 !px-5 !py-6 ${commonInputClass}`}
@@ -155,23 +170,26 @@ export default function Add({ fields, values, onChange }) {
             </div>
           );
         })}
-        {/* Render map fields first, outside the grid */}
         {mapFields.map((field, index) => {
           if (field.showIf && !field.showIf(values)) return null;
-          // Access value using lang and name for map field
-          const value = values?.[field.lang]?.[field.name] || "";
+          const value = field.lang
+            ? values?.[field.lang]?.[field.name] || ""
+            : values?.[field.name] || "";
 
           return (
-            <div key={`map-${field.lang}-${field.name}-${index}`} className="w-full space-y-2">
+            <div
+              key={`map-${field.lang || "no-lang"}-${field.name}-${index}`}
+              className="w-full space-y-2"
+            >
               <label
-                htmlFor={`map-${field.lang}-${field.name}`}
+                htmlFor={`map-${field.lang || "no-lang"}-${field.name}`}
                 className="block text-sm !p-3 font-medium text-gray-700"
               >
                 {field.placeholder ? field.placeholder : field.name}
               </label>
               <MapLocationPicker
-                value={value} // Now passing string or undefined
-                onChange={(val) => handleChange(field.lang, field.name, val)} // Pass lang
+                value={value}
+                onChange={(val) => handleChange(field.lang, field.name, val)}
                 placeholder={field.placeholder}
               />
             </div>

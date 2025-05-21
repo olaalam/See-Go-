@@ -15,7 +15,6 @@ export default function AddVillage() {
 
 
   const [formData, setFormData] = useState({
-    en: {
       name: "",
       status: "",
       user_type: "",
@@ -27,16 +26,12 @@ export default function AddVillage() {
       rent_from: "",
       rent_to: "",
       parent_user_id: "",
-    },
   });
 
-  const handleFieldChange = (lang, name, value) => {
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
+      [name]: value,
     }));
   };
 
@@ -49,8 +44,8 @@ export default function AddVillage() {
   };
 
   const handleSubmit = async () => {
-    const rentFrom = new Date(formData.en.rent_from);
-    const rentTo = new Date(formData.en.rent_to);
+    const rentFrom = new Date(formData.rent_from);
+    const rentTo = new Date(formData.rent_to);
 
     if (rentTo < rentFrom) {
       toast.error("Rent To date cannot be earlier than Rent From date.", {
@@ -63,17 +58,17 @@ export default function AddVillage() {
     dispatch(showLoader());
 
     const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
-    body.append("email", formData.en.email);
-    body.append("phone", formData.en.phone);
-    body.append("password", formData.en.password);
-    body.append("gender", formData.en.gender);
-    body.append("birthDate", formatDate(formData.en.birthDate));
-    body.append("rent_from", formatDate(formData.en.rent_from));
-    body.append("rent_to", formatDate(formData.en.rent_to));
-    body.append("user_type", formData.en.user_type);
-    body.append("parent_user_id", formData.en.parent_user_id);
+    body.append("name", formData.name);
+    body.append("status", formData.status === "active" ? "1" : "0");
+    body.append("email", formData.email);
+    body.append("phone", formData.phone);
+    body.append("password", formData.password);
+    body.append("gender", formData.gender);
+    body.append("birthDate", formatDate(formData.birthDate));
+    body.append("rent_from", formatDate(formData.rent_from));
+    body.append("rent_to", formatDate(formData.rent_to));
+    body.append("user_type", formData.user_type);
+    body.append("parent_user_id", formData.parent_user_id);
 
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/user/add", {
@@ -91,7 +86,6 @@ export default function AddVillage() {
         });
 
         setFormData({
-          en: {
             name: "",
             status: "",
             user_type: "",
@@ -103,7 +97,7 @@ export default function AddVillage() {
             rent_from: "",
             rent_to: "",
             parent_user_id: "",
-          },
+
         });
       } else {
         const errorData = await response.json();
@@ -187,9 +181,8 @@ export default function AddVillage() {
 
       <Add
         fields={fieldsEn}
-        lang="en"
-        values={formData.en}
-        onChange={handleFieldChange}
+       values={formData}
+        onChange={handleInputChange}
       />
 
       <div className="!my-6">

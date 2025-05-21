@@ -15,7 +15,7 @@ export default function Addvillage_admin() {
   const { id } = useParams();
 
   const [formData, setFormData] = useState({
-    en: {
+
       name: "",
       email: "",
       phone: "",
@@ -23,7 +23,7 @@ export default function Addvillage_admin() {
       admin_position_id: "",
       status: "active",
       village_id: "",
-    },
+
   });
 
   const [villageOptions, setVillageOptions] = useState([]);
@@ -103,13 +103,10 @@ export default function Addvillage_admin() {
     fetchData();
   }, [token]);
 
-  const handleFieldChange = (lang, name, value) => {
+  const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
+      [name]: value,
     }));
   };
 
@@ -117,7 +114,7 @@ export default function Addvillage_admin() {
     dispatch(showLoader());
 
     try {
-      const dataToSubmit = formData.en;
+      const dataToSubmit = formData;
       const response = await fetch(
         "https://bcknd.sea-go.org/admin/village_admin/add",
         {
@@ -144,7 +141,7 @@ export default function Addvillage_admin() {
         });
 
         setFormData({
-          en: {
+
             name: "",
             email: "",
             phone: "",
@@ -152,7 +149,7 @@ export default function Addvillage_admin() {
             admin_position_id: "",
             status: "active",
             village_id: "",
-          },
+
         });
 
         navigate(-1);
@@ -223,10 +220,10 @@ export default function Addvillage_admin() {
 
       <Add
         fields={fields}
-        lang="en"
-        values={formData.en}
-        onChange={handleFieldChange}
+        values={formData}
+        onChange={handleInputChange}
       />
+      
       <div className="!my-6">
         <Button
           onClick={handleSubmit}

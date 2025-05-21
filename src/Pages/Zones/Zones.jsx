@@ -39,6 +39,11 @@ const Zones = () => {
         },
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
@@ -53,11 +58,21 @@ const Zones = () => {
         const description =
           translations[currentLang]?.description || zone.description || "—";
 
+        const createdDate = new Date(zone.created_at);
+        const created_at = `${createdDate.getFullYear()}/${(
+          createdDate.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, "0")}/${createdDate
+          .getDate()
+          .toString()
+          .padStart(2, "0")}`;
+
         const image =
           zone?.image_link && !imageErrors[zone.id] ? (
             <img
               src={zone.image_link}
-              alt={name}
+              alt={zone.name}
               className="w-12 h-12 rounded-md object-cover aspect-square"
               onError={() => handleImageError(zone.id)}
             />
@@ -66,30 +81,27 @@ const Zones = () => {
               <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
             </Avatar>
           );
-
         return {
           id: zone.id,
           name,
           description,
           img: image,
-          numberOfVillages: zone.villages_count ?? "0",
+          created_at,
+          image_link: zone.image_link,
           status: zone.status === 1 ? "Active" : "Inactive",
-          image_link: zone.image_link, // Keep the raw link for updating
         };
       });
-
       setZones(formatted);
     } catch (error) {
       console.error("Error fetching zones:", error);
+      toast.error("Failed to load zones data");
     } finally {
       dispatch(hideLoader());
     }
   };
-
   useEffect(() => {
     fetchZones();
   }, []);
-
   const handleEdit = (zone) => {
     setSelectedRow(zone);
     setIsEditOpen(true);
@@ -102,16 +114,20 @@ const Zones = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, description, numberOfVillages, status, imageFile } =
-      selectedRow;
 
+    const { id, name, description, status } = selectedRow;
     const formData = new FormData();
+
     formData.append("name", name);
     formData.append("description", description);
     formData.append("status", status === "Active" ? 1 : 0);
- formData.append("zone_id", id);
-    if (imageFile) {
-      formData.append("image", imageFile);
+
+    if (selectedRow.imageFile) {
+      formData.append("image", selectedRow.imageFile);
+    } else {
+      formData.append("keep_current_image", "true");
+
+      formData.append("image", selectedRow.image_link || "");
     }
 
     try {
@@ -126,39 +142,9 @@ const Zones = () => {
 
       if (response.ok) {
         toast.success("Zone updated successfully!");
-        const responseData = await response.json();
 
-        setZones((prev) =>
-          prev.map((zone) =>
-            zone.id === id
-              ? {
-                  ...zone,
-                  name: responseData?.zone?.name || name,
-                  description: responseData?.zone?.description || description,
-                  villages_count:
-                    responseData?.zone?.villages_count ||
-                    parseInt(numberOfVillages),
-                  status:
-                    responseData?.zone?.status === 1 ? "Active" : "Inactive",
-                  image_link: responseData?.zone?.image_link || zone.image_link,
-                  img: responseData?.zone?.image_link ? (
-                    <img
-                      src={responseData.zone.image_link}
-                      alt={responseData?.zone?.name || name}
-                      className="w-12 h-12 rounded-md object-cover aspect-square"
-                      onError={() => {}}
-                    />
-                  ) : (
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback>
-                        {responseData?.zone?.name?.charAt(0) || name?.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ),
-                }
-              : zone
-          )
-        );
+        await fetchZones();
+
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
@@ -247,7 +233,7 @@ const Zones = () => {
   const columns = [
     { key: "name", label: "Zone Name" },
     { key: "description", label: "Description" },
-    { key: "numberOfVillages", label: "Number of Villages" },
+    { key: "created_at", label: "Added Date" },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
@@ -265,7 +251,7 @@ const Zones = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description"]}
+        searchKeys={["description", "name"]}
       />
 
       {selectedRow && (
@@ -287,6 +273,7 @@ const Zones = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
+
             <label htmlFor="description" className="text-gray-400 !pb-3">
               Description
             </label>
@@ -296,9 +283,21 @@ const Zones = () => {
               onChange={(e) => onChange("description", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
-            <label htmlFor="image" className="text-gray-400 !pb-3">
+
+            <label htmlFor="image" className="text-gray-400">
               Image
             </label>
+
+            {selectedRow?.image_link && (
+              <div className="flex items-center gap-4 mb-2">
+                <img
+                  src={selectedRow.image_link}
+                  alt="Current"
+                  className="w-12 h-12 rounded-md object-cover border"
+                />
+              </div>
+            )}
+
             <Input
               type="file"
               id="image"
@@ -307,6 +306,7 @@ const Zones = () => {
               onChange={handleImageChange}
             />
           </EditDialog>
+
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}

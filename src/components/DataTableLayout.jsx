@@ -89,6 +89,7 @@ export default function DataTable({
       setSelectedRows([]);
     }
   };
+  
 
   console.log("columns", columns);
 

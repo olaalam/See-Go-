@@ -300,8 +300,10 @@ export default function PAdmin() {
                     value={selectedRow?.password}
                     onChange={(val) => onChange("password", val)}
                   />
+                  <label htmlFor="position" className="text-gray-400">Admin Position</label>
                   {providerPositions.length > 0 && (
                     <Select
+                    id="position"
                       value={selectedRow?.admin_position_id?.toString()}
                       onValueChange={(value) =>
                         onChange("admin_position_id", value)

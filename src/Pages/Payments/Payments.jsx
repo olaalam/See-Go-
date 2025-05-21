@@ -221,6 +221,7 @@ export default function PaymentsPage() {
                 className="table-compact"
                 showAddButton={false} 
                 showFilter={true} 
+                showActions={false}
                 showEditButton={false}
                 showDeleteButton={false}
                 searchKeys={["payment_method.name", "type", "amount", "start_date"]} 

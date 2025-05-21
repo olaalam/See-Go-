@@ -116,6 +116,9 @@ const Payment_methods = () => {
     
         if (imageFile) {
             formData.append("logo", imageFile); 
+        }else{
+                  formData.append("keep_current_image", "true");
+            formData.append("logo", selectedRow.logo);
         }
     
         try {
@@ -126,9 +129,8 @@ const Payment_methods = () => {
             });
     
             if (response.ok) {
-                const data = await response.json();
                 toast.success("Payment method updated successfully!");
-                fetchpayment_methods();
+                await fetchpayment_methods();
                 setIsEditOpen(false);
                 setSelectedRow(null);
             } else {
@@ -266,16 +268,27 @@ const Payment_methods = () => {
 
 
 
-                        <label htmlFor="image" className="text-gray-400 !pb-3">
-                            Image
-                        </label>
-                        <Input
-                            type="file"
-                            id="image"
-                            accept="image/*"
-                            className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                            onChange={handleImageChange}
-                        />
+            <label htmlFor="image" className="text-gray-400">
+              Image
+            </label>
+
+            {selectedRow?.logo_link && (
+              <div className="flex items-center gap-4 mb-2">
+                <img
+                  src={selectedRow.logo_link}
+                  alt="Current"
+                  className="w-12 h-12 rounded-md object-cover border"
+                />
+              </div>
+            )}
+
+            <Input
+              type="file"
+              id="image"
+              accept="image/*"
+              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+              onChange={handleImageChange}
+            />
                     </EditDialog>
                     <DeleteDialog
                         open={isDeleteOpen}
