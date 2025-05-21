@@ -1,4 +1,3 @@
-// DataTable.jsx
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash, Plus } from "lucide-react";
+import { Edit, Trash, Plus, CheckSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import clsx from "clsx";
@@ -39,9 +38,10 @@ export default function DataTable({
   onEdit,
   onDelete,
   onToggleStatus,
-  showAddButton = true, // This prop controls the add button in the header
-  showDeleteButtonInHeader = false, // New prop for delete button in the header
-  onDeleteInHeader, // New prop for the delete action in the header
+  showAddButton = true,
+  showDeleteButtonInHeader = false,
+  onDeleteInHeader,
+  showRowSelection = false, // This prop controls whether row selection is shown
   showFilter = true,
   showActions = true,
   showEditButton = true,
@@ -50,13 +50,13 @@ export default function DataTable({
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [filterValue, setFilterValue] = useState("");
+  const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
   const getNestedValue = (obj, path) => {
     return path.split(".").reduce((acc, part) => acc && acc[part], obj);
   };
 
-  // Memoized filtered data
   const filteredData = useMemo(() => {
     console.log("Filtered Data:", data);
     return data.filter((row) => {
@@ -72,6 +72,23 @@ export default function DataTable({
       return matchesSearch && matchesFilter;
     });
   }, [data, searchValue, filterValue, searchKeys]);
+
+  const handleRowSelect = (row) => {
+    setSelectedRows((prev) =>
+      prev.includes(row.id)
+        ? prev.filter((id) => id !== row.id)
+        : [...prev, row.id]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked;
+    if (checked) {
+      setSelectedRows(filteredData.map((row) => row.id));
+    } else {
+      setSelectedRows([]);
+    }
+  };
 
   console.log("columns", columns);
 
@@ -96,7 +113,7 @@ export default function DataTable({
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-              {showAddButton && ( // Controls the Add button
+              {showAddButton && (
                 <Button
                   onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
                   className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
@@ -105,10 +122,11 @@ export default function DataTable({
                   Add
                 </Button>
               )}
-              {showDeleteButtonInHeader && ( // Controls the new Delete button in header
+              {showDeleteButtonInHeader && (
                 <Button
-                  onClick={onDeleteInHeader} // Use the new onDeleteInHeader prop
+                  onClick={() => onDeleteInHeader(selectedRows)}
                   className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
+                  disabled={selectedRows.length === 0}
                 >
                   <Trash className="w-5 h-5 !mr-2" />
                   Delete Selected
@@ -119,11 +137,23 @@ export default function DataTable({
         </>
       </div>
 
-      {/* Table */}
       <div className="max-h-[calc(100vh-300px)]">
         <Table className="!min-w-[600px]">
           <TableHeader>
             <TableRow>
+              {showRowSelection && ( // Conditionally render the select all checkbox header
+                <TableHead className="text-bg-primary font-semibold w-12">
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedRows.length === filteredData.length &&
+                      filteredData.length > 0
+                    }
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 text-bg-primary border-gray-300 rounded focus:ring-bg-primary"
+                  />
+                </TableHead>
+              )}
               {columns.map((col, index) => (
                 <TableHead
                   key={index}
@@ -132,7 +162,7 @@ export default function DataTable({
                   {col.label}
                 </TableHead>
               ))}
-              {(showEditButton || showDeleteButton) && (
+              {(showEditButton || showDeleteButton || showActions) && (
                 <TableHead className="text-bg-primary font-semibold">
                   Action
                 </TableHead>
@@ -143,12 +173,26 @@ export default function DataTable({
             {filteredData.length > 0 ? (
               filteredData.map((row, index) => (
                 <TableRow key={index}>
+                  {showRowSelection && ( // Conditionally render the individual row checkbox
+                    <TableCell className="!px-2 !py-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.includes(row.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleRowSelect(row);
+                        }}
+                        className="w-4 h-4 text-bg-primary border-gray-300 rounded focus:ring-bg-primary"
+                      />
+                    </TableCell>
+                  )}
                   {columns.map((col, idx) => (
                     <TableCell
                       key={idx}
                       className={clsx(
                         "!px-2 !py-1 text-sm whitespace-normal break-words",
-                        col.key === "image" && "h-full min-h-[60px] flex justify-center items-center"
+                        col.key === "image" &&
+                          "h-full min-h-[60px] flex justify-center items-center"
                       )}
                     >
                       {col.key === "status" ? (
@@ -176,11 +220,11 @@ export default function DataTable({
                           </Switch>
                         </div>
                       ) : col.key === "image" ? (
-                        <div className="flex justify-center items-center  w-full h-full min-h-[60px]">
+                        <div className="flex justify-center items-center w-full h-full min-h-[60px]">
                           <img
                             src={row[col.key]}
                             alt="Image"
-                            className="h-10  !m-auto w-auto object-contain"
+                            className="h-10 !m-auto w-auto object-contain"
                           />
                         </div>
                       ) : col.render ? (
@@ -190,7 +234,7 @@ export default function DataTable({
                       )}
                     </TableCell>
                   ))}
-                  {(showEditButton || showDeleteButton) && (
+                  {(showEditButton || showDeleteButton || showActions) && (
                     <TableCell className="!py-3">
                       <div className="flex justify-center items-center gap-2">
                         {showEditButton && (
@@ -214,6 +258,25 @@ export default function DataTable({
                             <Trash className="w-4 h-4 text-red-600" />
                           </Button>
                         )}
+                        {showRowSelection && ( // Conditionally render the "CheckSquare" button
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowSelect(row);
+                            }}
+                          >
+                            <CheckSquare
+                              className={clsx(
+                                "w-4 h-4",
+                                selectedRows.includes(row.id)
+                                  ? "text-bg-primary"
+                                  : "text-gray-400"
+                              )}
+                            />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   )}
@@ -223,7 +286,9 @@ export default function DataTable({
               <TableRow>
                 <TableCell
                   colSpan={
-                    columns.length + (showEditButton || showDeleteButton ? 1 : 0)
+                    columns.length +
+                    (showRowSelection ? 1 : 0) + // Add 1 to colspan if selection is shown
+                    (showEditButton || showDeleteButton || showActions ? 1 : 0)
                   }
                   className="text-center text-gray-500 py-4"
                 >

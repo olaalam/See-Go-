@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import DataTable from "@/components/DataTableLayout";
 import DeleteDialog from "@/components/DeleteDialog";
-// import EditDialog from "@/components/EditDialog"; // No longer directly used here for rendering the edit dialog
 import { Input } from "@/components/ui/input";
 import { toast, ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
@@ -14,16 +13,16 @@ export default function VUnit() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [villageOptions, setVillageOptions] = useState([]);
   const [villagePositions, setVillagePositions] = useState([]);
+  const [selectedRowsForDeletion, setSelectedRowsForDeletion] = useState([]);
   const { id } = useParams();
   const token = localStorage.getItem("token");
 
   const columns = [
     { label: "Owner Name", key: "name" },
     { label: "Phone Number", key: "phone" },
-    { label: "Type Of Units", key: "email" },
-    { label: "Number Units", key: "role" },
+    { label: "Type Of Units", key: "type_unit" },
+    { label: "Unit Name", key: "unit_name" },
   ];
 
   const getAuthHeaders = () => ({
@@ -38,104 +37,95 @@ export default function VUnit() {
         if (!token) throw new Error("Missing auth token");
 
         const adminRes = await fetch(
-          `https://bcknd.sea-go.org/admin/village_admin/${id}`,
+          `https://bcknd.sea-go.org/admin/village/village_units?village_id=${id}`,
           {
+            method: "POST",
             headers: getAuthHeaders(),
           }
         );
-        const adminJson = await adminRes.json();
-        console.log("VAdmin", adminJson);
-        const villagePositions = adminJson.village_positions;
-        setVillagePositions(villagePositions);
 
-        const formattedAdmins = (
-          Array.isArray(adminJson.admins)
-            ? adminJson.admins
-            : [adminJson.admins]
-        ).map((admin) => {
-          const position = villagePositions.find(
-            (pos) => pos.id === admin.admin_position_id
-          );
-          return {
-            ...admin,
-            status:
-              typeof admin.status === "string"
-                ? admin.status
-                : admin.status === 1
-                ? "Active"
-                : "Inactive",
-            admin_position_name: position ? position.name : "Unknown",
-          };
-        });
+        const adminJson = await adminRes.json();
+        console.log("VAdmin Raw Response:", adminJson);
+
+        const units = Array.isArray(adminJson.units) ? adminJson.units : [];
+
+        setVillagePositions(units);
+
+        const formattedAdmins = units.map((unit) => ({
+          ...unit,
+          id: unit.id, // تأكيد وجود id
+          admin_position_name: unit.unit_name || "Unknown", // تحسين العرض
+        }));
+
+        console.log("Formatted units:", formattedAdmins);
         setAdminData(formattedAdmins);
       } catch (error) {
         console.error("Error fetching data:", error);
+        toast.error("Failed to load units data.");
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchData();
-  }, [id]);
-
-  useEffect(() => {
-    const fetchVillageOptions = async () => {
-      try {
-        const villagesRes = await fetch(
-          "https://bcknd.sea-go.org/admin/village",
-          {
-            headers: getAuthHeaders(),
-          }
-        );
-
-        if (villagesRes.ok) {
-          const villagesData = await villagesRes.json();
-          const currentLang = localStorage.getItem("lang") || "en";
-          setVillageOptions(
-            villagesData.villages.map((v) => ({
-              value: v.id.toString(),
-              label:
-                v.translations.find((t) => t.locale === currentLang)?.name ||
-                v.name,
-            }))
-          );
-        } else {
-          toast.error("Failed to load villages.");
-        }
-      } catch (error) {
-        console.error("Error fetching villages:", error);
-        toast.error("Error loading villages.");
-      }
-    };
-
-    fetchVillageOptions();
-  }, [token]);
+  }, [id, token]);
 
   const handleDelete = (admin) => {
+    if (!admin?.id) {
+      toast.error("Selected unit has no ID.");
+      return;
+    }
     setSelectedRow(admin);
+    setSelectedRowsForDeletion([admin.id]);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDeleteSelectedInHeader = (ids) => {
+    const validIds = ids.filter((id) => id !== undefined && id !== null);
+    if (validIds.length === 0) {
+      toast.warn("No valid units selected.");
+      return;
+    }
+    setSelectedRow(null);
+    setSelectedRowsForDeletion(validIds);
     setIsDeleteOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/village_admin/delete/${selectedRow.id}`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-        }
-      );
+      if (selectedRowsForDeletion.length === 0) {
+        toast.warn("No units selected for deletion.");
+        setIsDeleteOpen(false);
+        return;
+      }
+
+      const queryParams = selectedRowsForDeletion
+        .map((id) => `appartment_ids[]=${encodeURIComponent(id)}`)
+        .join("&");
+
+      const url = `https://bcknd.sea-go.org/admin/village/village_units_delete?${queryParams}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
 
       if (response.ok) {
-        toast.success("Admin deleted!");
+        toast.success("Units deleted successfully!");
         setAdminData((prev) =>
-          prev.filter((admin) => admin.id !== selectedRow.id)
+          prev.filter((unit) => !selectedRowsForDeletion.includes(unit.id))
         );
         setIsDeleteOpen(false);
+        setSelectedRowsForDeletion([]);
       } else {
-        toast.error("Failed to delete admin.");
+        const errorData = await response.json();
+        toast.error(
+          `Failed to delete units: ${errorData.message || response.statusText}`
+        );
       }
     } catch (error) {
-      toast.error("Error deleting admin.", error);
+      console.error("Error deleting units:", error);
+      toast.error("Error deleting units.");
     }
   };
 
@@ -151,28 +141,31 @@ export default function VUnit() {
             columns={columns}
             className="table-compact"
             onDelete={handleDelete}
-            searchKeys={["name", "email"]}
-            showDeleteButtonInHeader = {true}
-             showAddButton = {false}
+            onDeleteInHeader={handleDeleteSelectedInHeader}
+            searchKeys={["name", "phone", "type_unit", "unit_name"]}
+            showDeleteButtonInHeader={true}
+            showAddButton={false}
             showEditButton={false}
+            showRowSelection={true}
             showDeleteButton={true}
           />
 
-          {selectedRow && (
-            <>
-              <DeleteDialog
-                open={isDeleteOpen}
-                onOpenChange={setIsDeleteOpen}
-                onDelete={handleDeleteConfirm}
-                name={selectedRow?.name}
-              />
-            </>
-          )}
+          <DeleteDialog
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            onDelete={handleDeleteConfirm}
+            name={
+              selectedRowsForDeletion.length > 1
+                ? `${selectedRowsForDeletion.length} selected units`
+                : selectedRow?.name || "this unit"
+            }
+          />
+
           <Outlet />
         </>
       ) : (
         <div className="text-center text-gray-500 p-4">
-          No admin users found for this village.
+          No unit users found for this village.
         </div>
       )}
     </div>

@@ -5,14 +5,15 @@ import DataTable from "@/components/DataTableLayout";
 import Loading from "@/components/Loading";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import RejectDialog from "./RejectDialog";
+import RejectDialog from "./RejectDialog"; 
 
 export default function PaymentsPage() {
   const [tab, setTab] = useState("Pending Payments");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [rejectReason, setRejectReason] = useState({});
-  const [showRejectInput, setShowRejectInput] = useState(null);
+  const [rejectReason, setRejectReason] = useState(""); 
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false); 
+  const [selectedPaymentId, setSelectedPaymentId] = useState(null);
 
   const token = localStorage.getItem("token");
 
@@ -40,6 +41,7 @@ export default function PaymentsPage() {
       setData(result);
     } catch (error) {
       toast.error("Failed to fetch Payments.", error);
+      console.error("Error fetching payments:", error);
     } finally {
       setLoading(false);
     }
@@ -47,52 +49,60 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [tab]);
+  }, [tab]); 
 
   const handleApprove = async (id) => {
     try {
       await axios.put(
         `https://bcknd.sea-go.org/admin/payments/approve/${id}`,
-        {},
+        {}, 
         { headers: getAuthHeaders() }
       );
       toast.success("Payment approved.");
-      fetchData();
-    } catch {
+      fetchData(); 
+    } catch (error) {
       toast.error("Failed to approve payment.");
+      console.error("Error approving payment:", error);
     }
   };
 
-  const handleReject = async (id) => {
-    const reason = rejectReason[id];
-    if (!reason || reason.trim() === "") {
+  const handleRejectClick = (id) => {
+    setSelectedPaymentId(id); 
+    setIsRejectDialogOpen(true); 
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectReason.trim()) {
       toast.warn("Please enter a rejection reason.");
       return;
     }
     try {
       await axios.put(
-        `https://bcknd.sea-go.org/admin/payments/reject/${id}?rejected_reason=${encodeURIComponent(
-          reason
+        `https://bcknd.sea-go.org/admin/payments/reject/${selectedPaymentId}?rejected_reason=${encodeURIComponent(
+          rejectReason
         )}`,
-        {},
+        {}, 
         { headers: getAuthHeaders() }
       );
       toast.success("Payment rejected.");
-      setShowRejectInput(null);
+      setIsRejectDialogOpen(false); 
+      setRejectReason(""); 
+      setSelectedPaymentId(null); 
       fetchData();
-    } catch {
+    } catch (error) {
       toast.error("Failed to reject payment.");
+      console.error("Error rejecting payment:", error);
     }
   };
 
   const baseColumns = [
     {
-      key: "Payment",
+      key: "payment_method.name", 
       label: "Payment Method",
       render: (row) => row.payment_method?.name || "N/A",
     },
     {
-      key: "date",
+      key: "start_date", 
       label: "Date",
       render: (row) => row.start_date || "N/A",
     },
@@ -108,102 +118,78 @@ export default function PaymentsPage() {
     },
   ];
 
-  const actionColumn = {
-    key: "actions",
-    label: "Actions",
-    render: (row) => {
-      if (tab === "History Payments") {
-        const status = row.status || "N/A";
-        return (
-          <div className="flex flex-col gap-2">
-            <span
-              className={`text-sm ${
-                status === "approved" ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {status === "approved" ? "Approved" : "Rejected"}
-            </span>
-          </div>
-        );
-      }
-
-      return (
-        <>
-          <div className="flex items-center justify-center !mt-2 !pt-2 gap-4">
-            {/* Accept Button */}
-            <button
-              onClick={() => handleApprove(row.id)}
-              className="flex items-center justify-center gap-2 !px-5 !py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all duration-200 transform hover:scale-105 disabled:bg-green-200 disabled:cursor-not-allowed disabled:scale-100"
-              disabled={showRejectInput === row.id}
-              aria-label="Accept item"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+  const columns = [
+    ...baseColumns,
+    {
+      key: "actions",
+      label: "Actions",
+      render: (row) => {
+        if (tab === "History Payments") {
+          const status = row.status || "N/A";
+          return (
+            <div className="flex flex-col gap-2">
+              <span
+                className={`text-sm ${
+                  status === "approved" ? "text-green-600" : "text-red-600"
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              Accept
-            </button>
+                {status === "approved" ? "Approved" : "Rejected"}
+              </span>
 
-            {/* Reject Button */}
-            <button
-              onClick={() => setShowRejectInput(row.id)}
-              className="flex items-center justify-center gap-2 !px-5 !py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all duration-200 transform hover:scale-105"
-              aria-label="Reject item"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+            </div>
+          );
+        } else {
+          return (
+            <div className="flex items-center justify-center !mt-2 !pt-2 gap-4">
+              <button
+                onClick={() => handleApprove(row.id)}
+                className="flex items-center justify-center gap-2 !px-5 !py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all duration-200 transform hover:scale-105"
+                aria-label="Accept payment"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-              Reject
-            </button>
-          </div>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                Accept
+              </button>
 
-          {/* Modal Layer for Rejection Form */}
-          {showRejectInput === row.id && (
-            <RejectDialog
-              open={true}
-              onOpenChange={(val) => {
-                if (!val) setShowRejectInput(null);
-              }}
-              selectedRow={row}
-              onSave={() => handleReject(row.id)}
-            >
-              <textarea
-                placeholder="Enter rejection reason..."
-                value={rejectReason[row.id] || ""}
-                onChange={(e) =>
-                  setRejectReason({ ...rejectReason, [row.id]: e.target.value })
-                }
-                className="w-full border rounded-md !p-2 !mt-2 !my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-              />
-            </RejectDialog>
-          )}
-        </>
-      );
+              <button
+                onClick={() => handleRejectClick(row.id)}
+                className="flex items-center justify-center gap-2 !px-5 !py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl text-sm font-semibold shadow-lg transition-all duration-200 transform hover:scale-105"
+                aria-label="Reject payment"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                Reject
+              </button>
+            </div>
+          );
+        }
+      },
     },
-  };
-
-  const columns = [...baseColumns, actionColumn];
+  ];
 
   return (
     <div>
@@ -228,16 +214,33 @@ export default function PaymentsPage() {
           {loading ? (
             <Loading />
           ) : (
-            <DataTable
-              data={data}
-              tab={tab}
-              columns={columns}
-              className="table-compact"
-              showAddButton={false}
-              showFilter={false}
-              showActions={false}
-              searchKeys={["payment_method.name"]}
-            />
+            <>
+              <DataTable
+                data={data}
+                columns={columns} 
+                className="table-compact"
+                showAddButton={false} 
+                showFilter={true} 
+                showEditButton={false}
+                showDeleteButton={false}
+                searchKeys={["payment_method.name", "type", "amount", "start_date"]} 
+              />
+
+{isRejectDialogOpen && (
+  <RejectDialog
+    open={isRejectDialogOpen}
+    onOpenChange={setIsRejectDialogOpen}
+    onSave={handleRejectConfirm}
+  >
+    <textarea
+      placeholder="Enter rejection reason..."
+      value={rejectReason}
+      onChange={(e) => setRejectReason(e.target.value)}
+      className="w-full !p-2 !mt-2 !my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+    />
+  </RejectDialog>
+)}
+            </>
           )}
         </TabsContent>
       </Tabs>
