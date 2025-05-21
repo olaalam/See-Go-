@@ -231,6 +231,13 @@ export default function AddProvider() {
       options: services,
       lang: "en",
     },
+        {
+      type: "select",
+      placeholder: "Zone",
+      name: "zone",
+      options: zones,
+      lang: "en",
+    },
     {
       type: "select",
       placeholder: "Village (Optional)",
@@ -238,13 +245,7 @@ export default function AddProvider() {
       options: village,
       lang: "en",
     },
-    {
-      type: "select",
-      placeholder: "Zone",
-      name: "zone",
-      options: zones,
-      lang: "en",
-    },
+
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
