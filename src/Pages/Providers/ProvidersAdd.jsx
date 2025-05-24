@@ -281,7 +281,7 @@ export default function AddProvider() {
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Provider
+        Add Service Provider
       </h2>
 
       <div className="w-[90%] mx-auto">

@@ -9,6 +9,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+// You might not need these for the Zones component's EditDialog unless it's a generic dialog
+// import {
+//   Select,
+//   SelectTrigger,
+//   SelectValue,
+//   SelectContent,
+//   SelectItem,
+// } from "@/components/ui/select";
 
 const Zones = () => {
   const dispatch = useDispatch();
@@ -88,7 +96,8 @@ const Zones = () => {
           img: image,
           created_at,
           image_link: zone.image_link,
-          status: zone.status === 1 ? "Active" : "Inactive",
+          // Ensure status is lowercase for consistent filtering in DataTable
+          status: zone.status === 1 ? "active" : "inactive",
         };
       });
       setZones(formatted);
@@ -99,9 +108,11 @@ const Zones = () => {
       dispatch(hideLoader());
     }
   };
+
   useEffect(() => {
     fetchZones();
   }, []);
+
   const handleEdit = (zone) => {
     setSelectedRow(zone);
     setIsEditOpen(true);
@@ -120,31 +131,38 @@ const Zones = () => {
 
     formData.append("name", name);
     formData.append("description", description);
-    formData.append("status", status === "Active" ? 1 : 0);
+    // Convert status back to 1 or 0 for the API
+    formData.append("status", status === "active" ? 1 : 0);
 
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
     } else {
-      formData.append("keep_current_image", "true");
-
-      formData.append("image", selectedRow.image_link || "");
+      // If no new image is selected, either keep the current one or send null
+      // Assuming 'keep_current_image' or similar logic is handled by the backend,
+      // otherwise, you'd resend the existing image_link if it exists and no new file.
+      // For now, let's just not append 'image' if no new file, and let the backend decide.
+      // If the backend expects something for 'no change', you might need a hidden input
+      // or a specific flag.
+      // Example of resending existing image_link if no new file is chosen and you want to keep it:
+      // if (selectedRow.image_link) {
+      //   // This won't work directly as FormData.append("image", url) is not for files.
+      //   // You'd need to re-fetch the image or have a specific backend flag.
+      // }
     }
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/zone/update/${id}`,
         {
-          method: "POST",
-          headers: getAuthHeaders(),
+          method: "POST", // Often PUT/PATCH for updates, but backend expects POST with FormData
+          headers: getAuthHeaders(), // Headers set here, ensure Content-Type is NOT manually set for FormData
           body: formData,
         }
       );
 
       if (response.ok) {
         toast.success("Zone updated successfully!");
-
-        await fetchZones();
-
+        await fetchZones(); // Re-fetch data to reflect changes
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
@@ -198,7 +216,7 @@ const Zones = () => {
         setZones((prevZones) =>
           prevZones.map((zone) =>
             zone.id === id
-              ? { ...zone, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...zone, status: newStatus === 1 ? "active" : "inactive" } // Ensure status is lowercase
               : zone
           )
         );
@@ -238,6 +256,13 @@ const Zones = () => {
     { key: "status", label: "Status" },
   ];
 
+  // Define filter options for status, including an "All" option
+  const filterOptionsForZones = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
+
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -251,6 +276,9 @@ const Zones = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+        showFilter={true} // Ensure the filter dropdown is shown
+        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        filterOptions={filterOptionsForZones} // Pass the defined filter options
         searchKeys={["description", "name"]}
       />
 
@@ -311,7 +339,7 @@ const Zones = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            selectedRow={selectedRow}
+            name={selectedRow.name} // Pass the name for a more specific confirmation message
           />
         </>
       )}

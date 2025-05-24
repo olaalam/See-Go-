@@ -220,7 +220,7 @@ export default function PaymentsPage() {
                 columns={columns} 
                 className="table-compact"
                 showAddButton={false} 
-                showFilter={true} 
+                showFilter={false} 
                 showActions={false}
                 showEditButton={false}
                 showDeleteButton={false}

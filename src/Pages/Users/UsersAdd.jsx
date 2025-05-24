@@ -43,104 +43,94 @@ export default function AddVillage() {
     return `${year}-${month}-${day}`;
   };
 
-  const handleSubmit = async () => {
-    const rentFrom = new Date(formData.rent_from);
-    const rentTo = new Date(formData.rent_to);
-
-    if (rentTo < rentFrom) {
-      toast.error("Rent To date cannot be earlier than Rent From date.", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-      return;
-    }
-
-    dispatch(showLoader());
-
-    const body = new FormData();
-    body.append("name", formData.name);
-    body.append("status", formData.status === "active" ? "1" : "0");
-    body.append("email", formData.email);
-    body.append("phone", formData.phone);
-    body.append("password", formData.password);
-    body.append("gender", formData.gender);
-    body.append("birthDate", formatDate(formData.birthDate));
-    body.append("rent_from", formatDate(formData.rent_from));
-    body.append("rent_to", formatDate(formData.rent_to));
-    body.append("user_type", formData.user_type);
-    body.append("parent_user_id", formData.parent_user_id);
-
-    try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/user/add", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body,
-      });
-
-      if (response.ok) {
-        toast.success("User added successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-        });
-
-        setFormData({
-            name: "",
-            status: "",
-            user_type: "",
-            email: "",
-            phone: "",
-            password: "",
-            gender: "",
-            birthDate: "",
-            rent_from: "",
-            rent_to: "",
-            parent_user_id: "",
-
-        });
-      } else {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        toast.error(errorData.message || "Failed to add User.", {
-          position: "top-right",
-          autoClose: 3000,
-        });
-      }
 
 
-  navigate("/users");
-    } catch (error) {
-      console.error("Error submitting User:", error);
-      toast.error("An error occurred!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    } finally {
-      dispatch(hideLoader());
-    }
-  };
+ const handleSubmit = async () => {
+  const rentFrom = new Date(formData.rent_from);
+  const rentTo = new Date(formData.rent_to);
 
+  if (rentTo < rentFrom) {
+   toast.error("Rent To date cannot be earlier than Rent From date.", {
+    position: "top-right",
+    autoClose: 3000,
+   });
+   return;
+  }
+
+  dispatch(showLoader());
+
+  const body = new FormData();
+  body.append("name", formData.name);
+  body.append("status", formData.status === "active" ? "1" : "0");
+  body.append("email", formData.email);
+  body.append("phone", formData.phone);
+  body.append("password", formData.password);
+  body.append("gender", formData.gender);
+  body.append("birthDate", formatDate(formData.birthDate));
+  body.append("rent_from", formatDate(formData.rent_from));
+  body.append("rent_to", formatDate(formData.rent_to));
+  body.append("parent_user_id", formData.parent_user_id);
+
+  try {
+   const response = await fetch("https://bcknd.sea-go.org/admin/user/add", {
+    method: "POST",
+    headers: {
+     Authorization: `Bearer ${token}`,
+    },
+    body,
+   });
+
+   if (response.ok) {
+    toast.success("User added successfully!", {
+     position: "top-right",
+     autoClose: 3000,
+    });
+
+        // Introduce a delay before navigating
+        setTimeout(() => {
+            navigate("/users");
+        }, 1000); // Navigate after 1 second (adjust as needed)
+
+    setFormData({
+      name: "",
+      status: "",
+      user_type: "",
+      email: "",
+      phone: "",
+      password: "",
+      gender: "",
+      birthDate: "",
+      rent_from: "",
+      rent_to: "",
+      parent_user_id: "",
+    });
+   } else {
+    const errorData = await response.json();
+    console.error("Error response:", errorData);
+    toast.error(errorData.message || "Failed to add User.", {
+     position: "top-right",
+     autoClose: 3000,
+    });
+        // Only navigate to /users on success, so remove this line from here
+        // navigate("/users");
+ }
+ } catch (error) {
+ console.error("Error submitting User:", error);
+ toast.error("An error occurred!", {
+  position: "top-right",
+  autoClose: 3000,
+ });
+ } finally {
+ dispatch(hideLoader());
+ }
+ };
   const fieldsEn = [
     { type: "input", placeholder: "User Name", name: "name" },
     { type: "input", inputType: "email", placeholder: "Email", name: "email" },
     { type: "input", placeholder: "Phone", name: "phone" },
     { type: "input", inputType: "password", placeholder: "Password", name: "password" },
     { type: "input", inputType: "date", placeholder: "BirthDate", name: "birthDate" },
-    {
-      type: "input",
-      inputType: "date",
-      placeholder: "Rent_From",
-      name: "rent_from",
-      showIf: (values) => values.user_type === "rent",
-    },
-    {
-      type: "input",
-      inputType: "date",
-      placeholder: "Rent_To",
-      name: "rent_to",
-      showIf: (values) => values.user_type === "rent",
-    },
+
     { type: "input", placeholder: "Follower User", name: "parent_user_id" },
     {
       type: "select",
@@ -158,15 +148,6 @@ export default function AddVillage() {
       options: [
         { value: "male", label: "Male" },
         { value: "female", label: "Female" },
-      ],
-    },
-    {
-      type: "select",
-      placeholder: "User Type",
-      name: "user_type",
-      options: [
-        { value: "owner", label: "Owner" },
-        { value: "visitor", label: "Visitor" },
       ],
     },
   ];

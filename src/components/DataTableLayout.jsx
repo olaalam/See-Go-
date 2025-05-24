@@ -41,37 +41,55 @@ export default function DataTable({
   showAddButton = true,
   showDeleteButtonInHeader = false,
   onDeleteInHeader,
-  showRowSelection = false, // This prop controls whether row selection is shown
+  showRowSelection = false,
   showFilter = true,
   showActions = true,
   showEditButton = true,
   showDeleteButton = true,
   searchKeys = [],
+  filterKey = [], // Changed to an array to handle multiple filter keys
+  filterOptions = [],
 }) {
   const [searchValue, setSearchValue] = useState("");
-  const [filterValue, setFilterValue] = useState("");
+  const [filterValue, setFilterValue] = useState("all"); // Default to 'all' to show all data
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
   const getNestedValue = (obj, path) => {
-    return path.split(".").reduce((acc, part) => acc && acc[part], obj);
+    // Safely get nested value, returning undefined if any part of the path is null/undefined
+    // This helper itself does not convert to lowercase or handle null/undefined for string methods
+    return path.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
   const filteredData = useMemo(() => {
-    console.log("Filtered Data:", data);
     return data.filter((row) => {
       const matchesSearch = searchKeys.some((key) => {
         const value = getNestedValue(row, key);
-        const searchableValue = value?.toString() || "";
+        // Ensure value is treated as a string for searching
+        const searchableValue = value?.toString() || ""; // Convert to string before toLowerCase
         return searchableValue.toLowerCase().includes(searchValue.toLowerCase());
       });
 
       const matchesFilter =
-        !filterValue || row.status?.toLowerCase() === filterValue.toLowerCase();
+        filterValue === "all" ||
+        filterKey.some((key) => {
+          const rowValue = getNestedValue(row, key);
+
+          // FIX IS HERE: Ensure rowValue is a string before calling toLowerCase()
+          const comparableRowValue =
+            rowValue !== null && rowValue !== undefined
+              ? String(rowValue).toLowerCase() // Convert to string and then to lowercase
+              : ""; // Treat null/undefined as empty string for comparison
+
+          // Ensure filterValue is also treated as a string for comparison
+          const comparableFilterValue = String(filterValue).toLowerCase();
+
+          return comparableRowValue === comparableFilterValue;
+        });
 
       return matchesSearch && matchesFilter;
     });
-  }, [data, searchValue, filterValue, searchKeys]);
+  }, [data, searchValue, filterValue, searchKeys, filterKey]);
 
   const handleRowSelect = (row) => {
     setSelectedRows((prev) =>
@@ -89,9 +107,6 @@ export default function DataTable({
       setSelectedRows([]);
     }
   };
-  
-
-  console.log("columns", columns);
 
   return (
     <div className="w-full !p-3 space-y-6">
@@ -110,8 +125,11 @@ export default function DataTable({
                   <SelectValue placeholder="Filter by" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-bg-primary rounded-md shadow-lg !p-3">
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  {filterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {showAddButton && (
@@ -142,7 +160,7 @@ export default function DataTable({
         <Table className="!min-w-[600px]">
           <TableHeader>
             <TableRow>
-              {showRowSelection && ( // Conditionally render the select all checkbox header
+              {showRowSelection && (
                 <TableHead className="text-bg-primary font-semibold w-12">
                   <input
                     type="checkbox"
@@ -174,7 +192,7 @@ export default function DataTable({
             {filteredData.length > 0 ? (
               filteredData.map((row, index) => (
                 <TableRow key={index}>
-                  {showRowSelection && ( // Conditionally render the individual row checkbox
+                  {showRowSelection && (
                     <TableCell className="!px-2 !py-1">
                       <input
                         type="checkbox"
@@ -192,7 +210,7 @@ export default function DataTable({
                       key={idx}
                       className={clsx(
                         "!px-2 !py-1 text-sm whitespace-normal break-words",
-                        col.key === "image" &&
+                        col.key === "img" && // Corrected from "image" to "img"
                           "h-full min-h-[60px] flex justify-center items-center"
                       )}
                     >
@@ -220,18 +238,43 @@ export default function DataTable({
                             />
                           </Switch>
                         </div>
-                      ) : col.key === "image" ? (
+                      ) : col.key === "img" ? ( // Corrected from "image" to "img"
                         <div className="flex justify-center items-center w-full h-full min-h-[60px]">
-                          <img
-                            src={row[col.key]}
-                            alt="Image"
-                            className="h-10 !m-auto w-auto object-contain"
-                          />
+                          {row[col.key]} {/* Render the JSX directly */}
                         </div>
-                      ) : col.render ? (
+                      ) :col.key === "map" ? (
+  (() => {
+    const url = row[col.key];
+    if (!url) return "N/A"; // Handle missing URL
+
+    const displayText =
+      url.length > 20
+        ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}`
+        : url;
+
+    return (
+      <div className="relative w-[120px] truncate group">
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          {displayText}
+        </a>
+        {url.length > 20 && (
+          <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-pre-wrap max-w-xs break-words">
+            {url}
+          </div>
+        )}
+      </div>
+    );
+  })()
+) : 
+col.render ? (
                         col.render(row)
                       ) : (
-                        row[col.key]
+                        getNestedValue(row, col.key)
                       )}
                     </TableCell>
                   ))}
@@ -243,7 +286,6 @@ export default function DataTable({
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              console.log("Edit clicked for row:", row);
                               onEdit?.(row);
                             }}
                           >
@@ -259,7 +301,7 @@ export default function DataTable({
                             <Trash className="w-4 h-4 text-red-600" />
                           </Button>
                         )}
-                        {showRowSelection && ( // Conditionally render the "CheckSquare" button
+                        {showRowSelection && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -288,7 +330,7 @@ export default function DataTable({
                 <TableCell
                   colSpan={
                     columns.length +
-                    (showRowSelection ? 1 : 0) + // Add 1 to colspan if selection is shown
+                    (showRowSelection ? 1 : 0) +
                     (showEditButton || showDeleteButton || showActions ? 1 : 0)
                   }
                   className="text-center text-gray-500 py-4"
@@ -300,6 +342,8 @@ export default function DataTable({
           </TableBody>
         </Table>
         <div className="w-full !mb-10 max-w-[1200px] mx-auto">
+          {/* Pagination is likely controlled by a separate state,
+              not directly by filteredData, so keep this as is or implement full pagination logic. */}
           <Pagination className="!mb-2 flex justify-center items-center m-auto">
             <PaginationContent className="text-bg-primary font-semibold flex gap-2">
               <PaginationItem>

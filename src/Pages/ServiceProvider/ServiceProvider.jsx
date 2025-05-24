@@ -1,4 +1,3 @@
-"use client";
 import { useEffect, useState } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
@@ -17,12 +16,13 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label"; // Import Label if it's used directly for styling
 
 const Service_provider = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [service_provider, setservice_provider] = useState([]);
-  const [village, setVillage] = useState([]);
+  const [villages, setVillages] = useState([]); // Renamed from 'village' to 'villages' for clarity
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -35,15 +35,14 @@ const Service_provider = () => {
     Authorization: `Bearer ${token}`,
   });
 
-  const fetchVillage = async () => {
+  const fetchVillages = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/village", {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
-      console.log("Village API response:", result);
       const currentLang = localStorage.getItem("lang") || "en";
-      const formattedvillage = (result.villages || []).map((village) => {
+      const formattedVillages = (result.villages || []).map((village) => {
         const translations = village.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
@@ -54,14 +53,13 @@ const Service_provider = () => {
           name: translations[currentLang]?.name || village.name,
         };
       });
-      console.log("Formatted villages:", formattedvillage);
-      setVillage(formattedvillage);
+      setVillages(formattedVillages);
     } catch (err) {
-      console.error("Error fetching village:", err);
+      console.error("Error fetching villages:", err);
     }
   };
 
-  const fetchservice_provider = async () => {
+  const fetchServiceProviders = async () => {
     dispatch(showLoader());
     try {
       const response = await fetch(
@@ -71,7 +69,6 @@ const Service_provider = () => {
         }
       );
       const result = await response.json();
-      console.log("API response:", result);
 
       const currentLang = localStorage.getItem("lang") || "en";
 
@@ -88,7 +85,6 @@ const Service_provider = () => {
           };
         }
       );
-
       setMaintenanceTypes(formattedMaintenanceTypes);
 
       const formattedProviders = (result.providers || []).map((provider) => {
@@ -115,9 +111,11 @@ const Service_provider = () => {
           </Avatar>
         );
 
-        const villageData = village.find((v) => v.id === provider.village_id);
+        // Find village name from the 'villages' state
+        const villageData = villages.find((v) => v.id === provider.village_id);
         const villageName = villageData?.name || "—";
 
+        // Find maintenance type name from the 'formattedMaintenanceTypes' array
         const maintenanceTypeData = formattedMaintenanceTypes.find(
           (t) => t.id === provider.maintenance_type_id
         );
@@ -126,57 +124,53 @@ const Service_provider = () => {
         return {
           id: provider.id,
           name,
-          rawName: name,
+          rawName: name, // Keep rawName for edit dialog input
           location,
           description,
           img: image,
           phone: provider.phone || "—",
-          status: provider.status === 1 ? "Active" : "Inactive",
+          // Normalize status to lowercase for consistent filtering
+          status: provider.status === 1 ? "active" : "inactive",
           village_id: provider.village_id,
-          villageName,
+          villageName, // This is the value used for filtering
           maintenance_type_id: provider.maintenance_type_id,
-          maintenanceTypeName,
+          maintenanceTypeName, // This is the value used for filtering
+          open_from: provider.open_from || "",
+          open_to: provider.open_to || "",
         };
       });
 
       setservice_provider(formattedProviders);
     } catch (error) {
-      console.error("Error fetching service_provider:", error);
+      console.error("Error fetching service providers:", error);
     } finally {
       dispatch(hideLoader());
     }
   };
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      await fetchVillage();
-    };
-    loadInitialData();
+    // Fetch villages first
+    fetchVillages();
   }, []);
 
   useEffect(() => {
-    if (village.length > 0) {
-      fetchservice_provider();
+    // Fetch service providers only after villages are loaded
+    if (villages.length > 0) {
+      fetchServiceProviders();
     }
-  }, [village]);
+  }, [villages]); // Dependency on villages ensures it runs after villages are fetched
 
   const handleEdit = (provider) => {
     if (!provider) return;
+    // Ensure the selectedRow has the rawName for the input field
     setselectedRow({ ...provider, name: provider.rawName });
     setIsEditOpen(true);
   };
 
   const handleDelete = (provider) => {
-    console.log("Deleting provider:", provider);
     setselectedRow(provider);
     setIsDeleteOpen(true);
   };
-
-  useEffect(() => {
-    if (isEditOpen && selectedRow) {
-      console.log("selectedRow data for edit:", selectedRow);
-    }
-  }, [isEditOpen, selectedRow]);
 
   const handleSave = async () => {
     if (!selectedRow) return;
@@ -196,7 +190,11 @@ const Service_provider = () => {
     } = selectedRow;
 
     if (!village_id || isNaN(village_id)) {
-      toast.error("Village ID is missing or invalid");
+      toast.error("Village is missing or invalid.");
+      return;
+    }
+    if (!maintenance_type_id || isNaN(maintenance_type_id)) {
+      toast.error("Maintenance Type is missing or invalid.");
       return;
     }
 
@@ -205,13 +203,15 @@ const Service_provider = () => {
     updatedProvider.append("name", rawName || "");
     updatedProvider.append("location", location || "");
     updatedProvider.append("description", description || "");
-    updatedProvider.append("status", status === "Active" ? "1" : "0");
+    // Convert normalized status back to API expected format
+    updatedProvider.append("status", status === "active" ? "1" : "0");
     updatedProvider.append("phone", phone || "");
     updatedProvider.append("village_id", village_id);
     updatedProvider.append("maintenance_type_id", maintenance_type_id);
 
     const formatTimeWithSeconds = (time) => {
       if (!time) return "";
+      // Ensure time is in 'HH:MM:SS' format for backend if required, otherwise 'HH:MM' is fine.
       return time.length === 5 ? `${time}:00` : time;
     };
 
@@ -226,9 +226,10 @@ const Service_provider = () => {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_provider/update/${id}`,
         {
-          method: "POST",
+          method: "POST", // Backend expects POST for update
           headers: {
             Authorization: `Bearer ${token}`,
+            // Do NOT set Content-Type for FormData, browser sets it automatically
           },
           body: updatedProvider,
         }
@@ -236,57 +237,15 @@ const Service_provider = () => {
 
       if (response.ok) {
         toast.success("Provider updated successfully!");
-        const responseData = await response.json();
-
-        setservice_provider((prev) =>
-          prev.map((provider) =>
-            provider.id === id
-              ? {
-                  ...provider,
-                  name: responseData?.provider?.name || rawName,
-                  rawName: responseData?.provider?.name || rawName,
-                  status:
-                    responseData?.provider?.status === 1
-                      ? "Active"
-                      : "Inactive",
-                  image_link:
-                    responseData?.provider?.image_link || provider.image_link,
-                  phone: responseData?.provider?.phone,
-                  village_id: parseInt(village_id),
-                  villageName:
-                    village.find((v) => v.id === parseInt(village_id))?.name ||
-                    provider.villageName,
-                  img: responseData?.provider?.image_link ? (
-                    <img
-                      src={responseData.provider.image_link}
-                      alt={responseData?.provider?.name || rawName}
-                      className="w-12 h-12 rounded-md object-cover aspect-square"
-                      onError={() => {}}
-                    />
-                  ) : (
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback>
-                        {responseData?.provider?.name?.charAt(0) ||
-                          rawName?.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ),
-                  location: responseData?.provider?.location || location,
-                  description:
-                    responseData?.provider?.description || description,
-                  open_from: responseData?.provider?.open_from || open_from,
-                  open_to: responseData?.provider?.open_to || open_to,
-                }
-              : provider
-          )
-        );
-
+        // Re-fetch all data to ensure the table is fully consistent with the backend
+        // This is often simpler than complex local state updates with translations, images, etc.
+        fetchServiceProviders();
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error("Failed to update provider!");
+        toast.error(`Failed to update provider: ${errorData.message || ''}`);
       }
     } catch (error) {
       console.error("Error updating provider:", error);
@@ -320,6 +279,15 @@ const Service_provider = () => {
 
   const onChange = (key, value) => {
     setselectedRow((prev) => {
+      // Normalize status to lowercase for local state consistency
+      if (key === "status") {
+        return { ...prev, [key]: value.toLowerCase() };
+      }
+      // For village_id and maintenance_type_id, ensure they are numbers
+      if (key === "village_id" || key === "maintenance_type_id") {
+        return { ...prev, [key]: parseInt(value, 10) };
+      }
+      // Special handling for 'name' to update 'rawName'
       if (key === "name") {
         return { ...prev, rawName: value };
       }
@@ -336,6 +304,7 @@ const Service_provider = () => {
       }));
     }
   };
+
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
     try {
@@ -351,7 +320,7 @@ const Service_provider = () => {
         setservice_provider((prevservice_provider) =>
           prevservice_provider.map((provider) =>
             provider.id === id
-              ? { ...provider, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...provider, status: newStatus === 1 ? "active" : "inactive" } // Normalize status here too
               : provider
           )
         );
@@ -363,29 +332,53 @@ const Service_provider = () => {
     }
   };
 
+  // --- Filtering Logic Refinement ---
+  // Generate unique village filter options
+  const uniqueVillageOptions = Array.from(new Set(villages.map(v => v.name)))
+    .filter(name => name && name !== "—") // Filter out empty or placeholder names
+    .map(name => ({ value: name, label: name }));
+
+  // Generate unique maintenance type filter options
+  const uniqueMaintenanceTypeOptions = Array.from(new Set(maintenanceTypes.map(mt => mt.name)))
+    .filter(name => name && name !== "—")
+    .map(name => ({ value: name, label: name }));
+
+  const filterOptionsForServices = [
+    { value: "all", label: "All" }, // Option to clear all filters
+    ...uniqueVillageOptions,
+    ...uniqueMaintenanceTypeOptions,
+    { value: "active", label: "Active" }, // Filter by status
+    { value: "inactive", label: "Inactive" }, // Filter by status
+  ];
+
   const columns = [
     { key: "name", label: "Provider" },
     { key: "location", label: "Location" },
     { key: "description", label: "Description" },
-    { key: "villageName", label: "Village" },
-    { key: "maintenanceTypeName", label: "Maintenance Type" },
+    { key: "villageName", label: "Village" }, // Use villageName for display and filtering
+    { key: "maintenanceTypeName", label: "Maintenance Type" }, // Use maintenanceTypeName for display and filtering
     { key: "img", label: "Image" },
     { key: "phone", label: "Phone" },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status" }, // Use status for display and filtering
   ];
 
   return (
     <div>
       {isLoading && <FullPageLoader />}
+      <ToastContainer />
       <DataTable
         data={service_provider}
         columns={columns}
-        addRoute="/service-provider/add"
+        addRoute="/maintenance-provider/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "location", "villageName"]}
+        searchKeys={["name", "location", "villageName", "maintenanceTypeName"]}
+        showFilter={true}
+        // Specify the keys that the DataTable should filter by
+        filterKey={["villageName", "maintenanceTypeName", "status"]}
+        filterOptions={filterOptionsForServices}
       />
 
       {selectedRow && (
@@ -399,9 +392,9 @@ const Service_provider = () => {
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <label htmlFor="name" className="text-gray-400 !pb-3">
+              <Label htmlFor="name" className="text-gray-400 !pb-3">
                 Provider Name
-              </label>
+              </Label>
               <Input
                 label="Provider Name"
                 id="name"
@@ -409,9 +402,9 @@ const Service_provider = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <label htmlFor="location" className="text-gray-400 !pb-3">
+              <Label htmlFor="location" className="text-gray-400 !pb-3">
                 Location
-              </label>
+              </Label>
               <Input
                 label="Location"
                 id="location"
@@ -420,9 +413,9 @@ const Service_provider = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-              <label htmlFor="description" className="text-gray-400 !pb-3">
+              <Label htmlFor="description" className="text-gray-400 !pb-3">
                 Description
-              </label>
+              </Label>
               <Input
                 label="Description"
                 id="description"
@@ -430,9 +423,9 @@ const Service_provider = () => {
                 onChange={(e) => onChange("description", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <label htmlFor="maintenance_type" className="text-gray-400 !pb-3">
+              <Label htmlFor="maintenance_type" className="text-gray-400 !pb-3">
                 Maintenance Type
-              </label>
+              </Label>
               <Select
                 value={selectedRow?.maintenance_type_id?.toString()}
                 onValueChange={(value) =>
@@ -465,9 +458,9 @@ const Service_provider = () => {
                 </SelectContent>
               </Select>
 
-              <label htmlFor="phone" className="text-gray-400 !pb-3">
+              <Label htmlFor="phone" className="text-gray-400 !pb-3">
                 Phone
-              </label>
+              </Label>
               <Input
                 label="Phone"
                 id="phone"
@@ -475,9 +468,9 @@ const Service_provider = () => {
                 onChange={(e) => onChange("phone", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <label htmlFor="open_from" className="text-gray-400 !pb-3">
+              <Label htmlFor="open_from" className="text-gray-400 !pb-3">
                 Open From
-              </label>
+              </Label>
               <Input
                 type="time"
                 id="open_from"
@@ -486,9 +479,9 @@ const Service_provider = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-              <label htmlFor="open_to" className="text-gray-400 !pb-3">
+              <Label htmlFor="open_to" className="text-gray-400 !pb-3">
                 Open To
-              </label>
+              </Label>
               <Input
                 type="time"
                 id="open_to"
@@ -497,13 +490,13 @@ const Service_provider = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-              <label htmlFor="village" className="text-gray-400 !pb-3">
+              <Label htmlFor="village" className="text-gray-400 !pb-3">
                 Village
-              </label>
+              </Label>
               <Select
                 value={selectedRow?.village_id?.toString()}
                 onValueChange={(value) => onChange("village_id", value)}
-                disabled={village.length === 0}
+                disabled={villages.length === 0}
               >
                 <SelectTrigger
                   id="village"
@@ -512,8 +505,8 @@ const Service_provider = () => {
                   <SelectValue placeholder="Select village" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                  {village.length > 0 ? (
-                    village.map((v) => (
+                  {villages.length > 0 ? (
+                    villages.map((v) => (
                       <SelectItem
                         key={v.id}
                         value={v.id.toString()}
@@ -534,9 +527,9 @@ const Service_provider = () => {
                 </SelectContent>
               </Select>
 
-              <label htmlFor="image" className="text-gray-400 !pb-3">
+              <Label htmlFor="image" className="text-gray-400 !pb-3">
                 Image
-              </label>
+              </Label>
               <Input
                 type="file"
                 id="image"

@@ -211,6 +211,12 @@ const Payment_methods = () => {
             }));
         }
     };
+      // Define filter options for status, including an "All" option
+  const filterOptionsForZones = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
 
     const columns = [
         { key: "name", label: "Payment Method" },
@@ -234,6 +240,8 @@ const Payment_methods = () => {
                 onDelete={handleDelete}
                 onToggleStatus={handleToggleStatus}
                  searchKeys={[ "description","name"]}
+                               filterKey={["status"]} // Specify that we want to filter by the 'status' key
+              filterOptions={filterOptionsForZones}
             />
 
             {selectedRow && (

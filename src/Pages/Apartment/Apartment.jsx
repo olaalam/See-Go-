@@ -225,6 +225,13 @@ const Apartment = () => {
       }));
     }
   };
+    // Define filter options for status, including an "All" option
+  const filterOptionsForApartment = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
+
   const columns = [
     { key: "name", label: "Apartment Name" },
     { key: "img", label: "Image" },
@@ -245,6 +252,9 @@ const Apartment = () => {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={["name"]}
+                showFilter={true} // Ensure the filter dropdown is shown
+        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        filterOptions={filterOptionsForApartment}
       />
 
       {selectedRow && (

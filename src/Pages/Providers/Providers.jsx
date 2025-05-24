@@ -55,7 +55,8 @@ const Providers = () => {
       });
       const result = await res.json();
       const currentLang = localStorage.getItem("lang") || "en";
-      const formattedZones = (result.zones || []).map((zone) => { // تأكد من وجود result.zones
+      const formattedZones = (result.zones || []).map((zone) => {
+        // تأكد من وجود result.zones
         const translations = zone.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
@@ -152,7 +153,7 @@ const Providers = () => {
             {name}
           </span>
         );
-        const location =
+        const map =
           translations[currentLang]?.location || provider.location || "—";
         const description =
           translations[currentLang]?.description || provider.description || "—";
@@ -189,7 +190,7 @@ const Providers = () => {
           id: provider.id,
           name: nameClickable,
           rawName,
-          location,
+          map,
           description,
           img: image,
           numberOfproviders: provider.providers_count ?? "0",
@@ -203,7 +204,7 @@ const Providers = () => {
           zoneName, // إضافة zoneName إلى الـ formatted provider
           zone_id, // إضافة zone_id إلى الـ formatted provider
           open_from: provider.open_from, // تأكد من جلبها من API
-          open_to: provider.open_to,     // تأكد من جلبها من API
+          open_to: provider.open_to, // تأكد من جلبها من API
         };
       });
 
@@ -231,7 +232,8 @@ const Providers = () => {
 
   // جلب الـ providers بعد التأكد من جلب village و zones
   useEffect(() => {
-    if (village.length > 0 && zones.length > 0) { // تأكد من أن zones و village تم جلبها
+    if (village.length > 0 && zones.length > 0) {
+      // تأكد من أن zones و village تم جلبها
       fetchProviders();
     }
   }, [village, zones]); // إضافة zones كاعتمادية
@@ -245,7 +247,7 @@ const Providers = () => {
       service_id: provider.service_id ?? provider.service?.id ?? "",
       name: provider.rawName, // استخدام rawName هنا للحقل النصي
       open_from: provider.open_from || "", // تأكد من أن القيمة موجودة هنا
-      open_to: provider.open_to || "",     // تأكد من أن القيمة موجودة هنا
+      open_to: provider.open_to || "", // تأكد من أن القيمة موجودة هنا
       zone_id: provider.zone_id, // تأكد من تمرير zone_id
     });
     setIsEditOpen(true);
@@ -258,7 +260,10 @@ const Providers = () => {
 
   useEffect(() => {
     if (isEditOpen && selectedRow) {
-      console.log("service_id عند فتح الـ Edit Dialog:", selectedRow.service_id);
+      console.log(
+        "service_id عند فتح الـ Edit Dialog:",
+        selectedRow.service_id
+      );
       console.log("selectedRow data عند فتح الـ Edit Dialog:", selectedRow); // تحقق من البيانات عند فتح نافذة التعديل
     }
   }, [isEditOpen, selectedRow]);
@@ -280,17 +285,20 @@ const Providers = () => {
     } = selectedRow;
 
     // تحقق من الحقول المفتوحة
-    if (!village_id || isNaN(parseInt(village_id, 10))) { // التأكد من التحويل لعدد صحيح
+    if (!village_id || isNaN(parseInt(village_id, 10))) {
+      // التأكد من التحويل لعدد صحيح
       toast.error("Village ID is missing or invalid");
       return;
     }
-    if (!service_id || isNaN(parseInt(service_id, 10))) { // التأكد من التحويل لعدد صحيح
+    if (!service_id || isNaN(parseInt(service_id, 10))) {
+      // التأكد من التحويل لعدد صحيح
       toast.error("Service ID is missing or invalid");
       return;
     }
-    if (!zone_id || isNaN(parseInt(zone_id, 10))) { // التحقق من zone_id
-        toast.error("Zone ID is missing or invalid");
-        return;
+    if (!zone_id || isNaN(parseInt(zone_id, 10))) {
+      // التحقق من zone_id
+      toast.error("Zone ID is missing or invalid");
+      return;
     }
 
     const updatedProvider = new FormData();
@@ -331,7 +339,6 @@ const Providers = () => {
 
       if (response.ok) {
         toast.success("Provider updated successfully!");
-        const responseData = await response.json();
         fetchProviders();
         setIsEditOpen(false);
         setselectedRow(null);
@@ -431,7 +438,7 @@ const Providers = () => {
   const columns = [
     { key: "name", label: "Provider " },
     { key: "serviceName", label: "Service " },
-    { key: "location", label: "Location" },
+    { key: "map", label: "Location" },
     { key: "description", label: "description" },
     { key: "villageName", label: "Village" },
     { key: "zoneName", label: "Zone" }, // إضافة Zone كعمود في الجدول
@@ -440,6 +447,14 @@ const Providers = () => {
     { key: "rating", label: "Rating" },
     { key: "status", label: "Status" },
   ];
+
+    const filterOptionsForVillages = [
+    { value: "all", label: "All" }, // Option to clear filters
+    ...zones.map((zone) => ({ value: zone.name, label: zone.name })), // Filter by zone name
+    { value: "active", label: "Active" }, // Filter by status
+    { value: "inactive", label: "Inactive" }, // Filter by status
+  ];
+
 
   return (
     <div className="p-6">
@@ -454,212 +469,225 @@ const Providers = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "serviceName", "location", "villageName", "zoneName"]} // إضافة zoneName للبحث
+        searchKeys={[
+          "name",
+          "serviceName",
+          "location",
+          "villageName",
+          "zoneName",
+        ]}
+        showFilter={true} // Ensure the filter dropdown is shown
+        filterKey={["zone", "status"]} // Default filter for the dropdown will be by 'zone'
+        filterOptions={filterOptionsForVillages}
       />
 
       {selectedRow && (
         <>
-              <EditDialog
-                open={isEditOpen}
-                onOpenChange={setIsEditOpen}
-                onSave={handleSave}
-                selectedRow={selectedRow}
-                zones={zones}
-                onChange={onChange}
-              >
+          <EditDialog
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            onSave={handleSave}
+            selectedRow={selectedRow}
+            zones={zones}
+            onChange={onChange}
+          >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    <label htmlFor="name" className="text-gray-400 !pb-3">
-            Provider Name
-          </label>
-          <Input
-            label="Provider Name"
-            id="name"
-            value={selectedRow?.name} // استخدام name لعرض القيمة الحالية
-            onChange={(e) => onChange("name", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
-          <label htmlFor="location" className="text-gray-400 !pb-3">
-            Location
-          </label>
-          <Input
-            label="location"
-            id="location"
-            value={selectedRow?.location || ""}
-            onChange={(e) => onChange("location", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
+              <label htmlFor="name" className="text-gray-400 !pb-3">
+                Provider Name
+              </label>
+              <Input
+                label="Provider Name"
+                id="name"
+                value={selectedRow?.name} // استخدام name لعرض القيمة الحالية
+                onChange={(e) => onChange("name", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              <Input
+                label="location"
+                id="location"
+                value={selectedRow?.location || ""}
+                onChange={(e) => onChange("location", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
 
-          <label htmlFor="zone" className="text-gray-400 !pb-3">
-            Zone
-          </label>
-          <Select
-            value={selectedRow?.zone_id?.toString() || ""} // تأكد من أن القيمة سلسلة نصية
-            onValueChange={(value) => onChange("zone_id", value)}
-            disabled={zones.length === 0} // تعطيل السلكت إذا لم تكن هناك مناطق
-          >
-            <SelectTrigger
-              id="zone"
-              className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-            >
-              <SelectValue placeholder="Select Zone" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-              {zones.length > 0 ? (
-                zones.map((zone) => (
-                  <SelectItem
-                    key={zone.id}
-                    value={zone.id.toString()}
-                    className="text-bg-primary "
-                  >
-                    {zone.name}
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value={null} className="text-bg-primary" disabled>
-                  No zones available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-
-          <label htmlFor="description" className="text-gray-400 !pb-3">
-            Description
-          </label>
-          <Input
-            label="description"
-            id="description"
-            value={selectedRow?.description || ""}
-            onChange={(e) => onChange("description", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
-
-          <label htmlFor="phone" className="text-gray-400 !pb-3">
-            Phone
-          </label>
-          <Input
-            label="phone"
-            id="phone"
-            value={selectedRow?.phone || ""}
-            onChange={(e) => onChange("phone", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
-          <label htmlFor="open_from" className="text-gray-400 !pb-3">
-            Open From
-          </label>
-          <Input
-            type="time"
-            id="open_from"
-            value={selectedRow?.open_from || ""}
-            onChange={(e) => onChange("open_from", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
-
-          <label htmlFor="open_to" className="text-gray-400 !pb-3">
-            Open To
-          </label>
-          <Input
-            type="time"
-            id="open_to"
-            value={selectedRow?.open_to || ""}
-            onChange={(e) => onChange("open_to", e.target.value)}
-            className="!my-2 text-bg-primary !p-4"
-          />
-
-          <label htmlFor="service" className="text-gray-400 !pb-3">
-            Service
-          </label>
-          <Select
-            value={selectedRow?.service_id?.toString() || ""}
-            onValueChange={(value) => onChange("service_id", value)}
-            disabled={services.length === 0}
-          >
-            <SelectTrigger
-              id="service"
-              className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-            >
-              <SelectValue placeholder="Select service" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-              {services.length > 0 ? (
-                services.map((service) => (
-                  <SelectItem
-                    key={service.id}
-                    value={service.id.toString()}
-                    className="text-bg-primary"
-                  >
-                    {service.name}
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem
-                  value={null}
-                  className="text-bg-primary"
-                  disabled
+              <label htmlFor="zone" className="text-gray-400 !pb-3">
+                Zone
+              </label>
+              <Select
+                value={selectedRow?.zone_id?.toString() || ""} // تأكد من أن القيمة سلسلة نصية
+                onValueChange={(value) => onChange("zone_id", value)}
+                disabled={zones.length === 0} // تعطيل السلكت إذا لم تكن هناك مناطق
+              >
+                <SelectTrigger
+                  id="zone"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
                 >
-                  No services available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+                  <SelectValue placeholder="Select Zone" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {zones.length > 0 ? (
+                    zones.map((zone) => (
+                      <SelectItem
+                        key={zone.id}
+                        value={zone.id.toString()}
+                        className="text-bg-primary "
+                      >
+                        {zone.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem
+                      value={null}
+                      className="text-bg-primary"
+                      disabled
+                    >
+                      No zones available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
 
-          <label htmlFor="village" className="text-gray-400 !pb-3">
-            Village
-          </label>
-          <Select
-            value={selectedRow?.village_id?.toString() || ""}
-            onValueChange={(value) => onChange("village_id", value)}
-            disabled={village.length === 0}
-          >
-            <SelectTrigger
-              id="village"
-              className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-            >
-              <SelectValue placeholder="Select village" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-              {village.length > 0 ? (
-                village.map((v) => (
-                  <SelectItem
-                    key={v.id}
-                    value={v.id.toString()}
-                    className="text-bg-primary"
-                  >
-                    {v.name}
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem
-                  value={null}
-                  className="text-bg-primary"
-                  disabled
+              <label htmlFor="description" className="text-gray-400 !pb-3">
+                Description
+              </label>
+              <Input
+                label="description"
+                id="description"
+                value={selectedRow?.description || ""}
+                onChange={(e) => onChange("description", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="phone" className="text-gray-400 !pb-3">
+                Phone
+              </label>
+              <Input
+                label="phone"
+                id="phone"
+                value={selectedRow?.phone || ""}
+                onChange={(e) => onChange("phone", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="open_from" className="text-gray-400 !pb-3">
+                Open From
+              </label>
+              <Input
+                type="time"
+                id="open_from"
+                value={selectedRow?.open_from || ""}
+                onChange={(e) => onChange("open_from", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="open_to" className="text-gray-400 !pb-3">
+                Open To
+              </label>
+              <Input
+                type="time"
+                id="open_to"
+                value={selectedRow?.open_to || ""}
+                onChange={(e) => onChange("open_to", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="service" className="text-gray-400 !pb-3">
+                Service
+              </label>
+              <Select
+                value={selectedRow?.service_id?.toString() || ""}
+                onValueChange={(value) => onChange("service_id", value)}
+                disabled={services.length === 0}
+              >
+                <SelectTrigger
+                  id="service"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
                 >
-                  No villages available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {services.length > 0 ? (
+                    services.map((service) => (
+                      <SelectItem
+                        key={service.id}
+                        value={service.id.toString()}
+                        className="text-bg-primary"
+                      >
+                        {service.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem
+                      value={null}
+                      className="text-bg-primary"
+                      disabled
+                    >
+                      No services available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
 
-          <label htmlFor="image" className="text-gray-400 !pb-3">
-            Image
-          </label>
-          <Input
-            type="file"
-            id="image"
-            accept="image/*"
-            className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-            onChange={handleImageChange}
+              <label htmlFor="village" className="text-gray-400 !pb-3">
+                Village
+              </label>
+              <Select
+                value={selectedRow?.village_id?.toString() || ""}
+                onValueChange={(value) => onChange("village_id", value)}
+                disabled={village.length === 0}
+              >
+                <SelectTrigger
+                  id="village"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                >
+                  <SelectValue placeholder="Select village" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {village.length > 0 ? (
+                    village.map((v) => (
+                      <SelectItem
+                        key={v.id}
+                        value={v.id.toString()}
+                        className="text-bg-primary"
+                      >
+                        {v.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem
+                      value={null}
+                      className="text-bg-primary"
+                      disabled
+                    >
+                      No villages available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+
+              <label htmlFor="image" className="text-gray-400 !pb-3">
+                Image
+              </label>
+              <Input
+                type="file"
+                id="image"
+                accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={handleImageChange}
+              />
+            </div>
+          </EditDialog>
+          <DeleteDialog
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            onDelete={handleDeleteConfirm}
+            name={selectedRow.name}
           />
-          </div>
-        </EditDialog>
-        <DeleteDialog
-          open={isDeleteOpen}
-          onOpenChange={setIsDeleteOpen}
-          onDelete={handleDeleteConfirm}
-          name={selectedRow.name}
-        />
-      </>
-    )}
-  </div>
+        </>
+      )}
+    </div>
   );
 };
 export default Providers;

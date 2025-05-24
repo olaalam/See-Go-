@@ -8,51 +8,7 @@ export default function SomePage() {
   const [villageData, setVillageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
-  const [adminColumns] = useState([
-    { label: "Username", key: "name" },
-    { label: "Email", key: "email" },
-    { label: "Phone Number", key: "phone" },
-    { label: "Role", key: "role" },
-    {
-      label: "Profile",
-      key: "profile",
-      render: (row) =>
-        row.profile ? (
-          <img src={row.profile} alt="profile" className="w-10 h-10 rounded-full" />
-        ) : (
-          "—"
-        ),
-    },
-    {
-      label: "Cover",
-      key: "cover",
-      render: (row) =>
-        row.cover ? (
-          <img src={row.cover} alt="cover" className="w-16 h-10 rounded" />
-        ) : (
-          "—"
-        ),
-    },
-    {
-      label: "Gallery",
-      key: "gallery",
-      render: (row) =>
-        Array.isArray(row.gallery) && row.gallery.length > 0 ? (
-          <div className="flex gap-1">
-            {row.gallery.slice(0, 3).map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt={`gallery-${i}`}
-                className="w-10 h-10 rounded object-cover"
-              />
-            ))}
-          </div>
-        ) : (
-          "—"
-        ),
-    },
-  ]);
+
 
   useEffect(() => {
     async function fetchVillage() {
@@ -106,7 +62,7 @@ export default function SomePage() {
 
   return(
     <>
-      <SinglePageCompo data={villageData} status={status} adminColumns={adminColumns} entityType="village" />
+      <SinglePageCompo data={villageData} status={status}  entityType="village" />
       <Outlet/>
     </>
   )

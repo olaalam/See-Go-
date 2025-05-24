@@ -38,6 +38,8 @@ import Maintenance_types from "./Pages/Maintenance/Maintenance";
 import Addmaintenance_type from "./Pages/Maintenance/MaintenanceAdd";
 import ServiceProvider from "./Pages/ServiceProvider/ServiceProvider";
 import ServiceProviderAdd from "./Pages/ServiceProvider/ServiceProviderAdd";
+import VAdminRole from "./Pages/Villages/VAdminRole";
+import VAdminRoleAdd from "./Pages/Villages/VAdminRoleAdd";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
@@ -85,7 +87,13 @@ const router = createBrowserRouter([
       element: <SinglePageV />,
     },
         { path: "single-page-v/:id/add", element: <VAdminAdd /> },
-
+        
+                { path: "single-page-v/:villageId/admin/:adminId",
+                  children:[
+                    { index: true, element:<VAdminRole />},
+                    { path: "add", element:<VAdminRoleAdd/>}
+                  ]
+                  },
         ],
       },
       {
@@ -169,7 +177,7 @@ const router = createBrowserRouter([
         ],
       },
                   {
-        path: "service-provider",
+        path: "maintenance-provider",
         children: [
           { index: true, element: <ServiceProvider /> },
           { path: "add", element: <ServiceProviderAdd /> },

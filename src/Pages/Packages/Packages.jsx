@@ -185,13 +185,20 @@ const Subscription = () => {
     updatedsubscription.append("type", type || "");
     updatedsubscription.append("discount", discount || "");
     if (type === "village") {
-        updatedsubscription.append("admin_num", selectedRow.admin_num || "0");
-        updatedsubscription.append("security_num", selectedRow.security_num || "0");
-        updatedsubscription.append("maintenance_module", selectedRow.maintenance_module || "0");
-        updatedsubscription.append("beach_pool_module", selectedRow.beach_pool_module || "0");
-      }
-      
-      
+      updatedsubscription.append("admin_num", selectedRow.admin_num || "0");
+      updatedsubscription.append(
+        "security_num",
+        selectedRow.security_num || "0"
+      );
+      updatedsubscription.append(
+        "maintenance_module",
+        selectedRow.maintenance_module || "0"
+      );
+      updatedsubscription.append(
+        "beach_pool_module",
+        selectedRow.beach_pool_module || "0"
+      );
+    }
 
     try {
       const response = await fetch(
@@ -230,9 +237,10 @@ const Subscription = () => {
                   service_id: responseData?.subscription?.service_id,
                   security_num: responseData?.subscription?.security_num,
                   admin_num: responseData?.subscription?.admin_num,
-                  maintenance_module: responseData?.subscription?.maintenance_module,
-                  beach_pool_module: responseData?.subscription?.beach_pool_module,
-                  
+                  maintenance_module:
+                    responseData?.subscription?.maintenance_module,
+                  beach_pool_module:
+                    responseData?.subscription?.beach_pool_module,
                 }
               : subscription
           )
@@ -317,7 +325,12 @@ const Subscription = () => {
   useEffect(() => {
     console.log("services loaded:", services);
   }, [services]);
-
+  // Define filter options for status, including an "All" option
+  const filterOptionsForZones = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
   const columns = [
     { key: "type", label: "Type" },
     { key: "name", label: "Name " },
@@ -343,8 +356,9 @@ const Subscription = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-                  searchKeys={["name", "serviceName","type"]}
-
+        searchKeys={["name", "serviceName", "type"]}
+        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        filterOptions={filterOptionsForZones} // Pass the defined filter options
       />
       {selectedRow && (
         <>
@@ -368,24 +382,28 @@ const Subscription = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-<label htmlFor="type" className="text-gray-400 !pb-3">
-  Type
-</label>
-<Select
-  value={selectedRow?.type || ""}
-  onValueChange={(value) => onChange("type", value)}
->
-  <SelectTrigger
-    id="type"
-    className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-  >
-    <SelectValue placeholder="Select type" />
-  </SelectTrigger>
-  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-    <SelectItem value="provider" className="text-bg-primary">Provider</SelectItem>
-    <SelectItem value="village" className="text-bg-primary">Village</SelectItem>
-  </SelectContent>
-</Select>
+              <label htmlFor="type" className="text-gray-400 !pb-3">
+                Type
+              </label>
+              <Select
+                value={selectedRow?.type || ""}
+                onValueChange={(value) => onChange("type", value)}
+              >
+                <SelectTrigger
+                  id="type"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                >
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  <SelectItem value="provider" className="text-bg-primary">
+                    Provider
+                  </SelectItem>
+                  <SelectItem value="village" className="text-bg-primary">
+                    Village
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
               <label htmlFor="description" className="text-gray-400 !pb-3">
                 description
@@ -408,56 +426,65 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-
               {selectedRow?.type === "village" && (
-  <>
-    <label htmlFor="admin_num" className="text-gray-400 !pb-3">
-      Admin Number
-    </label>
-    <Input
-      id="admin_num"
-      value={selectedRow?.admin_num || ""}
-      onChange={(e) => onChange("admin_num", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
+                <>
+                  <label htmlFor="admin_num" className="text-gray-400 !pb-3">
+                    Admin Number
+                  </label>
+                  <Input
+                    id="admin_num"
+                    value={selectedRow?.admin_num || ""}
+                    onChange={(e) => onChange("admin_num", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label htmlFor="security_num" className="text-gray-400 !pb-3">
-      Security Number
-    </label>
-    <Input
-      id="security_num"
-      value={selectedRow?.security_num || ""}
-      onChange={(e) => onChange("security_num", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
+                  <label htmlFor="security_num" className="text-gray-400 !pb-3">
+                    Security Number
+                  </label>
+                  <Input
+                    id="security_num"
+                    value={selectedRow?.security_num || ""}
+                    onChange={(e) => onChange("security_num", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label htmlFor="maintenance_module" className="text-gray-400 !pb-3">
-      Maintenance Module (0 or 1)
-    </label>
-    <Input
-      id="maintenance_module"
-      type="number"
-      min="0"
-      max="1"
-      value={selectedRow?.maintenance_module || ""}
-      onChange={(e) => onChange("maintenance_module", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
+                  <label
+                    htmlFor="maintenance_module"
+                    className="text-gray-400 !pb-3"
+                  >
+                    Maintenance Module (0 or 1)
+                  </label>
+                  <Input
+                    id="maintenance_module"
+                    type="number"
+                    min="0"
+                    max="1"
+                    value={selectedRow?.maintenance_module || ""}
+                    onChange={(e) =>
+                      onChange("maintenance_module", e.target.value)
+                    }
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label htmlFor="beach_pool_module" className="text-gray-400 !pb-3">
-      Beach/Pool Module (0 or 1)
-    </label>
-    <Input
-      id="beach_pool_module"
-      type="number"
-      min="0"
-      max="1"
-      value={selectedRow?.beach_pool_module || ""}
-      onChange={(e) => onChange("beach_pool_module", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
-  </>
-)}
+                  <label
+                    htmlFor="beach_pool_module"
+                    className="text-gray-400 !pb-3"
+                  >
+                    Beach/Pool Module (0 or 1)
+                  </label>
+                  <Input
+                    id="beach_pool_module"
+                    type="number"
+                    min="0"
+                    max="1"
+                    value={selectedRow?.beach_pool_module || ""}
+                    onChange={(e) =>
+                      onChange("beach_pool_module", e.target.value)
+                    }
+                    className="!my-2 text-bg-primary !p-4"
+                  />
+                </>
+              )}
               <label htmlFor="price" className="text-gray-400 !pb-3">
                 price
               </label>
@@ -481,43 +508,46 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-{selectedRow?.type === "provider" && (
-  <>
-    <label htmlFor="service" className="text-gray-400 !pb-3">
-      Service
-    </label>
-    <Select
-      value={selectedRow?.service_id?.toString()}
-      onValueChange={(value) => onChange("service_id", value)}
-      disabled={services.length === 0}
-    >
-      <SelectTrigger
-        id="service"
-        className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-      >
-        <SelectValue placeholder="Select service" />
-      </SelectTrigger>
-      <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-        {services.length > 0 ? (
-          services.map((service) => (
-            <SelectItem
-              key={service.id}
-              value={service.id.toString()}
-              className="text-bg-primary"
-            >
-              {service.name}
-            </SelectItem>
-          ))
-        ) : (
-          <SelectItem value={null} className="text-bg-primary" disabled>
-            No services available
-          </SelectItem>
-        )}
-      </SelectContent>
-    </Select>
-  </>
-)}
-
+              {selectedRow?.type === "provider" && (
+                <>
+                  <label htmlFor="service" className="text-gray-400 !pb-3">
+                    Service
+                  </label>
+                  <Select
+                    value={selectedRow?.service_id?.toString()}
+                    onValueChange={(value) => onChange("service_id", value)}
+                    disabled={services.length === 0}
+                  >
+                    <SelectTrigger
+                      id="service"
+                      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                    >
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {services.length > 0 ? (
+                        services.map((service) => (
+                          <SelectItem
+                            key={service.id}
+                            value={service.id.toString()}
+                            className="text-bg-primary"
+                          >
+                            {service.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem
+                          value={null}
+                          className="text-bg-primary"
+                          disabled
+                        >
+                          No services available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </div>
           </EditDialog>
           <DeleteDialog

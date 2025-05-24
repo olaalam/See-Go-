@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; 
 import DataTable from "@/components/DataTableLayout";
 import DeleteDialog from "@/components/DeleteDialog";
 import EditDialog from "@/components/EditDialog";
@@ -24,11 +24,24 @@ export default function VAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [villageOptions, setVillageOptions] = useState([]);
   const [villagePositions, setVillagePositions] = useState([]);
-  const { id } = useParams();
+  const { id } = useParams(); 
+  const navigate = useNavigate(); 
   const token = localStorage.getItem("token");
 
+  // Corrected columns array
   const columns = [
-    { label: "Username", key: "name" },
+    {
+      label: "Username",
+      key: "name",
+      render: (row) => (
+        <span
+          onClick={() => navigate(`/villages/single-page-v/${id}/admin/${row.id}`)} 
+          className="text-bg-primary hover:text-teal-800 cursor-pointer"
+        >
+          {row.name}
+        </span>
+      ),
+    },
     { label: "Email", key: "email" },
     { label: "Phone Number", key: "phone" },
     { label: "Role", key: "role" },
@@ -53,14 +66,14 @@ export default function VAdmin() {
           }
         );
         const adminJson = await adminRes.json();
-        console.log("VAdmin",adminJson); 
+        console.log("VAdmin", adminJson);
         const villagePositions = adminJson.village_positions;
         setVillagePositions(villagePositions);
 
         const formattedAdmins = (
           Array.isArray(adminJson.admins)
             ? adminJson.admins
-            : [adminJson.admins]
+            : [] // If adminJson.admins is not an array, default to an empty array
         ).map((admin) => {
           const position = villagePositions.find(
             (pos) => pos.id === admin.admin_position_id
@@ -73,18 +86,21 @@ export default function VAdmin() {
                 : admin.status === 1
                 ? "Active"
                 : "Inactive",
-            admin_position_name: position ? position.name : "Unknown",
+            role: position ? position.name : "Unknown", 
           };
         });
         setAdminData(formattedAdmins);
       } catch (error) {
         console.error("Error fetching data:", error);
+        toast.error("Failed to load admin data.");
+        setAdminData([]); // Ensure adminData is an empty array on error
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, token, navigate]);
+
   useEffect(() => {
     const fetchVillageOptions = async () => {
       try {
@@ -122,7 +138,6 @@ export default function VAdmin() {
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/status/${row.id}?status=${newStatus}`,
-
         { method: "PUT", headers: getAuthHeaders() }
       );
 
@@ -190,7 +205,7 @@ export default function VAdmin() {
       phone,
       password,
       admin_position_id,
-      status,
+      status, 
       village_id,
     } = selectedRow;
 
@@ -206,7 +221,7 @@ export default function VAdmin() {
             phone,
             password,
             admin_position_id,
-            status: selectedRow?.status === "Active" ? 1 : 0,
+            status: status === "Active" ? 1 : 0, 
             village_id,
           }),
         }
@@ -223,7 +238,7 @@ export default function VAdmin() {
                   email,
                   phone,
                   admin_position_id,
-                  status: status === "Active" ? "Active" : "Inactive",
+                  status: status === "Active" ? "Active" : "Inactive", 
                   village_id,
                 }
               : admin
@@ -242,16 +257,22 @@ export default function VAdmin() {
   const onChange = (key, value) => {
     setSelectedRow((prev) => ({
       ...prev,
-      [key]: key === "village_id" ? parseInt(value, 10) : value,
+      [key]: key === "village_id" || key === "admin_position_id" ? parseInt(value, 10) : value, 
     }));
   };
+  // Define filter options for status, including an "All" option
+  const filterOptionsForZones = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
 
   return (
     <div>
       <ToastContainer />
       {isLoading ? (
         <Loading />
-      ) : adminData.length > 0 ? (
+      ) : ( // Corrected: This `else` block now correctly wraps the DataTable and dialogs
         <>
           <DataTable
             data={adminData}
@@ -261,7 +282,10 @@ export default function VAdmin() {
             onEdit={handleEdit}
             onToggleStatus={handleToggleStatus}
             onDelete={handleDelete}
-            searchKeys={["name", "email"]}
+            searchKeys={["name", "email", "phone", "role"]} 
+            showFilter={true} 
+            filterKey={["status"]} 
+            filterOptions={filterOptionsForZones}
           />
 
           {selectedRow && (
@@ -299,37 +323,36 @@ export default function VAdmin() {
                     value={selectedRow?.password}
                     onChange={(val) => onChange("password", val)}
                   />
-{villagePositions.length > 0 && (
-  <div className="w-full">
-    <Label htmlFor="adminPosition" className="text-gray-400">
-      Position
-    </Label>
-    <Select
-      value={selectedRow?.admin_position_id?.toString()}
-      onValueChange={(value) =>
-        onChange("admin_position_id", value)
-      }
-    >
-      <SelectTrigger
-        id="adminPosition"
-        className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]"
-      >
-        <SelectValue placeholder="Select position" />
-      </SelectTrigger>
-      <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-        {villagePositions.map((position) => (
-          <SelectItem
-            key={position.id}
-            value={position.id.toString()}
-          >
-            {position.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-)}
-
+                  {villagePositions.length > 0 && (
+                    <div className="w-full">
+                      <Label htmlFor="adminPosition" className="text-gray-400">
+                        Position
+                      </Label>
+                      <Select
+                        value={selectedRow?.admin_position_id?.toString()}
+                        onValueChange={(value) =>
+                          onChange("admin_position_id", value)
+                        }
+                      >
+                        <SelectTrigger
+                          id="adminPosition"
+                          className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]"
+                        >
+                          <SelectValue placeholder="Select position" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                          {villagePositions.map((position) => (
+                            <SelectItem
+                              key={position.id}
+                              value={position.id.toString()}
+                            >
+                              {position.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="village" className="text-gray-400">
@@ -364,11 +387,7 @@ export default function VAdmin() {
           )}
           <Outlet />
         </>
-      ) : (
-        <div className="text-center text-gray-500 p-4">
-          No admin users found for this village.
-        </div>
-      )}
+      )} 
     </div>
   );
 }

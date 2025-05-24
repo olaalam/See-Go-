@@ -23,7 +23,7 @@ const Users = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
-  const [villages, setVillages] = useState([]);
+  const [villages, setVillages] = useState([]); // This state is not currently used in the render or update logic for users, but it's fetched.
   const token = localStorage.getItem("token");
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -76,8 +76,10 @@ const Users = () => {
           email: u.email || "—",
           phone: u.phone || "—",
           gender: trans?.[lang]?.gender || u.gender || "—",
-          user_type: trans?.[lang]?.user_type || u.user_type || "—",
-          status: u.status === 1 ? "Active" : "Inactive",
+          // Normalize user_type to lowercase for consistent filtering
+          user_type: (trans?.[lang]?.user_type || u.user_type || "—").toLowerCase(),
+          // Normalize status to lowercase for consistent filtering
+          status: u.status === 1 ? "active" : "inactive",
           img: u.image_link ? (
             <img
               src={u.image_link}
@@ -89,8 +91,7 @@ const Users = () => {
               <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>
             </Avatar>
           ),
-
-          password: "",
+          password: "", // This might be a security concern if you're pulling and then resending passwords. Ideally, passwords are not sent back to the frontend.
           birthDate: u.birthDate || "",
           rent_from: u.rent_from || "",
           rent_to: u.rent_to || "",
@@ -106,7 +107,7 @@ const Users = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchVillages();
+    fetchVillages(); // Fetch villages if needed for other parts of the component or future features
   }, []);
 
   const handleEdit = (user) => {
@@ -134,11 +135,11 @@ const Users = () => {
       rent_to,
     } = selectedRow;
 
+    // You might want to remove password from this check if it's not always required for updates
     if (
       !name ||
       !email ||
       !phone ||
-      !password ||
       !gender ||
       !birthDate ||
       !user_type
@@ -151,20 +152,20 @@ const Users = () => {
       name,
       email,
       phone,
-      password,
+      password, // Be cautious with sending password back. Consider if the backend requires it or if it can be updated separately.
       gender,
       birthDate,
       user_type,
       rent_from,
       rent_to,
-      status: status === "Active" ? 1 : 0,
+      status: status === "active" ? 1 : 0, // Convert normalized status back to API expected format
     };
 
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/update/${id}`,
         {
-          method: "POST",
+          method: "POST", // Often PUT/PATCH for updates, but backend expects POST
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedUser),
         }
@@ -172,20 +173,10 @@ const Users = () => {
 
       if (res.ok) {
         toast.success("User updated successfully!");
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.id === id
-              ? {
-                  ...user,
-                  ...updatedUser,
-                  status: updatedUser.status === 1 ? "Active" : "Inactive",
-                }
-              : user
-          )
-        );
+        // Re-fetch users to ensure data consistency after update, or update state locally
+        fetchUsers(); // Re-fetching is safer after complex updates
         setIsEditOpen(false);
         setselectedRow(null);
-        console.log("Payload being sent:", updatedUser);
       } else {
         toast.error("Failed to update user.");
       }
@@ -214,7 +205,8 @@ const Users = () => {
   const onChange = (key, value) => {
     setselectedRow((prev) => ({
       ...prev,
-      [key]: key === "village_id" ? parseInt(value, 10) : value,
+      // Ensure user_type and status are normalized to lowercase when set
+      [key]: (key === "user_type" || key === "status") ? value.toLowerCase() : value,
     }));
   };
 
@@ -229,7 +221,7 @@ const Users = () => {
         setUsers((prev) =>
           prev.map((u) =>
             u.id === row.id
-              ? { ...u, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...u, status: newStatus === 1 ? "active" : "inactive" } // Normalize status
               : u
           )
         );
@@ -238,6 +230,18 @@ const Users = () => {
       toast.error("Error updating status.", err);
     }
   };
+
+  // Dynamically generate filter options for user_type and combine with status options
+  const userTypeOptions = Array.from(new Set(users.map(user => user.user_type)))
+    .filter(type => type !== "—") // Filter out placeholder values if any
+    .map(type => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) })); // Capitalize for display
+
+  const filterOptionsForUsers = [
+    { value: "all", label: "All" },
+    ...userTypeOptions, // Add unique user types
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
 
   const columns = [
     { key: "name", label: "User Name" },
@@ -259,7 +263,10 @@ const Users = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "email"]}
+        searchKeys={["name", "email", "phone"]}
+        showFilter={true}
+        filterKey={["status", "user_type"]} // Allow filtering by both status and user_type
+        filterOptions={filterOptionsForUsers} // Pass combined filter options
       />
       {selectedRow && (
         <>
@@ -293,7 +300,7 @@ const Users = () => {
                 label="Password"
                 id="password"
                 type="password"
-                value={selectedRow.password}
+                value={selectedRow.password} // Consider if this should be editable or displayed
                 onChange={(val) => onChange("password", val)}
               />
               <InputField
@@ -303,12 +310,27 @@ const Users = () => {
                 value={selectedRow.birthDate}
                 onChange={(val) => onChange("birthDate", val)}
               />
-              <InputField
-                label="Gender"
-                id="gender"
+              <Label htmlFor="gender" className="text-gray-400 !pb-1">
+                Gender
+              </Label>
+              <Select
                 value={selectedRow.gender}
-                onChange={(val) => onChange("gender", val)}
-              />
+                onValueChange={(val) => onChange("gender", val)}
+              >
+                <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  <SelectItem className="text-bg-primary " value="male">
+                    Male
+                  </SelectItem>
+                  <SelectItem className="text-bg-primary " value="female">
+                    Female
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {/* Account Type Select - Uncomment and use if needed for editing */}
+              {/*
               <div>
                 <Label htmlFor="user_type" className="text-gray-400 !pb-1">
                   Account Type
@@ -321,11 +343,22 @@ const Users = () => {
                     <SelectValue placeholder="Select Account Type" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    <SelectItem  className="text-bg-primary "  value="owner">Owner</SelectItem>
-                    <SelectItem  className="text-bg-primary " value="visitor">Visitor</SelectItem>
+                    <SelectItem className="text-bg-primary " value="owner">
+                      Owner
+                    </SelectItem>
+                    <SelectItem className="text-bg-primary " value="visitor">
+                      Visitor
+                    </SelectItem>
+                    <SelectItem className="text-bg-primary " value="rent">
+                      Renter
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              */}
+
+              {/* Rent From/To fields - Uncomment if needed */}
+              {/*
               {selectedRow.user_type === "rent" && (
                 <>
                   <InputField
@@ -344,6 +377,7 @@ const Users = () => {
                   />
                 </>
               )}
+              */}
             </div>
           </EditDialog>
 

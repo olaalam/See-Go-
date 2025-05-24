@@ -31,13 +31,16 @@ const Maintenance_types = () => {
   const fetchmaintenance_types = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/maintenance_type", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/maintenance_type",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
 
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
@@ -49,7 +52,8 @@ const Maintenance_types = () => {
           return acc;
         }, {});
 
-        const name = translations[currentLang]?.name || maintenance_type.name || "—";
+        const name =
+          translations[currentLang]?.name || maintenance_type.name || "—";
 
         const image =
           maintenance_type?.image_link && !imageErrors[maintenance_type.id] ? (
@@ -98,8 +102,7 @@ const Maintenance_types = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, status, imageFile } =
-      selectedRow;
+    const { id, name, status, imageFile } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
@@ -130,8 +133,12 @@ const Maintenance_types = () => {
                   ...maintenance_type,
                   name: responseData?.maintenance_type?.name || name,
                   status:
-                    responseData?.maintenance_type?.status === 1 ? "Active" : "Inactive",
-                  image_link: responseData?.maintenance_type?.image_link || maintenance_type.image_link,
+                    responseData?.maintenance_type?.status === 1
+                      ? "Active"
+                      : "Inactive",
+                  image_link:
+                    responseData?.maintenance_type?.image_link ||
+                    maintenance_type.image_link,
                   img: responseData?.maintenance_type?.image_link ? (
                     <img
                       src={responseData.maintenance_type.image_link}
@@ -142,7 +149,8 @@ const Maintenance_types = () => {
                   ) : (
                     <Avatar className="w-12 h-12">
                       <AvatarFallback>
-                        {responseData?.maintenance_type?.name?.charAt(0) || name?.charAt(0)}
+                        {responseData?.maintenance_type?.name?.charAt(0) ||
+                          name?.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                   ),
@@ -175,7 +183,11 @@ const Maintenance_types = () => {
 
       if (response.ok) {
         toast.success("maintenance_type deleted successfully!");
-        setmaintenance_types(maintenance_types.filter((maintenance_type) => maintenance_type.id !== selectedRow.id));
+        setmaintenance_types(
+          maintenance_types.filter(
+            (maintenance_type) => maintenance_type.id !== selectedRow.id
+          )
+        );
         setIsDeleteOpen(false);
       } else {
         toast.error("Failed to delete maintenance_type!");
@@ -203,7 +215,10 @@ const Maintenance_types = () => {
         setmaintenance_types((prevmaintenance_types) =>
           prevmaintenance_types.map((maintenance_type) =>
             maintenance_type.id === id
-              ? { ...maintenance_type, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? {
+                  ...maintenance_type,
+                  status: newStatus === 1 ? "Active" : "Inactive",
+                }
               : maintenance_type
           )
         );
@@ -240,6 +255,12 @@ const Maintenance_types = () => {
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
+  // Define filter options for status, including an "All" option
+  const filterOptionsForZones = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
 
   return (
     <div className="p-4">
@@ -255,6 +276,8 @@ const Maintenance_types = () => {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "description"]}
+        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        filterOptions={filterOptionsForZones}
       />
 
       {selectedRow && (

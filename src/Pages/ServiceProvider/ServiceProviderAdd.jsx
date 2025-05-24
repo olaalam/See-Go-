@@ -169,6 +169,7 @@ export default function AddServiceProvider() {
             description: "",
           },
         });
+         navigate("/maintenance-provider");
       } else {
         const errorData = await response.json();
         console.error("Error response:", errorData);
@@ -251,7 +252,7 @@ export default function AddServiceProvider() {
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Service Provider
+        Add Maintenance Provider
       </h2>
 
       <div className="w-[90%] mx-auto">

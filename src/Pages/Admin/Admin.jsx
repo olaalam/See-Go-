@@ -20,7 +20,7 @@ import {
 const Admins = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [admins, setadmins] = useState([]);
+  const [admins, setAdmins] = useState([]); // Changed to setAdmins for consistency
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -35,7 +35,7 @@ const Admins = () => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-  const fetchadmins = async () => {
+  const fetchAdmins = async () => { // Changed to fetchAdmins for consistency
     dispatch(showLoader());
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/admins", {
@@ -60,10 +60,6 @@ const Admins = () => {
         const name = translations[currentLang]?.name || admin.name || "—";
         const email = translations[currentLang]?.email || admin.email || "—";
         const phone = translations[currentLang]?.phone || admin.phone || "—";
-        const role =
-          translations[currentLang]?.provider_only ||
-          admin.provider_only ||
-          "—";
 
         const image =
           admin?.image_link && !imageErrors[admin.id] ? (
@@ -83,16 +79,16 @@ const Admins = () => {
           id: admin.id,
           name,
           email,
-          role: admin.provider_only,
+          role: admin.provider_only, // This is the boolean or numeric value (0 or 1)
           phone,
           img: image,
-          status: admin.status === 1 ? "Active" : "Inactive",
+          status: admin.status === 1 ? "active" : "inactive", // Ensure status is lowercase for consistent filtering
           image_link: admin.image_link,
           gender: admin.gender || "—",
         };
       });
 
-      setadmins(formatted);
+      setAdmins(formatted);
     } catch (error) {
       console.error("Error fetching admins:", error);
     } finally {
@@ -101,7 +97,7 @@ const Admins = () => {
   };
 
   useEffect(() => {
-    fetchadmins();
+    fetchAdmins();
   }, []);
 
   const handleEdit = (admin) => {
@@ -121,7 +117,7 @@ const Admins = () => {
       name,
       phone,
       email,
-      role,
+      role, // This is the boolean/numeric role from selectedRow
       status,
       gender,
       password,
@@ -132,12 +128,12 @@ const Admins = () => {
     formData.append("name", name);
     formData.append("phone", phone);
     formData.append("email", email);
-    formData.append("role", role);
     formData.append("password", password);
 
-    formData.append("provider_only", role);
+    // Correctly append the role based on its true/false or 0/1 value
+    formData.append("provider_only", role ? 1 : 0); // Convert boolean to 1 or 0 for the backend
     formData.append("gender", gender);
-    formData.append("status", status === "Active" ? 1 : 0);
+    formData.append("status", status === "active" ? 1 : 0); // Use lowercase "active"
 
     if (imageFile) {
       formData.append("image", imageFile);
@@ -154,10 +150,10 @@ const Admins = () => {
       );
 
       if (response.ok) {
-        toast.success("admin updated successfully!");
+        toast.success("Admin updated successfully!");
         const responseData = await response.json();
 
-        setadmins((prev) =>
+        setAdmins((prev) =>
           prev.map((admin) =>
             admin.id === id
               ? {
@@ -165,10 +161,10 @@ const Admins = () => {
                   name: responseData?.admin?.name || name,
                   phone: responseData?.admin?.phone || phone,
                   email: responseData?.admin?.email || email,
-                  role: responseData?.admin?.provider_only, // Update with the boolean value
+                  role: responseData?.admin?.provider_only, // Keep as boolean/numeric
                   gender: responseData?.admin?.gender || gender,
                   status:
-                    responseData?.admin?.status === 1 ? "Active" : "Inactive",
+                    responseData?.admin?.status === 1 ? "active" : "inactive", // Ensure lowercase
                   image_link:
                     responseData?.admin?.image_link || admin.image_link,
                   img: responseData?.admin?.image_link ? (
@@ -214,8 +210,8 @@ const Admins = () => {
       );
 
       if (response.ok) {
-        toast.success("admin deleted successfully!");
-        setadmins(admins.filter((admin) => admin.id !== selectedRow.id));
+        toast.success("Admin deleted successfully!");
+        setAdmins(admins.filter((admin) => admin.id !== selectedRow.id));
         setIsDeleteOpen(false);
       } else {
         toast.error("Failed to delete admin!");
@@ -239,11 +235,11 @@ const Admins = () => {
       );
 
       if (response.ok) {
-        toast.success("admin status updated successfully!");
-        setadmins((prevadmins) =>
-          prevadmins.map((admin) =>
+        toast.success("Admin status updated successfully!");
+        setAdmins((prevAdmins) => // Changed to prevAdmins for consistency
+          prevAdmins.map((admin) =>
             admin.id === id
-              ? { ...admin, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...admin, status: newStatus === 1 ? "active" : "inactive" } // Ensure lowercase
               : admin
           )
         );
@@ -289,6 +285,19 @@ const Admins = () => {
     { key: "gender", label: "Gender" },
   ];
 
+  // --- START OF FILTER FIX ---
+  // Define filter options for status and role
+  const filterOptions = [
+    { value: "all", label: "All" },
+    // Options for "status" filter
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+    // Options for "role" filter
+    { value: "0", label: "Admin" }, // Role 0 for Admin
+    { value: "1", label: "Provider" }, // Role 1 for Provider
+  ];
+  // --- END OF FILTER FIX ---
+
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -302,7 +311,9 @@ const Admins = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "phone"]}
+        searchKeys={["name", "phone", "email"]}
+        filterKey={["status", "role"]} // Specify that we want to filter by the 'status' and 'role' keys
+        filterOptions={filterOptions} // Pass the defined filter options
       />
 
       {selectedRow && (
@@ -337,36 +348,28 @@ const Admins = () => {
               <label htmlFor="role" className="text-gray-400 !pb-3">
                 Role
               </label>
-              {selectedRow?.role === 1 ? (
-                <Input
+              {/* This logic for role in EditDialog assumes 'role' is a boolean/numeric (0 or 1) */}
+              <Select
+                value={selectedRow?.role?.toString()} // Convert to string for Select component
+                onValueChange={(value) =>
+                  onChange("role", parseInt(value)) // Convert back to number
+                }
+              >
+                <SelectTrigger
                   id="role"
-                  value="Provider"
-                  
-                  className="!my-2 text-bg-primary !p-4"
-                />
-              ) : (
-                <Select
-                  value={selectedRow?.role?.toString()}
-                  onValueChange={(value) =>
-                    onChange("role", value === "all" ? 0 : 1)
-                  } 
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
                 >
-                  <SelectTrigger
-                    id="role"
-                    className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-                  >
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    <SelectItem value="0" className="text-bg-primary">
-                      All/Admin
-                    </SelectItem>
-                    <SelectItem value="1" className="text-bg-primary">
-                      Provider
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  <SelectItem value="0" className="text-bg-primary">
+                    Admin
+                  </SelectItem>
+                  <SelectItem value="1" className="text-bg-primary">
+                    Provider
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <label htmlFor="phone" className="text-gray-400 !pb-3">
                 Phone
               </label>

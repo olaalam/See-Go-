@@ -31,7 +31,7 @@ const navItems = [
   { label: "Apartment Types", to: "/apartments", icon: <Building size={20} /> },
   { label: "Users", to: "/users", icon: <User size={20} /> },
   { label: "Service Types", to: "/services", icon: <Settings size={20} /> },
-  { label: "Providers", to: "/providers", icon: <Users size={20} /> },
+  { label: "Service Providers", to: "/providers", icon: <Users size={20} /> },
   {
     label: "Packages",
     to: "/packages",
@@ -55,8 +55,8 @@ const navItems = [
     icon: <Wrench size={20} />,
   },
   {
-    label: "Service Provider",
-    to: "/service-provider",
+    label: "Maintenance Provider",
+    to: "/maintenance-provider",
     icon: <Users size={20} />,
   },
 

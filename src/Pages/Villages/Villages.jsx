@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import DataTable from "@/components/DataTableLayout";
+import DataTable from "@/components/DataTableLayout"; // Assuming this is your generic DataTable component
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
@@ -98,7 +98,7 @@ const Villages = () => {
           village.zone?.name ||
           "—";
 
-        const image = village?.image_link && !imageErrors[village.id]?  (
+        const image = village?.image_link && !imageErrors[village.id] ? (
           <img
             src={village?.image_link}
             alt={name}
@@ -111,11 +111,7 @@ const Villages = () => {
           </Avatar>
         );
 
-
-
-
-
-        const location = village.location || "—";
+        const map = village.location || "—";
         const population = village.population_count || "—";
 
         return {
@@ -125,10 +121,11 @@ const Villages = () => {
           description,
           img: image,
           numberOfUnits: village.units_count ?? "0",
-          status: village.status === 1 ? "Active" : "Inactive",
+          status: village.status === 1 ? "active" : "inactive", // Ensure status is lowercase for consistent filtering
           zone_id: village.zone_id,
-          zoneName,
-          location,
+          zoneName, // Keep zoneName for display
+          zone: zoneName, // Add 'zone' key with its name for filtering
+          map,
           population,
           image_link: village.image_link,
         };
@@ -172,8 +169,7 @@ const Villages = () => {
       zone_id,
       location,
       population,
-      numberOfVillages,
-      image_link,
+      numberOfUnits, // Changed from numberOfVillages to numberOfUnits
       imageFile,
     } = selectedRow;
 
@@ -185,11 +181,11 @@ const Villages = () => {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("description", description);
-    formData.append("status", status === "Active" ? "1" : "0");
+    formData.append("status", status === "active" ? "1" : "0"); // Use lowercase "active"
     formData.append("zone_id", zone_id.toString());
     formData.append("location", location);
     formData.append("population_count", population.toString());
-    formData.append("villages_count", parseInt(numberOfVillages));
+    formData.append("units_count", parseInt(numberOfUnits)); // Changed from villages_count to units_count
 
     if (imageFile) {
       formData.append("image", imageFile);
@@ -282,7 +278,7 @@ const Villages = () => {
         setVillages((prevVillages) =>
           prevVillages.map((village) =>
             village.id === id
-              ? { ...village, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...village, status: newStatus === 1 ? "active" : "inactive" } // Ensure status is lowercase
               : village
           )
         );
@@ -298,11 +294,19 @@ const Villages = () => {
     { key: "name", label: "Village Name" },
     { key: "description", label: "Description" },
     { key: "numberOfUnits", label: "Number of Units" },
-    { key: "zoneName", label: "Zone" },
-    { key: "location", label: "Location" },
+    { key: "zoneName", label: "Zone" }, // This is for display
+    { key: "map", label: "Location" },
     { key: "img", label: "Image" },
     { key: "population", label: "Population" },
     { key: "status", label: "Status" },
+  ];
+
+  // Prepare filter options for zone and status
+  const filterOptionsForVillages = [
+    { value: "all", label: "All" }, // Option to clear filters
+    ...zones.map((zone) => ({ value: zone.name, label: zone.name })), // Filter by zone name
+    { value: "active", label: "Active" }, // Filter by status
+    { value: "inactive", label: "Inactive" }, // Filter by status
   ];
 
   return (
@@ -317,8 +321,13 @@ const Villages = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description"]}
-      />
+        searchKeys={["name", "description", "zone", "status"]} // Add 'zone' and 'status' to searchable keys
+        showFilter={true} // Ensure the filter dropdown is shown
+        filterKey={["zone","status"]} // Default filter for the dropdown will be by 'zone'
+        filterOptions={filterOptionsForVillages}
+      >
+
+      </DataTable>
 
       {selectedRow && (
         <>
@@ -330,6 +339,8 @@ const Villages = () => {
             zones={zones}
             onChange={onChange}
           >
+                        <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+
             <label htmlFor="name" className="text-gray-400 !pb-3">
               Village Name
             </label>
@@ -381,10 +392,33 @@ const Villages = () => {
             </label>
             <Input
               id="location"
-              value={selectedRow?.location || ""}
-              onChange={(e) => onChange("location", e.target.value)}
+              value={selectedRow?.map|| ""}
+              onChange={(e) => onChange("map", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
+
+            <label htmlFor="population" className="text-gray-400 !pb-3">
+              Population Count
+            </label>
+            <Input
+              id="population"
+              type="number"
+              value={selectedRow?.population || ""}
+              onChange={(e) => onChange("population", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
+
+            <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
+              Number of Units
+            </label>
+            <Input
+              id="numberOfUnits"
+              type="number"
+              value={selectedRow?.numberOfUnits || ""}
+              onChange={(e) => onChange("numberOfUnits", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
+
 
             <label htmlFor="image" className="text-gray-400">
               Image
@@ -405,6 +439,7 @@ const Villages = () => {
               className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
               onChange={handleImageChange}
             />
+            </div>
           </EditDialog>
 
           <DeleteDialog
