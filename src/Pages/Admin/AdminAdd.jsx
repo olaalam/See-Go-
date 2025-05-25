@@ -46,9 +46,7 @@ export default function Addadmin() {
     formDataToSend.append("gender", gender);
     formDataToSend.append("status", statusValue);
 
-    if (image) {
-      formDataToSend.append("image", image);
-    }
+
 
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/admins/add", {
@@ -116,7 +114,6 @@ export default function Addadmin() {
         { value: "provider", label: "Provider" },
       ],
     },
-    { type: "file", name: "image" },
     {
       type: "select",
       placeholder: "Status",

@@ -115,13 +115,12 @@ const Apartment = () => {
 
     formData.append("status", status === "Active" ? 1 : 0);
 
-    if (selectedRow.imageFile) {
-      formData.append("image", selectedRow.imageFile);
-    } else {
-      formData.append("keep_current_image", "true");
-
-      formData.append("image", selectedRow.image_link || "");
-    }
+if (selectedRow.imageFile) {
+  formData.append("image", selectedRow.imageFile);
+} else if (selectedRow.image_link) {
+  // Send the existing image as a fallback
+  formData.append("image", selectedRow.image_link);
+}
 
     try {
       const response = await fetch(

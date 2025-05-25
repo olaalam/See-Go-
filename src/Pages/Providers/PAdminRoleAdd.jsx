@@ -1,4 +1,4 @@
-// Addvillage_roles.jsx
+// Addprovider_roles.jsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Add from "@/components/AddFieldSection"; // This is your custom Add component
@@ -9,7 +9,7 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
-export default function Addvillage_roles() {
+export default function Addprovider_roles() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ export default function Addvillage_roles() {
     const fetchRoles = async () => {
       dispatch(showLoader());
       try {
-        const response = await fetch("https://bcknd.sea-go.org/admin/village_roles", {
+        const response = await fetch("https://bcknd.sea-go.org/admin/provider_roles", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -85,7 +85,7 @@ export default function Addvillage_roles() {
     body.append("status", formData.status === "active" ? "1" : "0");
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/village_roles/add", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/provider_roles/add", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -94,7 +94,7 @@ export default function Addvillage_roles() {
       });
 
       if (response.ok) {
-        toast.success("Village role added successfully!", {
+        toast.success("provider role added successfully!", {
           position: "top-right",
           autoClose: 3000,
         });
@@ -103,14 +103,14 @@ export default function Addvillage_roles() {
           roles: [], // Reset to empty array after successful submission
           status: "",
         });
-        navigate(`/village-roles`);
+        navigate(`/provider-roles`);
       } else {
         const errorData = await response.json();
-        const errorMessage = errorData.message || "Failed to add village role.";
+        const errorMessage = errorData.message || "Failed to add provider role.";
         toast.error(errorMessage, { position: "top-right", autoClose: 3000 });
       }
     } catch (error) {
-      console.error("Error submitting village role:", error);
+      console.error("Error submitting provider role:", error);
       toast.error("An error occurred!", {
         position: "top-right",
         autoClose: 3000,
@@ -151,7 +151,7 @@ export default function Addvillage_roles() {
       <ToastContainer />
 
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
-        Add Village Roles
+        Add Provider Roles
       </h2>
 
       <div className="w-[90%] mx-auto">

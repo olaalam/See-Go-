@@ -105,15 +105,18 @@ const Services = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, status, imageFile } = selectedRow;
+    const { id, name, status } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("status", status === "Active" ? 1 : 0);
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
+if (selectedRow.imageFile) {
+  formData.append("image", selectedRow.imageFile);
+} else if (selectedRow.image_link) {
+  // Send the existing image as a fallback
+  formData.append("image", selectedRow.image_link);
+}
 
     try {
       const response = await fetch(
@@ -244,6 +247,7 @@ const Services = () => {
       }));
     }
   };
+
   // Define filter options for status, including an "All" option
   const filterOptionsForServices = [
     { value: "all", label: "All" },
@@ -296,20 +300,20 @@ const Services = () => {
               className="!my-2 text-bg-primary !p-4"
             />
 
+            <label htmlFor="image" className="text-gray-400">
+              Image
+            </label>
+
             {selectedRow?.image_link && (
-              <div className="mb-4">
-                <p className="text-gray-400 mb-1">Current Image</p>
+              <div className="flex items-center gap-4 mb-2">
                 <img
                   src={selectedRow.image_link}
                   alt="Current"
-                  className="w-24 h-24 rounded-md object-cover"
+                  className="w-12 h-12 rounded-md object-cover border"
                 />
               </div>
             )}
 
-            <label htmlFor="image" className="text-gray-400 !pb-3">
-              Upload New Image
-            </label>
             <Input
               type="file"
               id="image"
@@ -317,6 +321,8 @@ const Services = () => {
               className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
               onChange={handleImageChange}
             />
+
+
           </EditDialog>
 
           <DeleteDialog

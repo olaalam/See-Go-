@@ -170,7 +170,6 @@ const Villages = () => {
       location,
       population,
       numberOfUnits, // Changed from numberOfVillages to numberOfUnits
-      imageFile,
     } = selectedRow;
 
     if (!zone_id || isNaN(zone_id)) {
@@ -187,9 +186,12 @@ const Villages = () => {
     formData.append("population_count", population.toString());
     formData.append("units_count", parseInt(numberOfUnits)); // Changed from villages_count to units_count
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
+if (selectedRow.imageFile) {
+  formData.append("image", selectedRow.imageFile);
+} else if (selectedRow.image_link) {
+  // Send the existing image as a fallback
+  formData.append("image", selectedRow.image_link);
+}
 
     try {
       const response = await fetch(

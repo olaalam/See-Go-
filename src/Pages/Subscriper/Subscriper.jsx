@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import axios from "axios";
@@ -83,26 +82,19 @@ export default function SubscribersPage() {
   }, [tab]);
 
   const handleEdit = async (row) => {
-    console.log("Selected Row Data:", row); // Debug log
-
     const formData = new FormData();
     formData.append(
       "payment_method_id",
-      row.payment_method_id?.toString() || "1"
+      row.payment_method_id?.toString() || ""
     );
-    formData.append("package_id", row.package_id?.toString() || "1");
+    formData.append("package_id", row.package_id?.toString() || "");
     formData.append("type", row.type);
 
     if (row.type === "provider") {
-      formData.append("provider_id", row?.provider?.id?.toString() || "");
+      formData.append("provider_id", row?.provider_id?.toString() || "");
       formData.append("service_id", row?.service_id?.toString() || "");
     } else if (row.type === "village") {
-      formData.append("village_id", row?.village?.id?.toString() || "");
-    }
-
-    // Debug log
-    for (let pair of formData.entries()) {
-      console.log(`${pair[0]}: ${pair[1]}`);
+      formData.append("village_id", row?.village_id?.toString() || "");
     }
 
     try {
@@ -123,13 +115,11 @@ export default function SubscribersPage() {
 
   const handleDelete = async (row) => {
     try {
-      const response = await axios.delete(
+      await axios.delete(
         `https://bcknd.sea-go.org/admin/subscriper/delete/${row.id}`,
         { headers: getAuthHeaders() }
       );
       toast.success("Subscriber deleted successfully.");
-
-      // تحديث البيانات المحلية مباشرة بدلاً من إعادة استرجاعها
       setData((prevData) => prevData.filter((item) => item.id !== row.id));
     } catch (error) {
       console.error("Error deleting subscriber:", error);
@@ -138,24 +128,36 @@ export default function SubscribersPage() {
   };
 
   const handleEditClick = (row) => {
-    // التحقق من أن row تحتوي على النوع (type)
-    if (!row.type) {
-      if (tab === "provider") {
-        row.type = "provider";
-        // تأكد من تعيين provider_id إذا لم يكن موجودًا
-        if (!row.provider_id) row.provider_id = "default_provider_id"; // أو استخدم قيمة من مكان آخر
-      } else if (tab === "village") {
-        row.type = "village";
-      } else {
-        row.type = "unknown";
+    const rowToEdit = { ...row };
+
+    if (!rowToEdit.type) {
+      rowToEdit.type = tab;
+    }
+
+    if (rowToEdit.payment_method_id === undefined && rowToEdit.payment_method?.id !== undefined) {
+      rowToEdit.payment_method_id = rowToEdit.payment_method.id;
+    }
+
+    if (rowToEdit.package_id === undefined && rowToEdit.package?.id !== undefined) {
+        rowToEdit.package_id = rowToEdit.package.id;
+    }
+
+    if (rowToEdit.type === "provider") {
+      if (rowToEdit.provider_id === undefined && rowToEdit.provider?.id !== undefined) {
+        rowToEdit.provider_id = rowToEdit.provider.id;
+      }
+      if (rowToEdit.service_id === undefined && rowToEdit.service?.id !== undefined) {
+         rowToEdit.service_id = rowToEdit.service.id;
+      } else if (rowToEdit.service_id === undefined && rowToEdit.service_name?.id !== undefined) {
+         rowToEdit.service_id = rowToEdit.service_name.id;
+      }
+    } else if (rowToEdit.type === "village") {
+      if (rowToEdit.village_id === undefined && rowToEdit.village?.id !== undefined) {
+        rowToEdit.village_id = rowToEdit.village.id;
       }
     }
 
-    // طباعة البيانات للتحقق من قيم row
-    console.log("Row before setting to selectedRow:", row);
-
-    // تحديث selectedRow وفتح الـ EditDialog
-    setSelectedRow(row);
+    setSelectedRow(rowToEdit);
     setEditDialogOpen(true);
   };
 
@@ -169,19 +171,19 @@ export default function SubscribersPage() {
     if (type === "village") return villagePackages;
     return [];
   };
-  // Define filter options for status, including an "All" option
+
   const filterOptionsForZones = [
     { value: "all", label: "All" },
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
   ];
+
   const columns = [
     {
       key: "subscriber",
       label: "Subscriber Name",
       render: (row) => row.subscriber || "N/A",
     },
-
     {
       key: "type",
       label: "Type",
@@ -195,7 +197,7 @@ export default function SubscribersPage() {
     {
       key: "payment_method",
       label: "Payment Method",
-      render: (row) => row.payment_method || "N/A",
+      render: (row) => row.payment_method?.name || "N/A",
     },
     {
       key: "expiry_date",
@@ -205,16 +207,15 @@ export default function SubscribersPage() {
     {
       key: "package",
       label: "Package",
-      render: (row) => row.package.name || "N/A",
+      render: (row) => row.package?.name || "N/A",
     },
-
     ...(tab === "provider" || tab === "all"
       ? [
           {
             key: "associated_services",
             label: "Associated Services",
             render: (row) =>
-              row.type === "village" ? "-" : row.service || "N/A",
+              row.type === "village" ? "-" : row.service?.name || "N/A",
           },
         ]
       : []),
@@ -227,32 +228,32 @@ export default function SubscribersPage() {
         <TabsList className="grid !ms-3 w-[90%] grid-cols-4 gap-4 bg-transparent !mb-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
+                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                 hover:bg-teal-100 hover:text-teal-700"
             value="all"
           >
             All
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
+                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                 hover:bg-teal-100 hover:text-teal-700"
             value="provider"
           >
             Provider
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
+                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                 hover:bg-teal-100 hover:text-teal-700"
             value="village"
           >
             Village
           </TabsTrigger>
-                    <TabsTrigger
+          <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
+                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                 hover:bg-teal-100 hover:text-teal-700"
             value="maintenance"
           >
             Maintenance Type
@@ -271,7 +272,7 @@ export default function SubscribersPage() {
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
               searchKeys={["type", "subscriber", "payment_method"]}
-              filterKey={["status"]} // Specify that we want to filter by the 'status' key
+              filterKey={["status"]}
               filterOptions={filterOptionsForZones}
             />
           )}
@@ -281,18 +282,17 @@ export default function SubscribersPage() {
             onOpenChange={setEditDialogOpen}
             selectedRow={selectedRow}
             onSave={() => {
-              handleEdit(selectedRow, tab);
+              handleEdit(selectedRow);
               setEditDialogOpen(false);
             }}
           >
             <div className="space-y-4">
-              {/* Payment Method ID */}
               <div className="space-y-2">
                 <label htmlFor="payment_method_id" className="text-gray-400">
-                  Payment Method ID
+                  Payment Method
                 </label>
                 <Select
-                  value={selectedRow?.payment_method_id?.toString()}
+                  value={selectedRow?.payment_method_id?.toString() || ""}
                   onValueChange={(value) =>
                     setSelectedRow({
                       ...selectedRow,
@@ -303,7 +303,7 @@ export default function SubscribersPage() {
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                     {paymentMethods.find(
                       (method) => method.id === selectedRow?.payment_method_id
-                    )?.name || "Select Payment Method ID"}
+                    )?.name || "Select Payment Method"}
                   </SelectTrigger>
                   <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                     {paymentMethods.map((method) => (
@@ -319,13 +319,12 @@ export default function SubscribersPage() {
                 </Select>
               </div>
 
-              {/* Package ID */}
               <div className="space-y-2">
                 <label htmlFor="package_id" className="text-gray-400">
-                  Package ID
+                  Package
                 </label>
                 <Select
-                  value={selectedRow?.package_id?.toString()}
+                  value={selectedRow?.package_id?.toString() || ""}
                   onValueChange={(value) =>
                     setSelectedRow({
                       ...selectedRow,
@@ -336,7 +335,7 @@ export default function SubscribersPage() {
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                     {getPackagesByType(selectedRow?.type).find(
                       (pkg) => pkg.id === selectedRow?.package_id
-                    )?.name || "Select Package ID"}
+                    )?.name || "Select Package"}
                   </SelectTrigger>
                   <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                     {getPackagesByType(selectedRow?.type).map((pkg) => (
@@ -352,16 +351,14 @@ export default function SubscribersPage() {
                 </Select>
               </div>
 
-              {/* Conditional fields based on subscriber type */}
               {selectedRow?.type === "provider" && (
                 <>
-                  {/* Service ID */}
                   <div className="space-y-2">
                     <label htmlFor="service_id" className="text-gray-400">
-                      Service ID
+                      Service
                     </label>
                     <Select
-                      value={selectedRow?.service_id?.toString()}
+                      value={selectedRow?.service_id?.toString() || ""}
                       onValueChange={(value) =>
                         setSelectedRow({
                           ...selectedRow,
@@ -372,7 +369,7 @@ export default function SubscribersPage() {
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {services.find(
                           (service) => service.id === selectedRow?.service_id
-                        )?.name || "Select Service ID"}
+                        )?.name || "Select Service"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                         {services.map((service) => (
@@ -392,13 +389,12 @@ export default function SubscribersPage() {
 
               {selectedRow?.type === "village" && (
                 <>
-                  {/* Village ID */}
                   <div className="space-y-2">
                     <label htmlFor="village_id" className="text-gray-400">
-                      Village ID
+                      Village
                     </label>
                     <Select
-                      value={selectedRow?.village_id?.toString()}
+                      value={selectedRow?.village_id?.toString() || ""}
                       onValueChange={(value) =>
                         setSelectedRow({
                           ...selectedRow,
@@ -409,7 +405,7 @@ export default function SubscribersPage() {
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {villages.find(
                           (village) => village.id === selectedRow?.village_id
-                        )?.name || "Select Village ID"}
+                        )?.name || "Select Village"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                         {villages.map((village) => (
@@ -434,7 +430,7 @@ export default function SubscribersPage() {
             onOpenChange={setDeleteDialogOpen}
             selectedRow={selectedRow}
             onDelete={() => {
-              handleDelete(selectedRow, tab);
+              handleDelete(selectedRow);
               setDeleteDialogOpen(false);
             }}
           />

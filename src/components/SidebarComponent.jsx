@@ -28,10 +28,13 @@ const navItems = [
   { label: "Home", to: "/", icon: <Home size={20} /> },
   { label: "Zones", to: "/zones", icon: <Map size={20} /> },
   { label: "Villages", to: "/villages", icon: <Building2 size={20} /> },
+  { label: "Village Roles", to: "/village-roles", icon: <Users size={20} /> },
   { label: "Apartment Types", to: "/apartments", icon: <Building size={20} /> },
   { label: "Users", to: "/users", icon: <User size={20} /> },
   { label: "Service Types", to: "/services", icon: <Settings size={20} /> },
   { label: "Service Providers", to: "/providers", icon: <Users size={20} /> },
+  { label: "Provider Roles", to: "/provider-roles", icon: <Users size={20} /> },
+
   {
     label: "Packages",
     to: "/packages",
@@ -48,7 +51,7 @@ const navItems = [
   { label: "For Sale", to: "/for-sale", icon: <Building2 size={20} /> },
   { label: "Admin", to: "/admin", icon: <Shield size={20} /> },
   //{ label: "Admin Role", to: "/admin-role", icon: <UserCog size={20} /> },
- // { label: "Gallery", to: "/gallery", icon: <LayoutGrid size={20} /> },
+  // { label: "Gallery", to: "/gallery", icon: <LayoutGrid size={20} /> },
   {
     label: "Maintenance Types",
     to: "/maintenance",

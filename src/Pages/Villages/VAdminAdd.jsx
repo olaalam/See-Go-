@@ -12,79 +12,75 @@ export default function Addvillage_admin() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const navigate = useNavigate();
-  const { id } = useParams();
+  // Get the 'id' from the URL parameters (which is your village_id)
+  const { id: villageId } = useParams(); // Renamed 'id' to 'villageId' for clarity
+  const token = localStorage.getItem("token");
 
   const [formData, setFormData] = useState({
-
-      name: "",
-      email: "",
-      phone: "",
-      password: "",
-      admin_position_id: "",
-      status: "active",
-      village_id: "",
-
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    admin_position_id: "",
+    status: "active",
+    // No need for village_id here, as it will come from params
   });
 
-  const [villageOptions, setVillageOptions] = useState([]);
+  // No need for villageOptions state as we're not selecting it from a dropdown
+  // const [villageOptions, setVillageOptions] = useState([]);
   const [positionOptions, setPositionOptions] = useState([]);
-
-  const token = localStorage.getItem("token");
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
 
+  // Removed the useEffect that fetches all villages, as it's no longer needed for the dropdown.
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       const villagesRes = await fetch(
+  //         "https://bcknd.sea-go.org/admin/village",
+  //         {
+  //           headers: getAuthHeaders(),
+  //         }
+  //       );
+  //       if (villagesRes.ok) {
+  //         const villagesData = await villagesRes.json();
+  //         const currentLang = localStorage.getItem("lang") || "en";
+  //         setVillageOptions(
+  //           villagesData.villages.map((v) => ({
+  //             value: v.id.toString(),
+  //             label:
+  //               v.translations?.find((t) => t.locale === currentLang)?.name ||
+  //               v.name,
+  //           }))
+  //         );
+  //       } else {
+  //         toast.error("Failed to load villages.");
+  //       }
+  //     } catch (error) {
+  //       toast.error("An error occurred while fetching data.", error);
+  //     }
+  //   };
+  //   fetchData();
+  // }, [token]);
+
+  // This useEffect is for fetching positions, keep it.
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPositions = async () => { // Renamed for clarity
       try {
-        // 1. Fetch villages
-        const villagesRes = await fetch(
-          "https://bcknd.sea-go.org/admin/village",
+        const positionsRes = await fetch( // Renamed for clarity
+          `https://bcknd.sea-go.org/admin/village_admin/${villageId}`, // Use villageId from params
           {
             headers: getAuthHeaders(),
           }
         );
 
-        if (villagesRes.ok) {
-          const villagesData = await villagesRes.json();
-          const currentLang = localStorage.getItem("lang") || "en";
-          setVillageOptions(
-            villagesData.villages.map((v) => ({
-              value: v.id.toString(),
-              label:
-                v.translations?.find((t) => t.locale === currentLang)?.name ||
-                v.name,
-            }))
-          );
-        } else {
-          toast.error("Failed to load villages.");
-        }
-      } catch (error) {
-        toast.error("An error occurred while fetching data.", error);
-      }
-    };
-
-    fetchData();
-  }, [token]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 1. Fetch villages
-        const villagesRes = await fetch(
-          `https://bcknd.sea-go.org/admin/village_admin/${id}`,
-          {
-            headers: getAuthHeaders(),
-          }
-        );
-
-        if (villagesRes.ok) {
-          const data = await villagesRes.json();
+        if (positionsRes.ok) {
+          const data = await positionsRes.json();
           if (data.village_positions && Array.isArray(data.village_positions)) {
             console.log("Village positions:", data.village_positions);
-
             setPositionOptions(
               data.village_positions.map((pos) => ({
                 value: pos.id.toString(),
@@ -99,9 +95,8 @@ export default function Addvillage_admin() {
         toast.error("An error occurred while fetching data.", error);
       }
     };
-
-    fetchData();
-  }, [token]);
+    fetchPositions();
+  }, [token, villageId]); // Added villageId to dependencies
 
   const handleInputChange = (name, value) => {
     setFormData((prev) => ({
@@ -114,21 +109,22 @@ export default function Addvillage_admin() {
     dispatch(showLoader());
 
     try {
-      const dataToSubmit = formData;
+      const dataToSubmit = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        admin_position_id: parseInt(formData.admin_position_id, 10),
+        status: formData.status === "active" ? 1 : 0,
+        village_id: parseInt(villageId, 10), // <<< IMPORTANT: Use villageId from params here
+      };
+
       const response = await fetch(
         "https://bcknd.sea-go.org/admin/village_admin/add",
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({
-            name: dataToSubmit.name,
-            email: dataToSubmit.email,
-            phone: dataToSubmit.phone,
-            password: dataToSubmit.password,
-            admin_position_id: parseInt(dataToSubmit.admin_position_id, 10),
-            status: dataToSubmit.status === "active" ? 1 : 0,
-            village_id: parseInt(dataToSubmit.village_id, 10),
-          }),
+          body: JSON.stringify(dataToSubmit), // Send as JSON
         }
       );
 
@@ -141,19 +137,17 @@ export default function Addvillage_admin() {
         });
 
         setFormData({
-
-            name: "",
-            email: "",
-            phone: "",
-            password: "",
-            admin_position_id: "",
-            status: "active",
-            village_id: "",
-
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          admin_position_id: "",
+          status: "active",
+          // village_id: "", // No longer needed here
         });
-
-        navigate(-1);
-        navigate("/single-page-v");
+        // Consider where you want to navigate after successful submission.
+        // navigate(-1); // Navigates back to the previous page
+        navigate(`/villages/single-page-v/${villageId}`); // Example: Navigate to a list of admins for THIS village
       } else {
         toast.error(
           `Failed to add village admin: ${
@@ -188,16 +182,17 @@ export default function Addvillage_admin() {
     },
     {
       type: "select",
-      placeholder: "Select Position",
+      placeholder: "Select Roles",
       name: "admin_position_id",
       options: positionOptions,
     },
-    {
-      type: "select",
-      placeholder: "Select Village",
-      name: "village_id",
-      options: villageOptions,
-    },
+    // REMOVED: No longer need the "Select Village" dropdown
+    // {
+    //   type: "select",
+    //   placeholder: "Select Village",
+    //   name: "village_id",
+    //   options: villageOptions,
+    // },
     {
       type: "select",
       placeholder: "Status",
@@ -223,7 +218,7 @@ export default function Addvillage_admin() {
         values={formData}
         onChange={handleInputChange}
       />
-      
+
       <div className="!my-6">
         <Button
           onClick={handleSubmit}

@@ -293,13 +293,6 @@ export default function PAdmin() {
                     value={selectedRow?.phone}
                     onChange={(val) => onChange("phone", val)}
                   />
-                  <InputField
-                    label="Password"
-                    id="password"
-                    type="password"
-                    value={selectedRow?.password}
-                    onChange={(val) => onChange("password", val)}
-                  />
                   <label htmlFor="position" className="text-gray-400">Admin Position</label>
                   {providerPositions.length > 0 && (
                     <Select

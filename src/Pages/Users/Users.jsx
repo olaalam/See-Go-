@@ -126,7 +126,6 @@ const Users = () => {
       name,
       email,
       phone,
-      password,
       gender,
       birthDate,
       user_type,
@@ -152,7 +151,6 @@ const Users = () => {
       name,
       email,
       phone,
-      password, // Be cautious with sending password back. Consider if the backend requires it or if it can be updated separately.
       gender,
       birthDate,
       user_type,
@@ -248,8 +246,9 @@ const Users = () => {
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
     { key: "user_type", label: "Account Type" },
+        { key: "gender", label: "Gender" },
     { key: "status", label: "Status" },
-    { key: "gender", label: "Gender" },
+
   ];
 
   return (
@@ -295,13 +294,6 @@ const Users = () => {
                 id="phone"
                 value={selectedRow.phone}
                 onChange={(val) => onChange("phone", val)}
-              />
-              <InputField
-                label="Password"
-                id="password"
-                type="password"
-                value={selectedRow.password} // Consider if this should be editable or displayed
-                onChange={(val) => onChange("password", val)}
               />
               <InputField
                 label="Birth Date"

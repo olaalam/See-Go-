@@ -279,7 +279,6 @@ const Providers = () => {
       village_id,
       zone_id, // استقبل zone_id
       phone,
-      imageFile,
       open_from,
       open_to,
     } = selectedRow;
@@ -321,9 +320,13 @@ const Providers = () => {
     updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
     updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
 
-    if (imageFile) {
-      updatedProvider.append("image", imageFile);
-    }
+if (selectedRow.imageFile) {
+  updatedProvider.append("image", selectedRow.imageFile);
+} else if (selectedRow.image_link) {
+  // Send the existing image as a fallback
+  updatedProvider.append("image", selectedRow.image_link);
+}
+
 
     try {
       const response = await fetch(
@@ -508,7 +511,7 @@ const Providers = () => {
               <Input
                 label="location"
                 id="location"
-                value={selectedRow?.location || ""}
+                value={selectedRow?.map || ""}
                 onChange={(e) => onChange("location", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
@@ -666,17 +669,27 @@ const Providers = () => {
                   )}
                 </SelectContent>
               </Select>
+            <label htmlFor="image" className="text-gray-400">
+              Image
+            </label>
 
-              <label htmlFor="image" className="text-gray-400 !pb-3">
-                Image
-              </label>
-              <Input
-                type="file"
-                id="image"
-                accept="image/*"
-                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                onChange={handleImageChange}
-              />
+            {selectedRow?.image_link && (
+              <div className="flex items-center gap-4 mb-2">
+                <img
+                  src={selectedRow.image_link}
+                  alt="Current"
+                  className="w-12 h-12 rounded-md object-cover border"
+                />
+              </div>
+            )}
+
+            <Input
+              type="file"
+              id="image"
+              accept="image/*"
+              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+              onChange={handleImageChange}
+            />
             </div>
           </EditDialog>
           <DeleteDialog

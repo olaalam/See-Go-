@@ -33,14 +33,6 @@ export default function VAdmin() {
     {
       label: "Username",
       key: "name",
-      render: (row) => (
-        <span
-          onClick={() => navigate(`/villages/single-page-v/${id}/admin/${row.id}`)} 
-          className="text-bg-primary hover:text-teal-800 cursor-pointer"
-        >
-          {row.name}
-        </span>
-      ),
     },
     { label: "Email", key: "email" },
     { label: "Phone Number", key: "phone" },
@@ -315,13 +307,6 @@ export default function VAdmin() {
                     id="phone"
                     value={selectedRow?.phone}
                     onChange={(val) => onChange("phone", val)}
-                  />
-                  <InputField
-                    label="Password"
-                    id="password"
-                    type="password"
-                    value={selectedRow?.password}
-                    onChange={(val) => onChange("password", val)}
                   />
                   {villagePositions.length > 0 && (
                     <div className="w-full">

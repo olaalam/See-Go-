@@ -402,25 +402,7 @@ const Admins = () => {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <label htmlFor="password" className="text-gray-400 !pb-3">
-                Password
-              </label>
-              <Input
-                id="password"
-                value={selectedRow?.password || ""}
-                onChange={(e) => onChange("password", e.target.value)}
-                className="!my-2 text-bg-primary !p-4"
-              />
-              <label htmlFor="image" className="text-gray-400 !pb-3">
-                Image
-              </label>
-              <Input
-                type="file"
-                id="image"
-                accept="image/*"
-                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                onChange={handleImageChange}
-              />
+
             </div>
           </EditDialog>
           <DeleteDialog

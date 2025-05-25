@@ -95,8 +95,7 @@ const Service_provider = () => {
         }, {});
 
         const name = translations[currentLang]?.name || provider.name || "—";
-        const location =
-          translations[currentLang]?.location || provider.location || "—";
+        const map = provider.location || "—";
         const description =
           translations[currentLang]?.description || provider.description || "—";
         const image = provider?.image_link ? (
@@ -125,7 +124,7 @@ const Service_provider = () => {
           id: provider.id,
           name,
           rawName: name, // Keep rawName for edit dialog input
-          location,
+         map,
           description,
           img: image,
           phone: provider.phone || "—",
@@ -178,7 +177,7 @@ const Service_provider = () => {
     const {
       id,
       rawName,
-      location,
+    location,
       description,
       status,
       village_id,
@@ -201,7 +200,7 @@ const Service_provider = () => {
     const updatedProvider = new FormData();
     updatedProvider.append("id", id);
     updatedProvider.append("name", rawName || "");
-    updatedProvider.append("location", location || "");
+    updatedProvider.append("location", location);
     updatedProvider.append("description", description || "");
     // Convert normalized status back to API expected format
     updatedProvider.append("status", status === "active" ? "1" : "0");
@@ -353,7 +352,7 @@ const Service_provider = () => {
 
   const columns = [
     { key: "name", label: "Provider" },
-    { key: "location", label: "Location" },
+    { key: "map", label: "Location" },
     { key: "description", label: "Description" },
     { key: "villageName", label: "Village" }, // Use villageName for display and filtering
     { key: "maintenanceTypeName", label: "Maintenance Type" }, // Use maintenanceTypeName for display and filtering
@@ -402,16 +401,15 @@ const Service_provider = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <Label htmlFor="location" className="text-gray-400 !pb-3">
-                Location
-              </Label>
-              <Input
-                label="Location"
-                id="location"
-                value={selectedRow?.location || ""}
-                onChange={(e) => onChange("location", e.target.value)}
-                className="!my-2 text-bg-primary !p-4"
-              />
+            <label htmlFor="location" className="text-gray-400 !pb-3">
+              Location
+            </label>
+            <Input
+              id="location"
+              value={selectedRow?.map|| ""}
+              onChange={(e) => onChange("map", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
 
               <Label htmlFor="description" className="text-gray-400 !pb-3">
                 Description

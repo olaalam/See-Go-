@@ -25,10 +25,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
-const Village_roless = () => {
+const Provider_roless = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [village_roless, setvillage_roless] = useState([]);
+  const [provider_roless, setprovider_roless] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -47,10 +47,10 @@ const Village_roless = () => {
     Authorization: `Bearer ${token}`,
   });
 
-  const fetchvillage_roless = async () => {
+  const fetchprovider_roless = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/village_roles", {
+      const response = await fetch("https://bcknd.sea-go.org/admin/provider_roles", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -95,33 +95,33 @@ const Village_roless = () => {
           admin_roles_array: adminPosition.roles, // Store the full array of role objects for the modal and edit
         };
       });
-      setvillage_roless(formatted);
+      setprovider_roless(formatted);
     } catch (error) {
-      console.error("Error fetching village_roless:", error);
-      toast.error("Failed to load village_roless data");
+      console.error("Error fetching provider_roless:", error);
+      toast.error("Failed to load provider_roless data");
     } finally {
       dispatch(hideLoader());
     }
   };
 
   useEffect(() => {
-    fetchvillage_roless();
+    fetchprovider_roless();
   }, []);
 
-  const handleEdit = (village_roles) => {
-    setSelectedRow(village_roles);
+  const handleEdit = (provider_roles) => {
+    setSelectedRow(provider_roles);
     // Initialize selectedEditRoles with the 'module' strings of the currently assigned roles
-    setSelectedEditRoles(village_roles.admin_roles_array?.map(r => r.module) || []);
+    setSelectedEditRoles(provider_roles.admin_roles_array?.map(r => r.module) || []);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (village_roles) => {
-    setSelectedRow(village_roles);
+  const handleDelete = (provider_roles) => {
+    setSelectedRow(provider_roles);
     setIsDeleteOpen(true);
   };
 
-  const handleViewRoles = (village_roles) => {
-    setSelectedRoles(village_roles.admin_roles_array || []); // Use admin_roles_array for the modal
+  const handleViewRoles = (provider_roles) => {
+    setSelectedRoles(provider_roles.admin_roles_array || []); // Use admin_roles_array for the modal
     setIsViewRolesOpen(true);
   };
 
@@ -141,7 +141,7 @@ const Village_roless = () => {
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/village_roles/update/${id}`,
+        `https://bcknd.sea-go.org/admin/provider_roles/update/${id}`,
         {
           method: "POST", // Or PUT/PATCH if your API uses that
           headers: getAuthHeaders(),
@@ -150,26 +150,26 @@ const Village_roless = () => {
       );
 
       if (response.ok) {
-        toast.success("Village role updated successfully!");
-        await fetchvillage_roless(); // Re-fetch data to reflect changes
+        toast.success("provider role updated successfully!");
+        await fetchprovider_roless(); // Re-fetch data to reflect changes
         setIsEditOpen(false);
         setSelectedRow(null);
         setSelectedEditRoles([]); // Reset selected roles
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error(errorData.message || "Failed to update village role!");
+        toast.error(errorData.message || "Failed to update provider role!");
       }
     } catch (error) {
-      console.error("Error updating village_roles:", error);
-      toast.error("Error occurred while updating village role!");
+      console.error("Error updating provider_roles:", error);
+      toast.error("Error occurred while updating provider role!");
     }
   };
 
   const handleDeleteConfirm = async () => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/village_roles/delete/${selectedRow.id}`,
+        `https://bcknd.sea-go.org/admin/provider_roles/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
@@ -177,15 +177,15 @@ const Village_roless = () => {
       );
 
       if (response.ok) {
-        toast.success("Village role deleted successfully!");
-        setvillage_roless(village_roless.filter((village_roles) => village_roles.id !== selectedRow.id));
+        toast.success("provider role deleted successfully!");
+        setprovider_roless(provider_roless.filter((provider_roles) => provider_roles.id !== selectedRow.id));
         setIsDeleteOpen(false);
       } else {
-        toast.error("Failed to delete village role!");
+        toast.error("Failed to delete provider role!");
       }
     } catch (error) {
-      console.error("Error deleting village_roles:", error);
-      toast.error("Error occurred while deleting village role!");
+      console.error("Error deleting provider_roles:", error);
+      toast.error("Error occurred while deleting provider role!");
     }
   };
 
@@ -194,7 +194,7 @@ const Village_roless = () => {
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/village_roles/status/${id}?status=${newStatus}`,
+        `https://bcknd.sea-go.org/admin/provider_roles/status/${id}?status=${newStatus}`,
         {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -202,22 +202,22 @@ const Village_roless = () => {
       );
 
       if (response.ok) {
-        toast.success("Village role status updated successfully!");
-        setvillage_roless((prevvillage_roless) =>
-          prevvillage_roless.map((village_roles) =>
-            village_roles.id === id
-              ? { ...village_roles, status: newStatus === 1 ? "active" : "inactive" }
-              : village_roles
+        toast.success("provider role status updated successfully!");
+        setprovider_roless((prevprovider_roless) =>
+          prevprovider_roless.map((provider_roles) =>
+            provider_roles.id === id
+              ? { ...provider_roles, status: newStatus === 1 ? "active" : "inactive" }
+              : provider_roles
           )
         );
       } else {
         const errorData = await response.json();
-        console.error("Failed to update village_roles status:", errorData);
-        toast.error("Failed to update village role status!");
+        console.error("Failed to update provider_roles status:", errorData);
+        toast.error("Failed to update provider role status!");
       }
     } catch (error) {
-      console.error("Error updating village_roles status:", error);
-      toast.error("Error occurred while updating village role status!");
+      console.error("Error updating provider_roles status:", error);
+      toast.error("Error occurred while updating provider role status!");
     }
   };
 
@@ -260,7 +260,7 @@ const Village_roless = () => {
     { key: "status", label: "Status" },
   ];
 
-  const filterOptionsForvillage_roless = [
+  const filterOptionsForprovider_roless = [
     { value: "all", label: "All" },
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
@@ -274,15 +274,15 @@ const Village_roless = () => {
       <ToastContainer />
 
       <DataTable
-        data={village_roless}
+        data={provider_roless}
         columns={columns}
-        addRoute={`/village-roles/add`} // Use the dynamically constructed addRoute
+        addRoute={`/provider-roles/add`} // Use the dynamically constructed addRoute
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         showFilter={true}
         filterKey={["status"]}
-        filterOptions={filterOptionsForvillage_roless}
+        filterOptions={filterOptionsForprovider_roless}
         searchKeys={["name"]} 
       />
 
@@ -384,4 +384,4 @@ const Village_roless = () => {
   );
 };
 
-export default Village_roless;
+export default Provider_roless;

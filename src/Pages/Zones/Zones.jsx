@@ -133,22 +133,13 @@ const Zones = () => {
     formData.append("description", description);
     // Convert status back to 1 or 0 for the API
     formData.append("status", status === "active" ? 1 : 0);
+if (selectedRow.imageFile) {
+  formData.append("image", selectedRow.imageFile);
+} else if (selectedRow.image_link) {
+  // Send the existing image as a fallback
+  formData.append("image", selectedRow.image_link);
+}
 
-    if (selectedRow.imageFile) {
-      formData.append("image", selectedRow.imageFile);
-    } else {
-      // If no new image is selected, either keep the current one or send null
-      // Assuming 'keep_current_image' or similar logic is handled by the backend,
-      // otherwise, you'd resend the existing image_link if it exists and no new file.
-      // For now, let's just not append 'image' if no new file, and let the backend decide.
-      // If the backend expects something for 'no change', you might need a hidden input
-      // or a specific flag.
-      // Example of resending existing image_link if no new file is chosen and you want to keep it:
-      // if (selectedRow.image_link) {
-      //   // This won't work directly as FormData.append("image", url) is not for files.
-      //   // You'd need to re-fetch the image or have a specific backend flag.
-      // }
-    }
 
     try {
       const response = await fetch(

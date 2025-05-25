@@ -23,6 +23,8 @@ import Providers from "./Pages/Providers/Providers";
 import ProvidersAdd from "./Pages/Providers/ProvidersAdd";
 import SinglePageP from "./Pages/Providers/SinglePageP";
 import PAdminAdd from "./Pages/Providers/PAdminAdd";
+import PAdminRole from "./Pages/Providers/PAdminRole";
+import PAdminRoleAdd from "./Pages/Providers/PAdminRoleAdd";
 import Subscription from "./Pages/Packages/Packages";
 import SubscriptionAdd from "./Pages/Packages/PackagesAdd";
 import Subscriper from "./Pages/Subscriper/Subscriper";
@@ -36,8 +38,8 @@ import Invoice from "./Pages/Invoice/Invoice";
 import InvoiceEdit from "./Pages/Invoice/InvoiceEdit";
 import Maintenance_types from "./Pages/Maintenance/Maintenance";
 import Addmaintenance_type from "./Pages/Maintenance/MaintenanceAdd";
-import ServiceProvider from "./Pages/ServiceProvider/ServiceProvider";
-import ServiceProviderAdd from "./Pages/ServiceProvider/ServiceProviderAdd";
+import ServiceProvider from "./Pages/MaintenanceProvider/ServiceProvider";
+import ServiceProviderAdd from "./Pages/MaintenanceProvider/ServiceProviderAdd";
 import VAdminRole from "./Pages/Villages/VAdminRole";
 import VAdminRoleAdd from "./Pages/Villages/VAdminRoleAdd";
 const router = createBrowserRouter([
@@ -83,17 +85,17 @@ const router = createBrowserRouter([
           { index: true, element: <Villages /> },
           { path: "add", element: <VillageAdd /> },
           {
-      path: "single-page-v/:id",
-      element: <SinglePageV />,
-    },
-        { path: "single-page-v/:id/add", element: <VAdminAdd /> },
-        
-                { path: "single-page-v/:villageId/admin/:adminId",
-                  children:[
-                    { index: true, element:<VAdminRole />},
-                    { path: "add", element:<VAdminRoleAdd/>}
-                  ]
-                  },
+            path: "single-page-v/:id",
+            element: <SinglePageV />,
+          },
+          { path: "single-page-v/:id/add", element: <VAdminAdd /> },
+        ],
+      },
+      {
+        path: "village-roles",
+        children: [
+          { index: true, element: <VAdminRole /> },
+          { path: "add", element: <VAdminRoleAdd /> },
         ],
       },
       {
@@ -122,13 +124,19 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Providers /> },
           { path: "add", element: <ProvidersAdd /> },
-                    {
-      path: "single-page-p/:id",
-      element: <SinglePageP />,
-    },
-        { path: "single-page-p/:id/add", element: <PAdminAdd /> },
+          {
+            path: "single-page-p/:id",
+            element: <SinglePageP />,
+          },
+          { path: "single-page-p/:id/add", element: <PAdminAdd /> },
         ],
       },
+          { path: "provider-roles",
+                  children:[
+                    { index: true, element:<PAdminRole />},
+                    { path: "add", element:<PAdminRoleAdd/>}
+                  ]
+                  },
       {
         path: "packages",
         children: [
@@ -161,29 +169,28 @@ const router = createBrowserRouter([
           { path: "add", element: <AdminAdd /> },
         ],
       },
-            {
+      {
         path: "invoice",
         children: [
           { index: true, element: <Invoice /> },
           { path: "edit", element: <InvoiceEdit /> },
         ],
       },
-            
-            {
+
+      {
         path: "maintenance",
         children: [
           { index: true, element: <Maintenance_types /> },
           { path: "add", element: <Addmaintenance_type /> },
         ],
       },
-                  {
+      {
         path: "maintenance-provider",
         children: [
           { index: true, element: <ServiceProvider /> },
           { path: "add", element: <ServiceProviderAdd /> },
         ],
       },
-      
 
       {
         path: "*",

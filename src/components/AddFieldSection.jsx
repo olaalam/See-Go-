@@ -1,3 +1,4 @@
+// components/AddFieldSection.jsx (Your existing Add component)
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,6 +12,7 @@ import { MapPin } from "lucide-react";
 import { useState } from "react";
 import MapModal from "@/components/MapModel";
 import MapLocationPicker from "./MapLocationPicker";
+import MultiSelectDropdown from "@/components/MultiSelectDropdown"; // Import the new component
 
 export default function Add({ fields, values, onChange }) {
   const [showMap, setShowMap] = useState(false);
@@ -59,7 +61,9 @@ export default function Add({ fields, values, onChange }) {
                     return (
                       <Input
                         id={`${field.lang || "no-lang"}-${field.name}`}
-                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
                         type={field.inputType || "text"}
                         placeholder={field.placeholder}
                         value={value}
@@ -71,7 +75,10 @@ export default function Add({ fields, values, onChange }) {
                     );
                   case "time":
                     return (
-                      <div key={`${field.lang || "no-lang"}-${field.name}`} className="mb-4">
+                      <div
+                        key={`${field.lang || "no-lang"}-${field.name}`}
+                        className="mb-4"
+                      >
                         <input
                           type="time"
                           name={field.name}
@@ -87,7 +94,9 @@ export default function Add({ fields, values, onChange }) {
                     return (
                       <Textarea
                         id={`${field.lang || "no-lang"}-${field.name}`}
-                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
                         placeholder={field.placeholder}
                         value={value}
                         onChange={(e) =>
@@ -100,10 +109,16 @@ export default function Add({ fields, values, onChange }) {
                     return (
                       <Input
                         id={`${field.lang || "no-lang"}-${field.name}`}
-                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
                         type="file"
                         onChange={(e) =>
-                          handleChange(field.lang, field.name, e.target.files?.[0])
+                          handleChange(
+                            field.lang,
+                            field.name,
+                            e.target.files?.[0]
+                          )
                         }
                         className={`h-[54px] !mt-4 flex items-center text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
                       />
@@ -111,7 +126,9 @@ export default function Add({ fields, values, onChange }) {
                   case "location":
                     return (
                       <div
-                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
                         className="relative"
                       >
                         <Input
@@ -143,7 +160,9 @@ export default function Add({ fields, values, onChange }) {
                     return (
                       <Select
                         id={`${field.lang || "no-lang"}-${field.name}`}
-                        key={`${field.lang || "no-lang"}-${field.name}-${index}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
                         value={value}
                         onValueChange={(val) =>
                           handleChange(field.lang, field.name, val)
@@ -162,6 +181,21 @@ export default function Add({ fields, values, onChange }) {
                           ))}
                         </SelectContent>
                       </Select>
+                    );
+                  case "multi-select": // New case for multi-select
+                    return (
+                      <MultiSelectDropdown
+                        id={`${field.lang || "no-lang"}-${field.name}`}
+                        key={`${field.lang || "no-lang"}-${
+                          field.name
+                        }-${index}`}
+                        options={field.options}
+                        value={value}
+                        onChange={(val) =>
+                          handleChange(field.lang, field.name, val)
+                        }
+                        placeholder={field.placeholder}
+                      />
                     );
                   default:
                     return null;

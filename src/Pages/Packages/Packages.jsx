@@ -98,6 +98,10 @@ const Subscription = () => {
         const price = subscription.price || "—";
         const discount = subscription.discount || "—";
         const feez = subscription.feez || "—";
+        const admin_num=subscription.admin_num;
+        const security_num = subscription.security_num || "—";
+        const maintenance_module=subscription.maintenance_module;
+        const beach_pool_module=subscription.beach_pool_module;
 
         return {
           id: subscription.id,
@@ -107,6 +111,10 @@ const Subscription = () => {
           status: subscription.status === 1 ? "Active" : "Inactive",
           service_id: subscription.service_id,
           serviceName,
+          admin_num,
+          security_num,
+          maintenance_module,
+          beach_pool_module,
           price,
           discount,
           feez,
@@ -166,6 +174,10 @@ const Subscription = () => {
       discount,
       service_id,
       price,
+      security_num,
+      maintenance_module,
+      beach_pool_module,
+      admin_num,
       feez,
     } = selectedRow;
 
@@ -184,6 +196,7 @@ const Subscription = () => {
     updatedsubscription.append("price", price || "");
     updatedsubscription.append("type", type || "");
     updatedsubscription.append("discount", discount || "");
+
     if (type === "village") {
       updatedsubscription.append("admin_num", selectedRow.admin_num || "0");
       updatedsubscription.append(
@@ -426,65 +439,65 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-              {selectedRow?.type === "village" && (
-                <>
-                  <label htmlFor="admin_num" className="text-gray-400 !pb-3">
-                    Admin Number
-                  </label>
-                  <Input
-                    id="admin_num"
-                    value={selectedRow?.admin_num || ""}
-                    onChange={(e) => onChange("admin_num", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                  />
+{selectedRow?.type === "village" && (
+  <>
+    <label htmlFor="admin_num" className="text-gray-400 !pb-3">
+      Admin Number
+    </label>
+    <Input
+      id="admin_num"
+      value={selectedRow?.admin_num || ""}
+      onChange={(e) => onChange("admin_num", e.target.value)}
+      className="!my-2 text-bg-primary !p-4"
+    />
 
-                  <label htmlFor="security_num" className="text-gray-400 !pb-3">
-                    Security Number
-                  </label>
-                  <Input
-                    id="security_num"
-                    value={selectedRow?.security_num || ""}
-                    onChange={(e) => onChange("security_num", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                  />
+    <label htmlFor="security_num" className="text-gray-400 !pb-3">
+      Security Number
+    </label>
+    <Input
+      id="security_num"
+      value={selectedRow?.security_num || ""}
+      onChange={(e) => onChange("security_num", e.target.value)}
+      className="!my-2 text-bg-primary !p-4"
+    />
 
-                  <label
-                    htmlFor="maintenance_module"
-                    className="text-gray-400 !pb-3"
-                  >
-                    Maintenance Module (0 or 1)
-                  </label>
-                  <Input
-                    id="maintenance_module"
-                    type="number"
-                    min="0"
-                    max="1"
-                    value={selectedRow?.maintenance_module || ""}
-                    onChange={(e) =>
-                      onChange("maintenance_module", e.target.value)
-                    }
-                    className="!my-2 text-bg-primary !p-4"
-                  />
+    <label
+      htmlFor="maintenance_module"
+      className="text-gray-400 !pb-3"
+    >
+      Maintenance Module (0 or 1)
+    </label>
+    <Input
+      id="maintenance_module"
+      type="number"
+      min="0"
+      max="1"
+      value={selectedRow?.maintenance_module || ""}
+      onChange={(e) =>
+        onChange("maintenance_module", e.target.value)
+      }
+      className="!my-2 text-bg-primary !p-4"
+    />
 
-                  <label
-                    htmlFor="beach_pool_module"
-                    className="text-gray-400 !pb-3"
-                  >
-                    Beach/Pool Module (0 or 1)
-                  </label>
-                  <Input
-                    id="beach_pool_module"
-                    type="number"
-                    min="0"
-                    max="1"
-                    value={selectedRow?.beach_pool_module || ""}
-                    onChange={(e) =>
-                      onChange("beach_pool_module", e.target.value)
-                    }
-                    className="!my-2 text-bg-primary !p-4"
-                  />
-                </>
-              )}
+    <label
+      htmlFor="beach_pool_module"
+      className="text-gray-400 !pb-3"
+    >
+      Beach/Pool Module (0 or 1)
+    </label>
+    <Input
+      id="beach_pool_module"
+      type="number"
+      min="0"
+      max="1"
+      value={selectedRow?.beach_pool_module || ""}
+      onChange={(e) =>
+        onChange("beach_pool_module", e.target.value)
+      }
+      className="!my-2 text-bg-primary !p-4"
+    />
+  </>
+)}
               <label htmlFor="price" className="text-gray-400 !pb-3">
                 price
               </label>

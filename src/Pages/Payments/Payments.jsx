@@ -190,6 +190,12 @@ export default function PaymentsPage() {
       },
     },
   ];
+    // Prepare filter options for zone and status
+const statusFilterOptions = [
+  { value: "all", label: "All" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
 
   return (
     <div>
@@ -220,10 +226,12 @@ export default function PaymentsPage() {
                 columns={columns} 
                 className="table-compact"
                 showAddButton={false} 
-                showFilter={false} 
+                showFilter={tab === "History Payments"} 
                 showActions={false}
                 showEditButton={false}
                 showDeleteButton={false}
+  filterKey={tab === "History Payments" ? ["status"] : []}
+  filterOptions={tab === "History Payments" ? statusFilterOptions : []}
                 searchKeys={["payment_method.name", "type", "amount", "start_date"]} 
               />
 
