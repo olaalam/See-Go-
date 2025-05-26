@@ -29,7 +29,7 @@ const navItems = [
   { label: "Zones", to: "/zones", icon: <Map size={20} /> },
   { label: "Villages", to: "/villages", icon: <Building2 size={20} /> },
   { label: "Village Roles", to: "/village-roles", icon: <Users size={20} /> },
-  { label: "Apartment Types", to: "/apartments", icon: <Building size={20} /> },
+  { label: "Units", to: "/units", icon: <Building size={20} /> },
   { label: "Users", to: "/users", icon: <User size={20} /> },
   { label: "Service Types", to: "/services", icon: <Settings size={20} /> },
   { label: "Service Providers", to: "/providers", icon: <Users size={20} /> },
@@ -63,7 +63,7 @@ const navItems = [
     icon: <Users size={20} />,
   },
 
-  // { label: "Invoice Village", to: "/invoice", icon: <FileText size={20} /> },
+  //{ label: "Invoice Village", to: "/invoice", icon: <FileText size={20} /> },
 ];
 
 export function AppSidebar() {

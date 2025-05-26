@@ -11,8 +11,8 @@ import Villages from "./Pages/Villages/Villages";
 import VillageAdd from "./Pages/Villages/VillageAdd";
 import SinglePageV from "./Pages/Villages/SinglePageV";
 import VAdminAdd from "./Pages/Villages/VAdminAdd";
-import Apartment from "./Pages/Apartment/Apartment";
-import ApartmentAdd from "./Pages/Apartment/ApartmentAdd";
+import Units from "./Pages/Units/Units";
+import UnitsAdd from "./Pages/Units/UnitsAdd";
 import Users from "./Pages/Users/Users";
 import UsersAdd from "./Pages/Users/UsersAdd";
 import ProtectedRoute from "./Auth/ProtectedRoute";
@@ -34,8 +34,6 @@ import PaymentMethod from "./Pages/Payment-methods/PaymentMethod";
 import PaymentMethodAdd from "./Pages/Payment-methods/PaymentMethodAdd";
 import Admin from "./Pages/Admin/Admin";
 import AdminAdd from "./Pages/Admin/AdminAdd";
-import Invoice from "./Pages/Invoice/Invoice";
-import InvoiceEdit from "./Pages/Invoice/InvoiceEdit";
 import Maintenance_types from "./Pages/Maintenance/Maintenance";
 import Addmaintenance_type from "./Pages/Maintenance/MaintenanceAdd";
 import ServiceProvider from "./Pages/MaintenanceProvider/ServiceProvider";
@@ -99,10 +97,10 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "apartments",
+        path: "units",
         children: [
-          { index: true, element: <Apartment /> },
-          { path: "add", element: <ApartmentAdd /> },
+          { index: true, element: <Units /> },
+          { path: "add", element: <UnitsAdd /> },
         ],
       },
       {
@@ -167,13 +165,6 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Admin /> },
           { path: "add", element: <AdminAdd /> },
-        ],
-      },
-      {
-        path: "invoice",
-        children: [
-          { index: true, element: <Invoice /> },
-          { path: "edit", element: <InvoiceEdit /> },
         ],
       },
 

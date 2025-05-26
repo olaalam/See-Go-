@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 
 import { useNavigate } from "react-router-dom";
+import MapLocationPicker from "@/components/MapLocationPicker";
 
 const Providers = () => {
   const dispatch = useDispatch();
@@ -40,6 +41,8 @@ const Providers = () => {
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [imageErrors, setImageErrors] = useState({});
+
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
@@ -47,6 +50,9 @@ const Providers = () => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+    const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  };
 
   const fetchZones = async () => {
     try {
@@ -164,18 +170,19 @@ const Providers = () => {
           provider.service?.name ||
           "—";
 
-        const image = provider?.image_link ? (
-          <img
-            src={provider.image_link}
-            alt={name}
-            className="w-12 h-12 rounded-md object-cover aspect-square"
-            onError={() => {}}
-          />
-        ) : (
-          <Avatar className="w-12 h-12">
-            <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        );
+        const image =
+          provider?.image_link && !imageErrors[provider.id] ? (
+            <img
+              src={provider.image_link}
+              alt={provider.name}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(provider.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          );
 
         const phone = provider.phone || "—";
         const rating = provider.rate || "—";
@@ -199,6 +206,7 @@ const Providers = () => {
           serviceName,
           phone,
           rating,
+          image_link: provider.image_link,
           villageName,
           village_id: provider.village_id,
           zoneName, // إضافة zoneName إلى الـ formatted provider
@@ -272,12 +280,11 @@ const Providers = () => {
     const {
       id,
       name, // هذا هو rawName الآن
-      location,
       description,
       status,
       service_id,
       village_id,
-      zone_id, // استقبل zone_id
+      zone_id, 
       phone,
       open_from,
       open_to,
@@ -303,7 +310,7 @@ const Providers = () => {
     const updatedProvider = new FormData();
     updatedProvider.append("id", id);
     updatedProvider.append("name", name || "");
-    updatedProvider.append("location", location || "");
+    updatedProvider.append("location", location|| "");
     updatedProvider.append("description", description || "");
     updatedProvider.append("status", status === "Active" ? "1" : "0");
     updatedProvider.append("service_id", parseInt(service_id, 10)); // تأكد من إرساله كعدد صحيح
@@ -505,16 +512,15 @@ if (selectedRow.imageFile) {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <label htmlFor="location" className="text-gray-400 !pb-3">
-                Location
-              </label>
-              <Input
-                label="location"
-                id="location"
-                value={selectedRow?.map || ""}
-                onChange={(e) => onChange("location", e.target.value)}
-                className="!my-2 text-bg-primary !p-4"
-              />
+  <label htmlFor="location" className="text-gray-400 !pb-3">
+          Location
+        </label>
+        {/* هنا استبدال Input بـ MapLocationPicker */}
+        <MapLocationPicker
+          value={selectedRow?.map || ""} // القيمة الحالية للموقع
+          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
+          placeholder="Search or select location on map"
+        />
 
               <label htmlFor="zone" className="text-gray-400 !pb-3">
                 Zone

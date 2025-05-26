@@ -164,6 +164,15 @@ export default function AddVillage() {
     { type: "file", name: "image", lang: "en" },
     { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
     { type: "input", placeholder: "اسم القرية (اختياري)", name: "name", lang: "ar" },
+{
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                 lang: "en", 
+            },
   ];
 
   return (

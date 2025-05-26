@@ -194,14 +194,14 @@ export default function Addvillage_admin() {
     //   options: villageOptions,
     // },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+
+            },
   ];
 
   return (

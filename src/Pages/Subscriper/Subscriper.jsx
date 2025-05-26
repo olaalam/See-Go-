@@ -17,7 +17,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 
 export default function SubscribersPage() {
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("provider");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -47,9 +47,7 @@ export default function SubscribersPage() {
 
       let result = [];
       switch (tab) {
-        case "all":
-          result = response.data.subscribers.map((sub) => ({ ...sub }));
-          break;
+
         case "provider":
           result = response.data.subscribers_provider.map((sub) => ({
             ...sub,
@@ -209,11 +207,16 @@ export default function SubscribersPage() {
       label: "Package",
       render: (row) => row.package?.name || "N/A",
     },
-    ...(tab === "provider" || tab === "all"
+        {
+      key: "price",
+      label: "Price",
+      render: (row) => row.package?.price || "N/A",
+    },
+    ...(tab === "provider" 
       ? [
           {
             key: "associated_services",
-            label: "Associated Services",
+            label: "Services Type",
             render: (row) =>
               row.type === "village" ? "-" : row.service?.name || "N/A",
           },
@@ -226,14 +229,7 @@ export default function SubscribersPage() {
       <ToastContainer />
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="grid !ms-3 w-[90%] grid-cols-4 gap-4 bg-transparent !mb-6">
-          <TabsTrigger
-            className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                 hover:bg-teal-100 hover:text-teal-700"
-            value="all"
-          >
-            All
-          </TabsTrigger>
+
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white

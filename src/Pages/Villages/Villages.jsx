@@ -18,7 +18,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-
+import InvoiceDialog from "@/components/InvoiceDialog"; 
+import MapLocationPicker from "@/components/MapLocationPicker";// Adjust this path based on where you put InvoiceDialog.jsx
 const Villages = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -30,7 +31,8 @@ const Villages = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const token = localStorage.getItem("token");
   const [imageErrors, setImageErrors] = useState({});
-
+const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+const [invoiceVillageId, setInvoiceVillageId] = useState(null);
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -167,8 +169,7 @@ const Villages = () => {
       description,
       status,
       zone_id,
-      location,
-      population,
+      map,
       numberOfUnits, // Changed from numberOfVillages to numberOfUnits
     } = selectedRow;
 
@@ -182,8 +183,7 @@ const Villages = () => {
     formData.append("description", description);
     formData.append("status", status === "active" ? "1" : "0"); // Use lowercase "active"
     formData.append("zone_id", zone_id.toString());
-    formData.append("location", location);
-    formData.append("population_count", population.toString());
+    formData.append("location", map);
     formData.append("units_count", parseInt(numberOfUnits)); // Changed from villages_count to units_count
 
 if (selectedRow.imageFile) {
@@ -300,6 +300,23 @@ if (selectedRow.imageFile) {
     { key: "map", label: "Location" },
     { key: "img", label: "Image" },
     { key: "population", label: "Population" },
+      {
+    key: "invoice",
+    label: "Invoice",
+    // This `render` function will allow you to customize how the cell content is displayed.
+    // `row` here refers to the current village object in the data table.
+    render: (row) => (
+      <button
+        onClick={() => {
+          setInvoiceVillageId(row.id);
+          setIsInvoiceOpen(true);
+        }}
+        className="px-3 py-1 text-sm bg-bg-primary text-white rounded-md hover:bg-teal-600 transition-colors"
+      >
+        View Invoice
+      </button>
+    ),
+  },
     { key: "status", label: "Status" },
   ];
 
@@ -323,14 +340,20 @@ if (selectedRow.imageFile) {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description", "zone", "status"]} // Add 'zone' and 'status' to searchable keys
+        searchKeys={["rawName", "description"]} 
         showFilter={true} // Ensure the filter dropdown is shown
         filterKey={["zone","status"]} // Default filter for the dropdown will be by 'zone'
         filterOptions={filterOptionsForVillages}
       >
 
       </DataTable>
-
+{isInvoiceOpen && (
+  <InvoiceDialog
+    open={isInvoiceOpen}
+    onOpenChange={setIsInvoiceOpen}
+    villageId={invoiceVillageId}
+  />
+)}
       {selectedRow && (
         <>
           <EditDialog
@@ -388,27 +411,17 @@ if (selectedRow.imageFile) {
                 ))}
               </SelectContent>
             </Select>
+  <label htmlFor="location" className="text-gray-400 !pb-3">
+          Location
+        </label>
+        {/* هنا استبدال Input بـ MapLocationPicker */}
+        <MapLocationPicker
+          value={selectedRow?.map || ""} // القيمة الحالية للموقع
+          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
+          placeholder="Search or select location on map"
+        />
 
-            <label htmlFor="location" className="text-gray-400 !pb-3">
-              Location
-            </label>
-            <Input
-              id="location"
-              value={selectedRow?.map|| ""}
-              onChange={(e) => onChange("map", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
 
-            <label htmlFor="population" className="text-gray-400 !pb-3">
-              Population Count
-            </label>
-            <Input
-              id="population"
-              type="number"
-              value={selectedRow?.population || ""}
-              onChange={(e) => onChange("population", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
 
             <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
               Number of Units

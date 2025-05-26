@@ -23,7 +23,7 @@ export default function Addadmin() {
       status: "",
       image: null,
   });
-  const { name, phone, email, password, gender, role, status, image } = formData;
+  const { name, phone, email, password, gender, role, status } = formData;
   const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -114,15 +114,14 @@ export default function Addadmin() {
         { value: "provider", label: "Provider" },
       ],
     },
-    {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
+{
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+            },
   ];
 
   return (

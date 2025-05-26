@@ -69,16 +69,15 @@ export default function AddMaintenanceType() {
   const fields = [
     { type: "input", placeholder: "Name", name: "name", lang: "en" },
     { type: "file", name: "image", lang: "en" },
-    {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      lang: "en",
-    },
+{
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                 lang: "en", 
+            },
         { type: "input", placeholder: "الاسم", name: "name", lang: "ar" }, 
 
   ];

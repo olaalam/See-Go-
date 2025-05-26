@@ -8,21 +8,28 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
+
 export default function AddProvider() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
-  const [village, setVillage] = useState([]);
   const navigate = useNavigate();
+
+  // Store all villages fetched from API
+  const [allVillages, setAllVillages] = useState([]);
   const [services, setServices] = useState([]);
   const [zones, setZones] = useState([]);
+  // State for villages filtered by selected zone
+  const [filteredVillages, setFilteredVillages] = useState([]);
+
   const [formData, setFormData] = useState({
     en: {
       name: "",
       description: "",
       phone: "",
       service_id: "",
-      village: "",
+      village: "", // Stores the ID of the selected village
+      zone: "",    // Stores the ID of the selected zone
       location: "",
       status: "",
       image: null,
@@ -36,41 +43,26 @@ export default function AddProvider() {
   });
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchDataForDropdowns = async () => {
       try {
-        const response = await fetch(
-          "https://bcknd.sea-go.org/admin/service_type",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const data = await response.json();
-        if (data.service_types) {
-          setServices(
-            data.service_types.map((service) => ({
-              label: service.name,
-              value: service.id.toString(),
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching services", error);
-      }
-    };
-
-    fetchServices();
-  }, []);
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const response = await fetch("https://bcknd.sea-go.org/admin/zone", {
+        const response = await fetch("https://bcknd.sea-go.org/admin/provider", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         const data = await response.json();
+
+        // Populate Services
+        if (data.services_types) {
+          setServices(
+            data.services_types.map((service) => ({
+              label: service.name,
+              value: service.id.toString(),
+            }))
+          );
+        }
+
+        // Populate Zones
         if (data.zones) {
           setZones(
             data.zones.map((zone) => ({
@@ -79,49 +71,71 @@ export default function AddProvider() {
             }))
           );
         }
-      } catch (error) {
-        console.error("Error fetching zones", error);
-      }
-    };
 
-    fetchZones();
-  }, []);
-
-  useEffect(() => {
-    const fetchVillage = async () => {
-      try {
-        const response = await fetch("https://bcknd.sea-go.org/admin/village", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-
+        // Populate ALL Villages and store them
         if (data.villages) {
-          setVillage(
+          setAllVillages(
             data.villages.map((village) => ({
               label: village.name,
               value: village.id.toString(),
+              zone_id: village.zone_id ? village.zone_id.toString() : null, // IMPORTANT: Ensure village object has zone_id
             }))
           );
         }
+
       } catch (error) {
-        console.error("Error fetching Village", error);
+        console.error("Error fetching data for dropdowns:", error);
+        toast.error("Failed to load dropdown options.");
       }
     };
 
-    fetchVillage();
-  }, []);
+    fetchDataForDropdowns();
+  }, [token]);
+
+  // Effect to filter villages whenever allVillages or selected zone changes
+  useEffect(() => {
+    if (formData.en.zone && allVillages.length > 0) {
+      const villagesInSelectedZone = allVillages.filter(
+        (village) => village.zone_id === formData.en.zone
+      );
+      setFilteredVillages(villagesInSelectedZone);
+      // If the currently selected village is no longer in the filtered list, reset it
+      if (!villagesInSelectedZone.some(v => v.value === formData.en.village)) {
+        setFormData(prev => ({
+          ...prev,
+          en: { ...prev.en, village: "" }
+        }));
+      }
+    } else {
+      // If no zone is selected, or no villages are loaded, clear filtered villages
+      setFilteredVillages([]);
+      setFormData(prev => ({
+        ...prev,
+        en: { ...prev.en, village: "" }
+      }));
+    }
+  }, [formData.en.zone, allVillages]);
+
 
   const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
-    }));
+    setFormData((prev) => {
+      const newFormData = {
+        ...prev,
+        [lang]: {
+          ...prev[lang],
+          [name]: value,
+        },
+      };
+
+      // If the changed field is 'zone', reset 'village' and filter villages
+      if (lang === 'en' && name === 'zone') {
+        newFormData.en.village = ""; // Reset village when zone changes
+        // The useEffect above will handle filtering villages based on new zone
+      }
+      return newFormData;
+    });
   };
+
 
   const handleSubmit = async () => {
     dispatch(showLoader());
@@ -130,15 +144,16 @@ export default function AddProvider() {
     body.append("name", formData.en.name);
     body.append("description", formData.en.description);
     body.append("service_id", formData.en.service_id);
-    body.append("village_id", formData.en.village);
+    body.append("village_id", formData.en.village); // Ensure this matches the backend expectation
     body.append("location", formData.en.location);
-    body.append("zone_id", formData.en.zone);
+    body.append("zone_id", formData.en.zone); // Ensure this matches the backend expectation
 
     body.append("phone", formData.en.phone);
     body.append("status", formData.en.status === "active" ? "1" : "0");
+
     const formatTimeWithSeconds = (time) => {
       if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time; // لو HH:mm زوّد :00
+      return time.length === 5 ? `${time}:00` : time; // If HH:mm, add :00
     };
 
     body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
@@ -158,7 +173,6 @@ export default function AddProvider() {
       "Submitting form with data:",
       Object.fromEntries(body.entries())
     );
-    navigate("/providers");
 
     try {
       const response = await fetch(
@@ -177,6 +191,7 @@ export default function AddProvider() {
           position: "top-right",
           autoClose: 3000,
         });
+        // Reset form data after successful submission
         setFormData({
           en: {
             name: "",
@@ -196,6 +211,7 @@ export default function AddProvider() {
             description: "",
           },
         });
+        navigate("/providers"); // Navigate after successful submission and state reset
       } else {
         const errorData = await response.json();
         console.error("Error response:", errorData);
@@ -215,7 +231,6 @@ export default function AddProvider() {
     }
   };
 
-  // Combine English and Arabic fields into a single array
   const fields = [
     { type: "input", placeholder: "Provider Name", name: "name", lang: "en" },
     {
@@ -231,35 +246,33 @@ export default function AddProvider() {
       options: services,
       lang: "en",
     },
-        {
+    {
       type: "select",
       placeholder: "Zone",
-      name: "zone",
+      name: "zone", // Matches formData key
       options: zones,
       lang: "en",
     },
     {
       type: "select",
       placeholder: "Village (Optional)",
-      name: "village",
-      options: village,
+      name: "village", // Matches formData key
+      options: filteredVillages, // Use the filtered villages data
       lang: "en",
     },
-
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      lang: "en",
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                      lang: "en",
+            },
     {
       type: "input",
       placeholder: " (اختياري) الوصف",
@@ -285,7 +298,6 @@ export default function AddProvider() {
       </h2>
 
       <div className="w-[90%] mx-auto">
-        {/* Pass all fields to a single Add component */}
         <Add
           fields={fields}
           values={{ en: formData.en, ar: formData.ar }}

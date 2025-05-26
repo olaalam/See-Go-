@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -15,13 +17,112 @@ import {
 import HeaderInvoiceImage from "@/assets/HeaderInvoice.png";
 import FooterInvoiceImage from "@/assets/FooterInvoice.png";
 import { Badge } from "@/components/ui/badge";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import Loading from "@/components/Loading"; // Assuming you have a Loading component
 
-export default function InvoiceCard() {
+// This component now receives villageId as a prop
+export default function InvoiceCard({ villageId }) {
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const token = localStorage.getItem("token"); // Assuming token is stored in localStorage
+
+  useEffect(() => {
+    const fetchInvoiceData = async () => {
+      // Important: Check if villageId is provided from the prop
+      if (!villageId) {
+        setError("Village ID is missing.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `https://bcknd.sea-go.org/admin/invoice/${villageId}`, // Dynamic API endpoint
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        setInvoiceData(result);
+      } catch (err) {
+        console.error("Error fetching invoice data:", err);
+        setError("Failed to load invoice data. Please try again.");
+        toast.error("Failed to load invoice data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoiceData();
+  }, [villageId, token]); // Dependencies ensure re-fetch when villageId or token changes
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loading />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  // Ensure all necessary data parts exist before rendering
+  if (!invoiceData || !invoiceData.village || !invoiceData.package) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>No invoice data available for this village.</p>
+      </div>
+    );
+  }
+
+  const { village, package: packageData } = invoiceData;
+
+  // Calculate totals
+  const subtotal = packageData.price || 0;
+  const discount = packageData.discount || 0;
+  const tax = packageData.feez || 0;
+  const invoiceTotal = subtotal - discount + tax;
+
+  // Format dates for display
+  const invoiceDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+
+  const renewalToDate = village.to
+    ? new Date(village.to).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "N/A";
+
   return (
-    <div className="!pb-20 ">
-      <Card className="max-w-lg max-h-[100vh] !pb-10 !my-10 !m-auto border-none shadow-lg rounded-lg overflow-hidden  ">
+    <div className="!mt-5 !mb-15 ">
+      <ToastContainer />
+      <Card className="max-w-lg max-h-[100vh] bg-white !m-auto border-none shadow-lg rounded-lg overflow-hidden">
         <CardHeader
-          className="text-start relative !py-10 !pe-5"
+          className="text-start relative !p-9"
           style={{
             backgroundImage: `url(${HeaderInvoiceImage})`,
             backgroundSize: "cover",
@@ -30,97 +131,105 @@ export default function InvoiceCard() {
             color: "white",
           }}
         >
-          <h1 className="text-3xl bg-white top-10 left-4 absolute rounded-[10px] !px-6 !py-4 font-semibold text-bg-primary">
+          <h1 className="text-xl bg-white top-6 left-3 absolute rounded-[10px] !mt-6 !px-4 !py-2 font-semibold text-bg-primary">
             Sea Go
           </h1>
         </CardHeader>
 
-        <CardContent className="!px-10 !py-2">
-          <div className="grid grid-cols-3 gap-6 mb-6">
+        <CardContent className="!px-6 !py-4">
+          <div className="grid grid-cols-3 gap-5 !mb-2">
             <div>
               <Badge
                 variant="outline"
-                className={`!px-3 !mb-2 !py-1 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 `}
+                className={`!px-2 !mb-1 !py-0.5 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 text-sm`}
               >
                 Invoice to:
               </Badge>
-              <p className="font-medium">Mauro Sicard</p>
-              <p>1234 Bay Area Blvd</p>
-              <p>Palo Alto, San Francisco, CA 94022</p>
-              <p>Contact: mauro.sicard@gmail.com</p>
+              <p className="font-medium text-sm">
+                {packageData?.village?.name || village.name || "N/A"}
+              </p>
+              <p className="text-gray-500 text-xs">
+                {packageData?.village?.location ||
+                  village.location ||
+                  "Location N/A"}
+              </p>
             </div>
             <div className="text-right">
               <Badge
                 variant="outline"
-                className={`!px-3 !mb-2 !py-1 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 `}
+                className={`!px-2 !mb-1 !py-0.5 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 text-sm`}
               >
                 Date:
               </Badge>
-              <p className="font-medium"> June 28, 2024</p>
-              <p>BPX Agency</p>
-              <p>1234 Bay Area Blvd</p>
-              <p>Palo Alto, San Francisco, CA 94022</p>
+              <p className="font-medium text-sm">{invoiceDate}</p>
             </div>
-            <div >
+            <div>
               <Badge
                 variant="outline"
-                className={`!px-3 !mb-2 !py-1 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 `}
+                className={`!px-2 !mb-1 !py-0.5 cursor-pointer border-none rounded-[10px] text-blue-400 bg-blue-100 text-sm`}
               >
                 Invoice number:
               </Badge>
-              <p className="font-medium  !px-3">
-                N: 000027
-              </p>
+              <p className="font-medium text-sm !px-2">N: {village.id}</p>
             </div>
           </div>
 
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead>Village Name</TableHead>
-                <TableHead>Zone</TableHead>
-                <TableHead>Renewal Date</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead>Amount (EGP)</TableHead>
+              <TableRow className="bg-gray-100 !rounded-lg">
+                <TableHead className="text-sm">Village Name</TableHead>
+                <TableHead className="text-sm">Zone</TableHead>
+                <TableHead className="text-sm">Package Name</TableHead>
+
+                <TableHead className="text-sm">Amount (EGP)</TableHead>
+                <TableHead className="text-sm"> Renewal Period</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell>Al Nour</TableCell>
-                <TableCell>North Zone</TableCell>
-                <TableCell>2025-05-01</TableCell>
-                <TableCell>Gold</TableCell>
-                <TableCell>$1,200.00</TableCell>
+                <TableCell className="text-sm">
+                  {village.translations?.[0]?.value || village.name || "N/A"}
+
+                </TableCell>
+                <TableCell className="text-sm">
+                  {village.zone?.translations?.[0]?.value ||
+                    village.zone?.name ||
+                    "N/A"}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {packageData.translations?.[0]?.value ||
+                    packageData.name ||
+                    "N/A"}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {packageData.price?.toFixed(2) || "0.00"}
+                </TableCell>
+                <TableCell className="text-sm">{renewalToDate}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
 
-          <div className="flex justify-end mt-4 mb-6">
-            <div className="text-right space-y-1">
-              <p>
-                <strong>Subtotal:</strong> $1,500.00
+          <div className="flex justify-end !mt-4 !mb-2">
+            <div className="text-right space-y-0.5">
+              <p className="text-sm !pb-2">
+                <strong>Subtotal:</strong> {subtotal.toFixed(2)}
               </p>
-              <p>
-                <strong>Discount (Special Offer):</strong> -$300.00
+              <p className="text-sm !pb-2">
+                <strong>Discount ({packageData.discount || 0}%):</strong> 
+                {discount.toFixed(2)}
               </p>
-              <p>
-                <strong>TAX:</strong> $50.00
+              <p className="text-sm !pb-2">
+                <strong>TAX:</strong> {tax.toFixed(2)}
               </p>
-              <p className="text-lg font-semibold">
-                <strong>Invoice Total:</strong> $1,250.00
+              <p className="text-base font-semibold !pb-2">
+                <strong>Invoice Total:</strong> {invoiceTotal.toFixed(2)}
               </p>
             </div>
           </div>
-
-          <p className="text-sm text-muted-foreground">
-            Terms & Conditions: This agreement is subject to the terms of the
-            contract or agreement prior to the commencement of the design work.
-            We reserve the right to suspend work in the event of non-payment.
-          </p>
         </CardContent>
 
         <CardFooter
-          className="text-start !p-8  "
+          className="text-start !p-9"
           style={{
             backgroundImage: `url(${FooterInvoiceImage})`,
             backgroundSize: "cover",

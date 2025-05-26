@@ -68,18 +68,17 @@ export default function AddApartment() {
 
   // Combine English and Arabic fields into a single array
   const fields = [
-    { type: "input", placeholder: "Apartment Name", name: "name", lang: "en" },
+    { type: "input", placeholder: "Unit Name", name: "name", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      lang: "en",
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                      lang: "en",
+            },
         { type: "input", placeholder: " (اختياري)اسم المنطقة", name: "name", lang: "ar" },
 
   ];

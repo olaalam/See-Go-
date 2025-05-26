@@ -109,15 +109,14 @@ export default function AddPaymentMethod() {
     },
     { type: "file", name: "logo", lang: "en" },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      lang: "en",
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                      lang: "en",
+            },
     { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
     { type: "input", placeholder: " (اختياري) طريقة الدفع", name: "name", lang: "ar" },
   ];

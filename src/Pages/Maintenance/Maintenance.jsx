@@ -91,7 +91,8 @@ const Maintenance_types = () => {
   }, []);
 
   const handleEdit = (maintenance_type) => {
-    setSelectedRow(maintenance_type);
+    // When opening for edit, store the original image_link if it exists
+    setSelectedRow({ ...maintenance_type, original_image_link: maintenance_type.image_link });
     setIsEditOpen(true);
   };
 
@@ -102,72 +103,46 @@ const Maintenance_types = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, status, imageFile } = selectedRow;
+    const { id, name, status } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("status", status === "Active" ? 1 : 0);
 
-    if (imageFile) {
-      formData.append("image", imageFile);
+    // **MODIFIED LOGIC HERE:**
+    if (selectedRow.imageFile) {
+      // If a new file is selected (via input type="file"), append the new file
+      formData.append("image", selectedRow.imageFile);
+    } else if (selectedRow.original_image_link) {
+      // If no new file is selected, but an original image link exists, append the old link as a string
+      formData.append("image", selectedRow.original_image_link);
     }
+    // If neither exists, don't append an image (or handle as a case where image is removed if that's a feature)
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/maintenance_type/update/${id}`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
+          headers: getAuthHeaders(), // Keep these headers if they are for auth only, otherwise they might conflict with FormData's Content-Type
           body: formData,
         }
       );
 
       if (response.ok) {
-        toast.success("maintenance_type updated successfully!");
-        const responseData = await response.json();
-
-        setmaintenance_types((prev) =>
-          prev.map((maintenance_type) =>
-            maintenance_type.id === id
-              ? {
-                  ...maintenance_type,
-                  name: responseData?.maintenance_type?.name || name,
-                  status:
-                    responseData?.maintenance_type?.status === 1
-                      ? "Active"
-                      : "Inactive",
-                  image_link:
-                    responseData?.maintenance_type?.image_link ||
-                    maintenance_type.image_link,
-                  img: responseData?.maintenance_type?.image_link ? (
-                    <img
-                      src={responseData.maintenance_type.image_link}
-                      alt={responseData?.maintenance_type?.name || name}
-                      className="w-12 h-12 rounded-md object-cover aspect-square"
-                      onError={() => {}}
-                    />
-                  ) : (
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback>
-                        {responseData?.maintenance_type?.name?.charAt(0) ||
-                          name?.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ),
-                }
-              : maintenance_type
-          )
-        );
+        toast.success("Maintenance type updated successfully!");
+        // Re-fetch all data to ensure consistency with backend
+        await fetchmaintenance_types();
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error("Failed to update maintenance_type!");
+        toast.error("Failed to update maintenance type!");
       }
     } catch (error) {
-      console.error("Error updating maintenance_type:", error);
-      toast.error("Error occurred while updating maintenance_type!");
+      console.error("Error updating maintenance type:", error);
+      toast.error("Error occurred while updating maintenance type!");
     }
   };
 
@@ -182,7 +157,7 @@ const Maintenance_types = () => {
       );
 
       if (response.ok) {
-        toast.success("maintenance_type deleted successfully!");
+        toast.success("Maintenance type deleted successfully!");
         setmaintenance_types(
           maintenance_types.filter(
             (maintenance_type) => maintenance_type.id !== selectedRow.id
@@ -190,11 +165,11 @@ const Maintenance_types = () => {
         );
         setIsDeleteOpen(false);
       } else {
-        toast.error("Failed to delete maintenance_type!");
+        toast.error("Failed to delete maintenance type!");
       }
     } catch (error) {
-      console.error("Error deleting maintenance_type:", error);
-      toast.error("Error occurred while deleting maintenance_type!");
+      console.error("Error deleting maintenance type:", error);
+      toast.error("Error occurred while deleting maintenance type!");
     }
   };
 
@@ -211,7 +186,7 @@ const Maintenance_types = () => {
       );
 
       if (response.ok) {
-        toast.success("maintenance_type status updated successfully!");
+        toast.success("Maintenance type status updated successfully!");
         setmaintenance_types((prevmaintenance_types) =>
           prevmaintenance_types.map((maintenance_type) =>
             maintenance_type.id === id
@@ -224,12 +199,12 @@ const Maintenance_types = () => {
         );
       } else {
         const errorData = await response.json();
-        console.error("Failed to update maintenance_type status:", errorData);
-        toast.error("Failed to update maintenance_type status!");
+        console.error("Failed to update maintenance type status:", errorData);
+        toast.error("Failed to update maintenance type status!");
       }
     } catch (error) {
-      console.error("Error updating maintenance_type status:", error);
-      toast.error("Error occurred while updating maintenance_type status!");
+      console.error("Error updating maintenance type status:", error);
+      toast.error("Error occurred while updating maintenance type status!");
     }
   };
 
@@ -245,17 +220,25 @@ const Maintenance_types = () => {
     if (file) {
       setSelectedRow((prev) => ({
         ...prev,
-        imageFile: file,
+        imageFile: file, // Store the new file object
+        image_link: URL.createObjectURL(file), // Update image_link for preview
+      }));
+    } else {
+      // If user clears the selected file, remove imageFile and revert image_link to original or null
+      setSelectedRow((prev) => ({
+        ...prev,
+        imageFile: null,
+        image_link: prev.original_image_link || null,
       }));
     }
   };
 
   const columns = [
-    { key: "name", label: "maintenance_type Name" },
+    { key: "name", label: "Maintenance Type Name" },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
-  // Define filter options for status, including an "All" option
+
   const filterOptionsForZones = [
     { value: "all", label: "All" },
     { value: "active", label: "Active" },
@@ -275,8 +258,8 @@ const Maintenance_types = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description"]}
-        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        searchKeys={["name"]}
+        filterKey={["status"]}
         filterOptions={filterOptionsForZones}
       />
 
@@ -291,7 +274,7 @@ const Maintenance_types = () => {
             onChange={onChange}
           >
             <label htmlFor="name" className="text-gray-400 !pb-3">
-              maintenance_type Name
+              Maintenance Type Name
             </label>
             <Input
               id="name"
@@ -300,9 +283,20 @@ const Maintenance_types = () => {
               className="!my-2 text-bg-primary !p-4"
             />
 
-            <label htmlFor="image" className="text-gray-400 !pb-3">
+            <label htmlFor="image" className="text-gray-400">
               Image
             </label>
+
+            {selectedRow?.image_link && (
+              <div className="flex items-center gap-4 mb-2">
+                <img
+                  src={selectedRow.image_link}
+                  alt="Current"
+                  className="w-12 h-12 rounded-md object-cover border"
+                />
+              </div>
+            )}
+
             <Input
               type="file"
               id="image"
@@ -315,7 +309,7 @@ const Maintenance_types = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            selectedRow={selectedRow}
+            name={selectedRow.name}
           />
         </>
       )}

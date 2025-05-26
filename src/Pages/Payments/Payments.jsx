@@ -5,15 +5,19 @@ import DataTable from "@/components/DataTableLayout";
 import Loading from "@/components/Loading";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import RejectDialog from "./RejectDialog"; 
+import RejectDialog from "./RejectDialog";
+import { Button } from "@/components/ui/button"; // Import Button if not already there
+import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog"; // Assuming you have these UI components for a modal/dialog
 
 export default function PaymentsPage() {
   const [tab, setTab] = useState("Pending Payments");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [rejectReason, setRejectReason] = useState(""); 
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false); 
+  const [rejectReason, setRejectReason] = useState("");
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false); // New state for receipt modal
+  const [currentReceiptImage, setCurrentReceiptImage] = useState(""); // New state for receipt image URL
 
   const token = localStorage.getItem("token");
 
@@ -49,17 +53,17 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [tab]); 
+  }, [tab]);
 
   const handleApprove = async (id) => {
     try {
       await axios.put(
         `https://bcknd.sea-go.org/admin/payments/approve/${id}`,
-        {}, 
+        {},
         { headers: getAuthHeaders() }
       );
       toast.success("Payment approved.");
-      fetchData(); 
+      fetchData();
     } catch (error) {
       toast.error("Failed to approve payment.");
       console.error("Error approving payment:", error);
@@ -67,8 +71,8 @@ export default function PaymentsPage() {
   };
 
   const handleRejectClick = (id) => {
-    setSelectedPaymentId(id); 
-    setIsRejectDialogOpen(true); 
+    setSelectedPaymentId(id);
+    setIsRejectDialogOpen(true);
   };
 
   const handleRejectConfirm = async () => {
@@ -81,13 +85,13 @@ export default function PaymentsPage() {
         `https://bcknd.sea-go.org/admin/payments/reject/${selectedPaymentId}?rejected_reason=${encodeURIComponent(
           rejectReason
         )}`,
-        {}, 
+        {},
         { headers: getAuthHeaders() }
       );
       toast.success("Payment rejected.");
-      setIsRejectDialogOpen(false); 
-      setRejectReason(""); 
-      setSelectedPaymentId(null); 
+      setIsRejectDialogOpen(false);
+      setRejectReason("");
+      setSelectedPaymentId(null);
       fetchData();
     } catch (error) {
       toast.error("Failed to reject payment.");
@@ -95,14 +99,25 @@ export default function PaymentsPage() {
     }
   };
 
+  // Function to open receipt modal
+  const handleViewReceipt = (receiptLink) => {
+    setCurrentReceiptImage(receiptLink);
+    setIsReceiptModalOpen(true);
+  };
+
   const baseColumns = [
     {
-      key: "payment_method.name", 
+      key: "payment_method.name",
       label: "Payment Method",
       render: (row) => row.payment_method?.name || "N/A",
     },
     {
-      key: "start_date", 
+      key: "village.name",
+      label: "Village Name",
+      render: (row) => row.village?.name || "N/A",
+    },
+    {
+      key: "start_date",
       label: "Date",
       render: (row) => row.start_date || "N/A",
     },
@@ -112,9 +127,31 @@ export default function PaymentsPage() {
       render: (row) => row.type || "N/A",
     },
     {
+      key: "receipt_link",
+      label: "Receipt",
+      render: (row) => (
+        // Render a button for the receipt link
+        row.receipt_link ? (
+          <Button
+            onClick={() => handleViewReceipt(row.receipt_link)}
+            className="bg-bg-primary hover:bg-teal-600 text-white !px-3 !py-1 rounded-md text-sm"
+          >
+            View Receipt
+          </Button>
+        ) : (
+          "N/A"
+        )
+      ),
+    },
+    {
       key: "amount",
       label: "Amount",
       render: (row) => row.amount || "N/A",
+    },
+    {
+      key: "discount",
+      label: "Discount",
+      render: (row) => row.discount || "N/A",
     },
   ];
 
@@ -135,7 +172,6 @@ export default function PaymentsPage() {
               >
                 {status === "approved" ? "Approved" : "Rejected"}
               </span>
-
             </div>
           );
         } else {
@@ -190,12 +226,12 @@ export default function PaymentsPage() {
       },
     },
   ];
-    // Prepare filter options for zone and status
-const statusFilterOptions = [
-  { value: "all", label: "All" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-];
+  // Prepare filter options for zone and status
+  const statusFilterOptions = [
+    { value: "all", label: "All" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" },
+  ];
 
   return (
     <div>
@@ -223,32 +259,58 @@ const statusFilterOptions = [
             <>
               <DataTable
                 data={data}
-                columns={columns} 
+                columns={columns}
                 className="table-compact"
-                showAddButton={false} 
-                showFilter={tab === "History Payments"} 
+                showAddButton={false}
+                showFilter={tab === "History Payments"}
                 showActions={false}
                 showEditButton={false}
                 showDeleteButton={false}
-  filterKey={tab === "History Payments" ? ["status"] : []}
-  filterOptions={tab === "History Payments" ? statusFilterOptions : []}
-                searchKeys={["payment_method.name", "type", "amount", "start_date"]} 
+                filterKey={tab === "History Payments" ? ["status"] : []}
+                filterOptions={tab === "History Payments" ? statusFilterOptions : []}
+                searchKeys={["payment_method.name", "type", "amount", "start_date"]}
               />
 
-{isRejectDialogOpen && (
-  <RejectDialog
-    open={isRejectDialogOpen}
-    onOpenChange={setIsRejectDialogOpen}
-    onSave={handleRejectConfirm}
-  >
-    <textarea
-      placeholder="Enter rejection reason..."
-      value={rejectReason}
-      onChange={(e) => setRejectReason(e.target.value)}
-      className="w-full !p-2 !mt-2 !my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-    />
-  </RejectDialog>
-)}
+              {isRejectDialogOpen && (
+                <RejectDialog
+                  open={isRejectDialogOpen}
+                  onOpenChange={setIsRejectDialogOpen}
+                  onSave={handleRejectConfirm}
+                >
+                  <textarea
+                    placeholder="Enter rejection reason..."
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    className="w-full !p-2 !mt-2 !my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-[5px]"
+                  />
+                </RejectDialog>
+              )}
+
+              {/* Receipt Image Modal */}
+
+<Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+  <DialogOverlay className="bg-black border-none opacity-50" />
+  <DialogContent className="fixed border-none shadow-none flex items-center justify-center !p-4 [&>button]:hidden"> {/* Added [&>button]:hidden here */}
+    <div className="relative bg-white rounded-lg !p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
+      <h2 className="text-xl font-semibold !mb-4 text-bg-primary">Receipt Image</h2>
+      {currentReceiptImage ? (
+        <img
+          src={currentReceiptImage}
+          alt="Receipt"
+          className="max-w-full h-auto mx-auto rounded-md"
+        />
+      ) : (
+        <p>No receipt image available.</p>
+      )}
+      <Button
+        onClick={() => setIsReceiptModalOpen(false)}
+        className="!mt-4 bg-red-500 hover:bg-red-600 text-white !px-4 !py-2 rounded-md"
+      >
+        Close
+      </Button>
+    </div>
+  </DialogContent>
+</Dialog>
             </>
           )}
         </TabsContent>

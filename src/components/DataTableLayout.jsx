@@ -55,9 +55,11 @@ export default function DataTable({
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
+  // --- Pagination States ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const getNestedValue = (obj, path) => {
-    // Safely get nested value, returning undefined if any part of the path is null/undefined
-    // This helper itself does not convert to lowercase or handle null/undefined for string methods
     return path.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
@@ -65,8 +67,7 @@ export default function DataTable({
     return data.filter((row) => {
       const matchesSearch = searchKeys.some((key) => {
         const value = getNestedValue(row, key);
-        // Ensure value is treated as a string for searching
-        const searchableValue = value?.toString() || ""; // Convert to string before toLowerCase
+        const searchableValue = value?.toString() || "";
         return searchableValue.toLowerCase().includes(searchValue.toLowerCase());
       });
 
@@ -74,14 +75,11 @@ export default function DataTable({
         filterValue === "all" ||
         filterKey.some((key) => {
           const rowValue = getNestedValue(row, key);
-
-          // FIX IS HERE: Ensure rowValue is a string before calling toLowerCase()
           const comparableRowValue =
             rowValue !== null && rowValue !== undefined
-              ? String(rowValue).toLowerCase() // Convert to string and then to lowercase
-              : ""; // Treat null/undefined as empty string for comparison
+              ? String(rowValue).toLowerCase()
+              : "";
 
-          // Ensure filterValue is also treated as a string for comparison
           const comparableFilterValue = String(filterValue).toLowerCase();
 
           return comparableRowValue === comparableFilterValue;
@@ -90,6 +88,18 @@ export default function DataTable({
       return matchesSearch && matchesFilter;
     });
   }, [data, searchValue, filterValue, searchKeys, filterKey]);
+
+  // --- Pagination Logic ---
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   const handleRowSelect = (row) => {
     setSelectedRows((prev) =>
@@ -102,7 +112,7 @@ export default function DataTable({
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
     if (checked) {
-      setSelectedRows(filteredData.map((row) => row.id));
+      setSelectedRows(paginatedData.map((row) => row.id)); // Select only visible rows
     } else {
       setSelectedRows([]);
     }
@@ -160,13 +170,15 @@ export default function DataTable({
         <Table className="!min-w-[600px]">
           <TableHeader>
             <TableRow>
+              {/* New TableHead for row number */}
+              <TableHead className="text-bg-primary font-semibold w-12">#</TableHead>
               {showRowSelection && (
                 <TableHead className="text-bg-primary font-semibold w-12">
                   <input
                     type="checkbox"
                     checked={
-                      selectedRows.length === filteredData.length &&
-                      filteredData.length > 0
+                      selectedRows.length === paginatedData.length &&
+                      paginatedData.length > 0
                     }
                     onChange={handleSelectAll}
                     className="w-4 h-4 text-bg-primary border-gray-300 rounded focus:ring-bg-primary"
@@ -189,9 +201,13 @@ export default function DataTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.length > 0 ? (
-              filteredData.map((row, index) => (
+            {paginatedData.length > 0 ? (
+              paginatedData.map((row, index) => (
                 <TableRow key={index}>
+                  {/* New TableCell for row number */}
+                  <TableCell className="!px-2 !py-1 text-sm">
+                    {startIndex + index + 1}
+                  </TableCell>
                   {showRowSelection && (
                     <TableCell className="!px-2 !py-1">
                       <input
@@ -210,7 +226,7 @@ export default function DataTable({
                       key={idx}
                       className={clsx(
                         "!px-2 !py-1 text-sm whitespace-normal break-words",
-                        col.key === "img" && // Corrected from "image" to "img"
+                        col.key === "img" &&
                           "h-full min-h-[60px] flex justify-center items-center"
                       )}
                     >
@@ -238,40 +254,39 @@ export default function DataTable({
                             />
                           </Switch>
                         </div>
-                      ) : col.key === "img" ? ( // Corrected from "image" to "img"
+                      ) : col.key === "img" ? (
                         <div className="flex justify-center items-center w-full h-full min-h-[60px]">
-                          {row[col.key]} {/* Render the JSX directly */}
+                          {row[col.key]}
                         </div>
-                      ) :col.key === "map" ? (
-  (() => {
-    const url = row[col.key];
-    if (!url) return "N/A"; // Handle missing URL
+                      ) : col.key === "map" ? (
+                        (() => {
+                          const url = row[col.key];
+                          if (!url) return "N/A";
 
-    const displayText =
-      url.length > 20
-        ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}`
-        : url;
+                          const displayText =
+                            url.length > 20
+                              ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}`
+                              : url;
 
-    return (
-      <div className="relative w-[120px] truncate group">
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 hover:underline"
-        >
-          {displayText}
-        </a>
-        {url.length > 20 && (
-          <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-pre-wrap max-w-xs break-words">
-            {url}
-          </div>
-        )}
-      </div>
-    );
-  })()
-) : 
-col.render ? (
+                          return (
+                            <div className="relative w-[120px] truncate group">
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=$$${encodeURIComponent(url)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {displayText}
+                              </a>
+                              {url.length > 20 && (
+                                <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-pre-wrap max-w-xs break-words">
+                                  {url}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      ) : col.render ? (
                         col.render(row)
                       ) : (
                         getNestedValue(row, col.key)
@@ -330,6 +345,7 @@ col.render ? (
                 <TableCell
                   colSpan={
                     columns.length +
+                    1 + // Added for the new row number column
                     (showRowSelection ? 1 : 0) +
                     (showEditButton || showDeleteButton || showActions ? 1 : 0)
                   }
@@ -342,26 +358,44 @@ col.render ? (
           </TableBody>
         </Table>
         <div className="w-full !mb-10 max-w-[1200px] mx-auto">
-          {/* Pagination is likely controlled by a separate state,
-              not directly by filteredData, so keep this as is or implement full pagination logic. */}
           <Pagination className="!mb-2 flex justify-center items-center m-auto">
             <PaginationContent className="text-bg-primary font-semibold flex gap-2">
               <PaginationItem>
-                <PaginationPrevious href="#" className="text-bg-primary" />
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={clsx("text-bg-primary", {
+                    "opacity-50 cursor-not-allowed": currentPage === 1,
+                  })}
+                />
               </PaginationItem>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(page)}
+                      className={clsx(
+                        "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg",
+                        {
+                          "bg-bg-primary text-white hover:bg-bg-primary":
+                            currentPage === page,
+                          "text-bg-primary": currentPage !== page,
+                        }
+                      )}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
               <PaginationItem>
-                <PaginationLink
-                  className="border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg text-bg-primary"
-                  href="#"
-                >
-                  1
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationEllipsis className="text-bg-primary" />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" className="text-bg-primary" />
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={clsx("text-bg-primary", {
+                    "opacity-50 cursor-not-allowed": currentPage === totalPages,
+                  })}
+                />
               </PaginationItem>
             </PaginationContent>
           </Pagination>

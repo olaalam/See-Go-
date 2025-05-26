@@ -221,16 +221,15 @@ export default function AddServiceProvider() {
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
-    {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      lang: "en",
-    },
+{
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+                 lang: "en", 
+            },
     {
       type: "input",
       placeholder: "  (اختياري) اسم مزود الخدمة",

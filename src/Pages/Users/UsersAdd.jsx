@@ -102,7 +102,7 @@ export default function AddVillage() {
       birthDate: "",
       rent_from: "",
       rent_to: "",
-      parent_user_id: "",
+      //parent_user_id: "",
     });
    } else {
     const errorData = await response.json();
@@ -131,16 +131,16 @@ export default function AddVillage() {
     { type: "input", inputType: "password", placeholder: "Password", name: "password" },
     { type: "input", inputType: "date", placeholder: "BirthDate", name: "birthDate" },
 
-    { type: "input", placeholder: "Follower User", name: "parent_user_id" },
+    //{ type: "input", placeholder: "Follower User", name: "parent_user_id" },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+
+            },
     {
       type: "select",
       placeholder: "Gender",

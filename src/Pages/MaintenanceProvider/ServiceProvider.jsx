@@ -16,13 +16,14 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label"; // Import Label if it's used directly for styling
+import { Label } from "@/components/ui/label";
+import MapLocationPicker from "@/components/MapLocationPicker";
 
 const Service_provider = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [service_provider, setservice_provider] = useState([]);
-  const [villages, setVillages] = useState([]); // Renamed from 'village' to 'villages' for clarity
+  const [villages, setVillages] = useState([]);
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -110,11 +111,9 @@ const Service_provider = () => {
           </Avatar>
         );
 
-        // Find village name from the 'villages' state
         const villageData = villages.find((v) => v.id === provider.village_id);
         const villageName = villageData?.name || "—";
 
-        // Find maintenance type name from the 'formattedMaintenanceTypes' array
         const maintenanceTypeData = formattedMaintenanceTypes.find(
           (t) => t.id === provider.maintenance_type_id
         );
@@ -123,17 +122,17 @@ const Service_provider = () => {
         return {
           id: provider.id,
           name,
-          rawName: name, // Keep rawName for edit dialog input
-         map,
+          rawName: name,
+          map,
           description,
           img: image,
+          image_link: provider.image_link, // Keep the original image link
           phone: provider.phone || "—",
-          // Normalize status to lowercase for consistent filtering
           status: provider.status === 1 ? "active" : "inactive",
           village_id: provider.village_id,
-          villageName, // This is the value used for filtering
+          villageName,
           maintenance_type_id: provider.maintenance_type_id,
-          maintenanceTypeName, // This is the value used for filtering
+          maintenanceTypeName,
           open_from: provider.open_from || "",
           open_to: provider.open_to || "",
         };
@@ -148,20 +147,17 @@ const Service_provider = () => {
   };
 
   useEffect(() => {
-    // Fetch villages first
     fetchVillages();
   }, []);
 
   useEffect(() => {
-    // Fetch service providers only after villages are loaded
     if (villages.length > 0) {
       fetchServiceProviders();
     }
-  }, [villages]); // Dependency on villages ensures it runs after villages are fetched
+  }, [villages]);
 
   const handleEdit = (provider) => {
     if (!provider) return;
-    // Ensure the selectedRow has the rawName for the input field
     setselectedRow({ ...provider, name: provider.rawName });
     setIsEditOpen(true);
   };
@@ -177,12 +173,11 @@ const Service_provider = () => {
     const {
       id,
       rawName,
-    location,
+      map,
       description,
       status,
       village_id,
       phone,
-      imageFile,
       open_from,
       open_to,
       maintenance_type_id,
@@ -200,9 +195,8 @@ const Service_provider = () => {
     const updatedProvider = new FormData();
     updatedProvider.append("id", id);
     updatedProvider.append("name", rawName || "");
-    updatedProvider.append("location", location);
+    updatedProvider.append("location", map);
     updatedProvider.append("description", description || "");
-    // Convert normalized status back to API expected format
     updatedProvider.append("status", status === "active" ? "1" : "0");
     updatedProvider.append("phone", phone || "");
     updatedProvider.append("village_id", village_id);
@@ -210,25 +204,29 @@ const Service_provider = () => {
 
     const formatTimeWithSeconds = (time) => {
       if (!time) return "";
-      // Ensure time is in 'HH:MM:SS' format for backend if required, otherwise 'HH:MM' is fine.
       return time.length === 5 ? `${time}:00` : time;
     };
 
     updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
     updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
 
-    if (imageFile) {
-      updatedProvider.append("image", imageFile);
+    // **MODIFIED LOGIC HERE:**
+    if (selectedRow.imageFile) {
+      // If a new file is selected, append the new file
+      updatedProvider.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // If no new file is selected, but an old image link exists, append the old link as a string
+      updatedProvider.append("image", selectedRow.image_link);
     }
+    // If neither exists, don't append an image (or handle as a case where image is removed if that's a feature)
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_provider/update/${id}`,
         {
-          method: "POST", // Backend expects POST for update
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            // Do NOT set Content-Type for FormData, browser sets it automatically
           },
           body: updatedProvider,
         }
@@ -236,15 +234,13 @@ const Service_provider = () => {
 
       if (response.ok) {
         toast.success("Provider updated successfully!");
-        // Re-fetch all data to ensure the table is fully consistent with the backend
-        // This is often simpler than complex local state updates with translations, images, etc.
         fetchServiceProviders();
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error(`Failed to update provider: ${errorData.message || ''}`);
+        toast.error(`Failed to update provider: ${errorData.message || ""}`);
       }
     } catch (error) {
       console.error("Error updating provider:", error);
@@ -278,15 +274,12 @@ const Service_provider = () => {
 
   const onChange = (key, value) => {
     setselectedRow((prev) => {
-      // Normalize status to lowercase for local state consistency
       if (key === "status") {
         return { ...prev, [key]: value.toLowerCase() };
       }
-      // For village_id and maintenance_type_id, ensure they are numbers
       if (key === "village_id" || key === "maintenance_type_id") {
         return { ...prev, [key]: parseInt(value, 10) };
       }
-      // Special handling for 'name' to update 'rawName'
       if (key === "name") {
         return { ...prev, rawName: value };
       }
@@ -299,8 +292,16 @@ const Service_provider = () => {
     if (file) {
       setselectedRow((prev) => ({
         ...prev,
-        imageFile: file,
+        imageFile: file, // Store the new file object
+        image_link: URL.createObjectURL(file), // Update the image_link for preview
       }));
+    } else {
+        // If user clears the selected file, remove imageFile and reset image_link to original or null
+        setselectedRow((prev) => ({
+            ...prev,
+            imageFile: null,
+            image_link: prev.original_image_link || null // Assuming you store original_image_link
+        }));
     }
   };
 
@@ -319,7 +320,7 @@ const Service_provider = () => {
         setservice_provider((prevservice_provider) =>
           prevservice_provider.map((provider) =>
             provider.id === id
-              ? { ...provider, status: newStatus === 1 ? "active" : "inactive" } // Normalize status here too
+              ? { ...provider, status: newStatus === 1 ? "active" : "inactive" }
               : provider
           )
         );
@@ -331,34 +332,31 @@ const Service_provider = () => {
     }
   };
 
-  // --- Filtering Logic Refinement ---
-  // Generate unique village filter options
   const uniqueVillageOptions = Array.from(new Set(villages.map(v => v.name)))
-    .filter(name => name && name !== "—") // Filter out empty or placeholder names
+    .filter(name => name && name !== "—")
     .map(name => ({ value: name, label: name }));
 
-  // Generate unique maintenance type filter options
   const uniqueMaintenanceTypeOptions = Array.from(new Set(maintenanceTypes.map(mt => mt.name)))
     .filter(name => name && name !== "—")
     .map(name => ({ value: name, label: name }));
 
   const filterOptionsForServices = [
-    { value: "all", label: "All" }, // Option to clear all filters
+    { value: "all", label: "All" },
     ...uniqueVillageOptions,
     ...uniqueMaintenanceTypeOptions,
-    { value: "active", label: "Active" }, // Filter by status
-    { value: "inactive", label: "Inactive" }, // Filter by status
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
   ];
 
   const columns = [
     { key: "name", label: "Provider" },
     { key: "map", label: "Location" },
     { key: "description", label: "Description" },
-    { key: "villageName", label: "Village" }, // Use villageName for display and filtering
-    { key: "maintenanceTypeName", label: "Maintenance Type" }, // Use maintenanceTypeName for display and filtering
+    { key: "villageName", label: "Village" },
+    { key: "maintenanceTypeName", label: "Maintenance Type" },
     { key: "img", label: "Image" },
     { key: "phone", label: "Phone" },
-    { key: "status", label: "Status" }, // Use status for display and filtering
+    { key: "status", label: "Status" },
   ];
 
   return (
@@ -375,7 +373,6 @@ const Service_provider = () => {
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "location", "villageName", "maintenanceTypeName"]}
         showFilter={true}
-        // Specify the keys that the DataTable should filter by
         filterKey={["villageName", "maintenanceTypeName", "status"]}
         filterOptions={filterOptionsForServices}
       />
@@ -401,15 +398,15 @@ const Service_provider = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-            <label htmlFor="location" className="text-gray-400 !pb-3">
-              Location
-            </label>
-            <Input
-              id="location"
-              value={selectedRow?.map|| ""}
-              onChange={(e) => onChange("map", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
+  <label htmlFor="location" className="text-gray-400 !pb-3">
+          Location
+        </label>
+        {/* هنا استبدال Input بـ MapLocationPicker */}
+        <MapLocationPicker
+          value={selectedRow?.map || ""} // القيمة الحالية للموقع
+          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
+          placeholder="Search or select location on map"
+        />
 
               <Label htmlFor="description" className="text-gray-400 !pb-3">
                 Description
@@ -525,15 +522,27 @@ const Service_provider = () => {
                 </SelectContent>
               </Select>
 
-              <Label htmlFor="image" className="text-gray-400 !pb-3">
+              <label htmlFor="image" className="text-gray-400">
                 Image
-              </Label>
+              </label>
+
+              {/* Display current image if exists */}
+              {selectedRow?.image_link && (
+                <div className="flex items-center gap-4 mb-2">
+                  <img
+                    src={selectedRow.image_link}
+                    alt="Current"
+                    className="w-12 h-12 rounded-md object-cover border"
+                  />
+                </div>
+              )}
+
               <Input
                 type="file"
                 id="image"
                 accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
                 onChange={handleImageChange}
-                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
               />
             </div>
           </EditDialog>

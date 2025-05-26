@@ -89,14 +89,14 @@ export default function AddZone() {
       name: "image",
     },
     {
-      type: "select",
-      placeholder: "Status",
-      name: "status",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
+                type: "switch",
+                name: "status",
+                placeholder: "Status",
+                returnType: "binary",
+                activeLabel: "Active",
+                inactiveLabel: "Inactive",
+
+            },
     {
       type: "input",
       placeholder: "اسم المنطقة (اختياري)",

@@ -232,7 +232,7 @@ if (selectedRow.imageFile) {
   ];
 
   const columns = [
-    { key: "name", label: "Apartment Name" },
+    { key: "name", label: "Unit Name" },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
@@ -245,7 +245,7 @@ if (selectedRow.imageFile) {
       <DataTable
         data={apartment}
         columns={columns}
-        addRoute="/apartments/add"
+        addRoute="/units/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}

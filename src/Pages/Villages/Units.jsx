@@ -13,6 +13,7 @@ export default function VUnit() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // villagePositions is fetched but not used here, consider if it's needed
   const [villagePositions, setVillagePositions] = useState([]);
   const [selectedRowsForDeletion, setSelectedRowsForDeletion] = useState([]);
   const { id } = useParams();
@@ -49,12 +50,12 @@ export default function VUnit() {
 
         const units = Array.isArray(adminJson.units) ? adminJson.units : [];
 
-        setVillagePositions(units);
+        setVillagePositions(units); // Still setting it, but it's not directly used for display in this component
 
         const formattedAdmins = units.map((unit) => ({
           ...unit,
-          id: unit.id, // تأكيد وجود id
-          admin_position_name: unit.unit_name || "Unknown", // تحسين العرض
+          id: unit.id, // Make sure 'id' is present
+          admin_position_name: unit.unit_name || "Unknown", // Display enhancement
         }));
 
         console.log("Formatted units:", formattedAdmins);
@@ -129,6 +130,17 @@ export default function VUnit() {
     }
   };
 
+  // --- Filtering Logic Refinement ---
+  // Generate unique 'type_unit' filter options from adminData
+  const uniqueUnitTypes = Array.from(new Set(adminData.map(unit => unit.type_unit)))
+    .filter(type => type && type !== "—") // Filter out empty or placeholder names
+    .map(type => ({ value: type, label: type }));
+
+  const filterOptionsForUnits = [
+    { value: "all", label: "All" }, // Option to clear all filters
+    ...uniqueUnitTypes,
+  ];
+
   return (
     <div>
       <ToastContainer />
@@ -148,6 +160,8 @@ export default function VUnit() {
             showEditButton={false}
             showRowSelection={true}
             showDeleteButton={true}
+            filterKey={["type_unit"]} // Specify that we want to filter by the 'type_unit' key
+            filterOptions={filterOptionsForUnits} // Use the new options for units
           />
 
           <DeleteDialog
@@ -157,7 +171,7 @@ export default function VUnit() {
             name={
               selectedRowsForDeletion.length > 1
                 ? `${selectedRowsForDeletion.length} selected units`
-                : selectedRow?.name || "this unit"
+                : selectedRow?.unit_name || "this unit" // Use unit_name for better context
             }
           />
 
