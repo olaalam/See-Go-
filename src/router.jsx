@@ -40,6 +40,7 @@ import ServiceProvider from "./Pages/MaintenanceProvider/ServiceProvider";
 import ServiceProviderAdd from "./Pages/MaintenanceProvider/ServiceProviderAdd";
 import VAdminRole from "./Pages/Villages/VAdminRole";
 import VAdminRoleAdd from "./Pages/Villages/VAdminRoleAdd";
+import SinglePageU from "./Pages/Users/SinglePageU";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
@@ -108,6 +109,10 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Users /> },
           { path: "add", element: <UsersAdd /> },
+                    {
+            path: "single-page-u/:id",
+            element: <SinglePageU />,
+          },
         ],
       },
       {

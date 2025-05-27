@@ -16,6 +16,10 @@ import { useLocation } from "react-router-dom";
 import Units from "@/Pages/Villages/Units";
 import Gallery from "./Gallery";
 
+// Import new components for Owner, Visits, and Services tabs (you'll need to create these)
+import Owner from "@/Pages/Users/Owner"; // Assuming this path
+import Services from "@/Pages/Users/Services"; // Assuming this path
+
 const formatTime = (time) => {
   if (!time) return "";
   try {
@@ -35,48 +39,75 @@ export default function VillageDetailsCard({
   entityType,
 }) {
   const location = useLocation();
+  // Determine if it's a user single page based on the URL
+  const isUserSinglePage = location.pathname.startsWith("/users/single-page-u/");
   const isProviderPage = location.pathname.includes("/providers/");
+
   if (!data) return null;
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid  !ms-3 w-[90%] grid-cols-4 gap-6 bg-transparent !my-6">
+        <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-6 bg-transparent !my-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
+                      data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                      hover:bg-teal-100 hover:text-teal-700"
             value="info"
           >
             Information
           </TabsTrigger>
-          <TabsTrigger
-            className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
-            value="admin"
-          >
-            Admin Users
-          </TabsTrigger>
-          <TabsTrigger
-            className="rounded-[10px] border text-bg-primary py-2 transition-all
-                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                  hover:bg-teal-100 hover:text-teal-700"
-            value="gallery"
-          >
-            Gallery
-          </TabsTrigger>
 
-          {/* Conditionally render the "Units" tab */}
-          {entityType === "village" && (
-            <TabsTrigger
-              className="rounded-[10px] border text-bg-primary py-2 transition-all
-                    data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                    hover:bg-teal-100 hover:text-teal-700"
-              value="units"
-            >
-              Units
-            </TabsTrigger>
+          {isUserSinglePage ? (
+            <>
+              <TabsTrigger
+                className="rounded-[10px] border text-bg-primary py-2 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700"
+                value="owner"
+              >
+                Property
+              </TabsTrigger>
+
+              <TabsTrigger
+                className="rounded-[10px] border text-bg-primary py-2 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700"
+                value="services"
+              >
+                Services
+              </TabsTrigger>
+
+            </>
+          ) : (
+            <>
+              <TabsTrigger
+                className="rounded-[10px] border text-bg-primary py-2 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700"
+                value="admin"
+              >
+                Admin Users
+              </TabsTrigger>
+              <TabsTrigger
+                className="rounded-[10px] border text-bg-primary py-2 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700"
+                value="gallery"
+              >
+                Gallery
+              </TabsTrigger>
+              {entityType === "village" && (
+                <TabsTrigger
+                  className="rounded-[10px] border text-bg-primary py-2 transition-all
+                            data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                            hover:bg-teal-100 hover:text-teal-700"
+                  value="units"
+                >
+                  Units
+                </TabsTrigger>
+              )}
+            </>
           )}
         </TabsList>
 
@@ -157,6 +188,20 @@ export default function VillageDetailsCard({
                     <span>Open From: {formatTime(data.open_from)}</span>
                   </div>
                 )}
+                {data.email && (
+                  <div className="flex items-center gap-2">
+                    {/* Changed icon from Clock to relevant one, e.g., Mail or AtSign */}
+                    {/* Assuming you have a Mail or AtSign icon from lucide-react, or you can add one */}
+                    <Globe className="w-4 font-semibold h-4 text-[#297878]" /> {/* Using Globe as a placeholder */}
+                    <span>Email: {data.email}</span> {/* Removed formatTime */}
+                  </div>
+                )}
+                {data.user_type && (
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 font-semibold h-4 text-[#297878]" /> {/* Changed icon to Users for user type */}
+                    <span>User Type: {data.user_type}</span> {/* Removed formatTime */}
+                  </div>
+                )}
                 {data.open_to && (
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 font-semibold h-4 text-[#297878]" />
@@ -168,15 +213,28 @@ export default function VillageDetailsCard({
           </Card>
         </TabsContent>
 
-        <TabsContent value="admin">
-          {isProviderPage ? <PAdmin /> : <VAdmin />}
-        </TabsContent>
-        <TabsContent value="gallery">
-          <Gallery />
-        </TabsContent>
-        <TabsContent value="units">
-          <Units />
-        </TabsContent>
+        {isUserSinglePage ? (
+          <>
+            <TabsContent value="owner">
+              <Owner data={data} />
+            </TabsContent>
+            <TabsContent value="services">
+              <Services data={data} />
+            </TabsContent>
+          </>
+        ) : (
+          <>
+            <TabsContent value="admin">
+              {isProviderPage ? <PAdmin /> : <VAdmin />}
+            </TabsContent>
+            <TabsContent value="gallery">
+              <Gallery />
+            </TabsContent>
+            <TabsContent value="units">
+              <Units />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

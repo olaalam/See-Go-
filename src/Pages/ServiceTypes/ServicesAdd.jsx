@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDispatch, useSelector } from 'react-redux';
-import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
+import { useDispatch, useSelector } from "react-redux";
+import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
@@ -81,18 +81,23 @@ export default function AddService() {
   // Combine English and Arabic fields into a single array
   const fields = [
     { type: "input", placeholder: "Service Name", name: "name", lang: "en" },
-    {
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-                      lang: "en",
-            },
-    { type: "file", name: "image", lang: "en" },
-        { type: "input", placeholder: " (اختياري) اسم الخدمة ", name: "name", lang: "ar" }, 
 
+    { type: "file", name: "image", lang: "en" },
+    {
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+      lang: "en",
+    },
+    {
+      type: "input",
+      placeholder: " (اختياري) اسم الخدمة ",
+      name: "name",
+      lang: "ar",
+    },
   ];
 
   return (

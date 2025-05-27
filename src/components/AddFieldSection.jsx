@@ -1,18 +1,32 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+// Remove Select imports if you're replacing all select types
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
+
+// Import Combobox related components (adjust paths as per your project)
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { MapPin } from "lucide-react";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown, MapPin } from "lucide-react";
 import { useState, useMemo } from "react";
-import { Switch } from "@/components/ui/switch"; // استدعاء مكون السويتش
+import { Switch } from "@/components/ui/switch";
 import MapModal from "@/components/MapModel";
 import MapLocationPicker from "./MapLocationPicker";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
+import { cn } from "@/lib/utils"; // Assuming you have this utility
 
 export default function Add({ fields, values, onChange }) {
   const [showMap, setShowMap] = useState(false);
@@ -75,7 +89,7 @@ export default function Add({ fields, values, onChange }) {
                   return (
                     <Input
                       id={fieldId}
-                      type="number" // Set type to 'number'
+                      type="number"
                       placeholder={field.placeholder}
                       value={value}
                       onChange={(e) =>
@@ -153,32 +167,22 @@ export default function Add({ fields, values, onChange }) {
                       )}
                     </div>
                   );
-                case "select":
+                case "select": // This will now render a Combobox
                   return (
-                    <Select
+                    <ComboboxComponent
+                      options={field.options}
                       value={value}
                       onValueChange={(val) =>
                         handleChange(field.lang, field.name, val)
                       }
-                    >
-                      <SelectTrigger
-                        className={`w-full !ms-1 !px-5 !py-6 ${commonInputClass}`}
-                      >
-                        <SelectValue placeholder={field.placeholder} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-teal-600 rounded-md shadow-lg !p-3">
-                        {field.options?.map((option, i) => (
-                          <SelectItem key={i} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder={field.placeholder}
+                      fieldId={fieldId}
+                      
+                      commonInputClass={commonInputClass}
+                    />
                   );
                 case "switch":
-                  // eslint-disable-next-line no-case-declarations
-                  const isChecked = typeof value === "string" ? value === "active" || value === "1"
-                      : Boolean(value);
+                  const isChecked = typeof value === "string" ? value === "active" || value === "1" : Boolean(value);
                   return (
                     <div className="flex items-center space-x-4 mt-2">
                       <Switch
@@ -248,3 +252,65 @@ export default function Add({ fields, values, onChange }) {
     </div>
   );
 }
+
+// Separate Combobox Component for reusability and clarity
+const ComboboxComponent = ({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  fieldId,
+  commonInputClass,
+}) => {
+  const [open, setOpen] = useState(false);
+
+  // Find the selected option's label to display in the trigger
+  const selectedLabel = options.find((option) => option.value === value)?.label;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            `w-full justify-between !ms-1 !px-5 !py-6 ${commonInputClass}`,
+            !value && "text-muted-foreground"
+          )}
+        >
+          {selectedLabel || placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder={`Search ${placeholder}...`} />
+          <CommandList>
+            <CommandEmpty>No option found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label} // Use label for searching
+                  onSelect={() => {
+                    onValueChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};

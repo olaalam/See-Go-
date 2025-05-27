@@ -32,7 +32,7 @@ export default function PAdmin() {
     { label: "Username", key: "name" },
     { label: "Email", key: "email" },
     { label: "Phone Number", key: "phone" },
-    { label: "Role", key: "role" },
+    { label: "Role", key: "admin_position_name" }, // Changed key to match formatted data
     { key: "status", label: "Status" },
   ];
 
@@ -54,16 +54,16 @@ export default function PAdmin() {
           }
         );
         const adminJson = await adminRes.json();
-        console.log("PAdmin",adminJson); 
-        const providerPositions = adminJson.provider_positions;
-        setproviderPositions(providerPositions);
+        console.log("PAdmin", adminJson);
+        const providerPositionsData = adminJson.provider_positions;
+        setproviderPositions(providerPositionsData); // Store the raw positions
 
         const formattedAdmins = (
           Array.isArray(adminJson.admins)
             ? adminJson.admins
             : [adminJson.admins]
         ).map((admin) => {
-          const position = providerPositions.find(
+          const position = providerPositionsData.find(
             (pos) => pos.id === admin.admin_position_id
           );
           return {
@@ -74,7 +74,7 @@ export default function PAdmin() {
                 : admin.status === 1
                 ? "Active"
                 : "Inactive",
-            admin_position_name: position ? position.name : "Unknown",
+            admin_position_name: position ? position.name : "Unknown", // Add formatted role name
           };
         });
         setAdminData(formattedAdmins);
@@ -86,6 +86,7 @@ export default function PAdmin() {
     };
     fetchData();
   }, [id]);
+
   useEffect(() => {
     const fetchproviderOptions = async () => {
       try {
@@ -128,7 +129,7 @@ export default function PAdmin() {
       );
 
       if (response.ok) {
-        toast.success("provider status updated!");
+        toast.success("Provider status updated!");
 
         setAdminData((prev) =>
           prev.map((admin) =>
@@ -226,6 +227,9 @@ export default function PAdmin() {
                   admin_position_id,
                   status: status === "Active" ? "Active" : "Inactive",
                   provider_id,
+                  admin_position_name: providerPositions.find(
+                    (pos) => pos.id === admin_position_id
+                  )?.name || "Unknown",
                 }
               : admin
           )
@@ -247,6 +251,17 @@ export default function PAdmin() {
     }));
   };
 
+  // Prepare filter options for role and status, combined
+  const filterOptionsForAdmins = [
+    { value: "all", label: "All" }, // Option to clear filters
+    ...providerPositions.map((position) => ({
+      value: position.name, // Filter by role name
+      label: position.name,
+    })),
+    { value: "active", label: "Active" }, // Filter by status
+    { value: "inactive", label: "Inactive" }, // Filter by status
+  ];
+
   return (
     <div>
       <ToastContainer />
@@ -263,6 +278,11 @@ export default function PAdmin() {
             onToggleStatus={handleToggleStatus}
             onDelete={handleDelete}
             searchKeys={["name", "email"]}
+            showFilter={true}
+            filterKey={["status", "admin_position_name"]} // Now filtering by both status AND role
+            filterOptions={filterOptionsForAdmins}
+            // Removed showAdditionalFilter, additionalFilterKey, additionalFilterOptions
+            // as we are combining them into one filter
           />
 
           {selectedRow && (
@@ -293,10 +313,12 @@ export default function PAdmin() {
                     value={selectedRow?.phone}
                     onChange={(val) => onChange("phone", val)}
                   />
-                  <label htmlFor="position" className="text-gray-400">Admin Position</label>
+                  <label htmlFor="position" className="text-gray-400">
+                    Admin Position
+                  </label>
                   {providerPositions.length > 0 && (
                     <Select
-                    id="position"
+                      id="position"
                       value={selectedRow?.admin_position_id?.toString()}
                       onValueChange={(value) =>
                         onChange("admin_position_id", value)
@@ -320,7 +342,7 @@ export default function PAdmin() {
 
                   <div>
                     <label htmlFor="provider" className="text-gray-400">
-                      provider
+                      Provider
                     </label>
                     <Select
                       value={selectedRow?.provider_id?.toString()}

@@ -18,16 +18,18 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom";
 
 const Users = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
-  const [villages, setVillages] = useState([]); // This state is not currently used in the render or update logic for users, but it's fetched.
+  const [villages, setVillages] = useState([]); 
   const token = localStorage.getItem("token");
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const navigate = useNavigate();
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -65,14 +67,27 @@ const Users = () => {
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
+      
       const formatted = result?.users?.map((u) => {
         const trans = u.translations?.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
           return acc;
         }, {});
+                const name = u.name || "—";
+        const rawName = name;
+
+        const nameClickable = (
+          <span
+            onClick={() => navigate(`/users/single-page-u/${u.id}`)}
+            className="text-bg-primary hover:text-teal-800 cursor-pointer"
+          >
+            {name}
+          </span>
+        );
         return {
           id: u.id,
-          name: trans?.[lang]?.name || u.name || "—",
+          name: nameClickable,
+          rawName,
           email: u.email || "—",
           phone: u.phone || "—",
           gender: trans?.[lang]?.gender || u.gender || "—",
