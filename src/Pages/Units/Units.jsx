@@ -115,12 +115,12 @@ const Apartment = () => {
 
     formData.append("status", status === "Active" ? 1 : 0);
 
-if (selectedRow.imageFile) {
-  formData.append("image", selectedRow.imageFile);
-} else if (selectedRow.image_link) {
-  // Send the existing image as a fallback
-  formData.append("image", selectedRow.image_link);
-}
+    if (selectedRow.imageFile) {
+      formData.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // Send the existing image as a fallback
+      formData.append("image", selectedRow.image_link);
+    }
 
     try {
       const response = await fetch(
@@ -224,11 +224,18 @@ if (selectedRow.imageFile) {
       }));
     }
   };
-    // Define filter options for status, including an "All" option
+
+  // Define filter options for status, now correctly grouped
   const filterOptionsForApartment = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      key: "status", // This matches the filterKey
+      label: "Filter by Status", // Label for the filter group in the UI
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" }, // Make sure these values match your data's status values
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
   ];
 
   const columns = [
@@ -251,9 +258,10 @@ if (selectedRow.imageFile) {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={["name"]}
-                showFilter={true} // Ensure the filter dropdown is shown
-        filterKey={["status"]} // Specify that we want to filter by the 'status' key
-        filterOptions={filterOptionsForApartment}
+        showFilter={true} // Ensure the filter dropdown is shown
+        // filterKey is still needed to tell DataTableLayout which property on the data to filter by
+        filterKey={["status"]}
+        filterOptions={filterOptionsForApartment} // Pass the correctly structured options
       />
 
       {selectedRow && (
@@ -302,7 +310,7 @@ if (selectedRow.imageFile) {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            selectedRow={selectedRow}
+            name={selectedRow.name} 
           />
         </>
       )}

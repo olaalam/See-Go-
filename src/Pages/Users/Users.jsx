@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react"; // Added useMemo
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -24,7 +24,7 @@ const Users = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
-  const [villages, setVillages] = useState([]);
+  const [villages, setVillages] = useState([]); // Kept for potential future use or if needed elsewhere
   const token = localStorage.getItem("token");
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -142,7 +142,7 @@ const Users = () => {
   const handleSave = async () => {
     const {
       id,
-      name,
+      rawName, // Use rawName for saving
       email,
       phone,
       gender,
@@ -154,13 +154,13 @@ const Users = () => {
     } = selectedRow;
 
     // You might want to remove password from this check if it's not always required for updates
-    if (!name || !email || !phone || !gender || !birthDate || !user_type) {
+    if (!rawName || !email || !phone || !gender || !birthDate || !user_type) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
     const updatedUser = {
-      name,
+      name: rawName, // Use rawName here
       email,
       phone,
       gender,
@@ -243,20 +243,46 @@ const Users = () => {
   };
 
   // Dynamically generate filter options for user_type and combine with status options
-  const userTypeOptions = Array.from(
-    new Set(users.map((user) => user.user_type))
-  )
-    .filter((type) => type !== "—") // Filter out placeholder values if any
-    .map((type) => ({
-      value: type,
-      label: type.charAt(0).toUpperCase() + type.slice(1),
-    })); // Capitalize for display
+  const userTypeOptions = useMemo(() => { // Memoize this to prevent unnecessary re-renders
+    return Array.from(
+      new Set(users.map((user) => user.user_type))
+    )
+      .filter((type) => type !== "—") // Filter out placeholder values if any
+      .map((type) => ({
+        value: type,
+        label: type.charAt(0).toUpperCase() + type.slice(1),
+      })); // Capitalize for display
+  }, [users]);
 
+
+  // Restructure filter options for the accordion
   const filterOptionsForUsers = [
-    { value: "all", label: "All" },
-    ...userTypeOptions, // Add unique user types
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      label: "Account Type",
+      key: "user_type", // This key maps to the user object property
+      options: [
+        { value: "all", label: "All Account Types" },
+        ...userTypeOptions,
+      ],
+    },
+    {
+      label: "Status",
+      key: "status", // This key maps to the user object property
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+    // Add "Zones" filter if needed in the future
+    // {
+    //   label: "Zone",
+    //   key: "zone_id", // Assuming users have a zone_id
+    //   options: [
+    //     { value: "all", label: "All Zones" },
+    //     ...villages.map(v => ({ value: v.id, label: v.name }))
+    //   ],
+    // },
   ];
 
   const columns = [
@@ -281,7 +307,7 @@ const Users = () => {
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "email", "phone"]}
         showFilter={true}
-        filterKey={["status", "user_type"]} // Allow filtering by both status and user_type
+        // filterKey is no longer needed here, DataTable will manage it
         filterOptions={filterOptionsForUsers} // Pass combined filter options
       />
       {selectedRow && (
@@ -297,8 +323,8 @@ const Users = () => {
               <InputField
                 label="Name"
                 id="name"
-                value={selectedRow.name}
-                onChange={(val) => onChange("name", val)}
+                value={selectedRow.rawName} // Use rawName for editing
+                onChange={(val) => onChange("rawName", val)}
               />
               <InputField
                 label="Email"
@@ -401,7 +427,7 @@ const Users = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            name={selectedRow.name}
+            name={selectedRow.rawName} // Use rawName for display in delete dialog
           />
         </>
       )}

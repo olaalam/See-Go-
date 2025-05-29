@@ -300,17 +300,26 @@ export default function PAdmin() {
       [key]: key === "provider_id" ? parseInt(value, 10) : value,
     }));
   };
-
-  // Prepare filter options for role and status, combined
   const filterOptionsForAdmins = [
-    { value: "all", label: "All" }, // Option to clear filters
-    ...providerPositions.map((position) => ({
-      value: position.name, // Filter by role name
-      label: position.name,
-    })),
-    { value: "active", label: "Active" }, // Filter by status
-    { value: "inactive", label: "Inactive" }, // Filter by status
+    {
+      key: "admin_position_name",
+      label: "Filter by position",
+      options: [
+        { value: "all", label: "All positions" },
+        ...providerPositions.map((position) => ({ value: position.name, label: position.name })),
+      ],
+    },
+    {
+      key: "status",
+      label: "Filter by Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
   ];
+
 
   // Refetch data function
   const fetchData = async () => {

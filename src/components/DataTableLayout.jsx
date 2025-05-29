@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+"use client";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +30,12 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function DataTable({
   data,
@@ -42,16 +49,24 @@ export default function DataTable({
   showDeleteButtonInHeader = false,
   onDeleteInHeader,
   showRowSelection = false,
-  showFilter = true,
+  showFilter = true, // Still determines if filters section is shown
   showActions = true,
   showEditButton = true,
   showDeleteButton = true,
   searchKeys = [],
-  filterKey = [], // Changed to an array to handle multiple filter keys
-  filterOptions = [],
+  // filterKey prop is no longer directly used for filtering logic here,
+  // as the new filterOptions structure implies the keys.
+  filterOptions = [], // This is now an array of filter groups (e.g., [{label: "Type", key: "user_type", options: [...]}, ...])
 }) {
   const [searchValue, setSearchValue] = useState("");
-  const [filterValue, setFilterValue] = useState("all"); // Default to 'all' to show all data
+  // Replaced single filterValue with activeFilters object for multiple accordion filters
+  const [activeFilters, setActiveFilters] = useState(() => {
+    const initialFilters = {};
+    filterOptions.forEach((group) => {
+      initialFilters[group.key] = "all"; // Default to 'all' for each filter group
+    });
+    return initialFilters;
+  });
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
@@ -59,35 +74,56 @@ export default function DataTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Effect to reset active filters if filterOptions change (e.g., parent component passes new filter options)
+  useEffect(() => {
+    const newInitialFilters = {};
+    filterOptions.forEach((group) => {
+      newInitialFilters[group.key] = "all";
+    });
+    setActiveFilters(newInitialFilters);
+    setCurrentPage(1); // Reset to first page on filter change
+  }, [filterOptions]);
+
   const getNestedValue = (obj, path) => {
-    return path.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), obj);
+    return path
+      .split(".")
+      .reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((row) => {
-      const matchesSearch = searchKeys.some((key) => {
-        const value = getNestedValue(row, key);
-        const searchableValue = value?.toString() || "";
-        return searchableValue.toLowerCase().includes(searchValue.toLowerCase());
-      });
+    let currentData = data;
 
-      const matchesFilter =
-        filterValue === "all" ||
-        filterKey.some((key) => {
-          const rowValue = getNestedValue(row, key);
+    // Apply search filter
+    if (searchValue) {
+      const lowerCaseSearchValue = searchValue.toLowerCase();
+      currentData = currentData.filter((row) =>
+        searchKeys.some((key) => {
+          const value = getNestedValue(row, key);
+          const searchableValue = value?.toString() || "";
+          return searchableValue.toLowerCase().includes(lowerCaseSearchValue);
+        })
+      );
+    }
+
+    // Apply accordion filters
+    Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
+      if (filterValue !== "all") {
+        // If a specific filter is selected (not "all")
+        currentData = currentData.filter((row) => {
+          const rowValue = getNestedValue(row, filterKey);
           const comparableRowValue =
             rowValue !== null && rowValue !== undefined
               ? String(rowValue).toLowerCase()
               : "";
-
           const comparableFilterValue = String(filterValue).toLowerCase();
 
           return comparableRowValue === comparableFilterValue;
         });
-
-      return matchesSearch && matchesFilter;
+      }
     });
-  }, [data, searchValue, filterValue, searchKeys, filterKey]);
+
+    return currentData;
+  }, [data, searchValue, activeFilters, searchKeys]);
 
   // --- Pagination Logic ---
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -118,52 +154,89 @@ export default function DataTable({
     }
   };
 
+  const handleAccordionFilterChange = (filterKey, value) => {
+    setActiveFilters((prev) => ({
+      ...prev,
+      [filterKey]: value,
+    }));
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   return (
     <div className="w-full !p-3 space-y-6">
       <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-        <>
-          <Input
-            placeholder="Search..."
-            className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-          />
-          {showFilter && (
-            <div className="flex items-center gap-3 flex-wrap">
-              <Select value={filterValue} onValueChange={setFilterValue}>
-                <SelectTrigger className="w-[120px] border-bg-primary focus:ring-bg-primary rounded-[10px] !px-2">
-                  <SelectValue placeholder="Filter by" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-bg-primary rounded-md shadow-lg !p-3">
-                  {filterOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {showAddButton && (
-                <Button
-                  onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
-                  className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
-                >
-                  <Plus className="w-5 h-5 !mr-2" />
-                  Add
-                </Button>
-              )}
-              {showDeleteButtonInHeader && (
-                <Button
-                  onClick={() => onDeleteInHeader(selectedRows)}
-                  className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
-                  disabled={selectedRows.length === 0}
-                >
-                  <Trash className="w-5 h-5 !mr-2" />
-                  Delete Selected
-                </Button>
-              )}
+        {/* Search Input */}
+        <Input
+          placeholder="Search..."
+          className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+          value={searchValue}
+          onChange={(e) => {
+            setSearchValue(e.target.value);
+            setCurrentPage(1); // Reset to first page on search
+          }}
+        />
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {showFilter && filterOptions.length > 0 && (
+            <div class="w-full md:w-auto border border-bg-primary rounded-[10px]">
+              <Accordion type="single" collapsible className="w-[200px] border-bg-primary">
+                {filterOptions.map((group) => (
+                  <AccordionItem key={group.key} value={group.key}>
+                    <AccordionTrigger className="flex items-center justify-between !py-2 text-bg-primary font-medium border-b border-gray-200 hover:no-underline !px-4">
+                      {group.label}
+                    </AccordionTrigger>
+                    <AccordionContent className="overflow-hidden transition-all duration-300 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down !p-2">
+                      <Select
+                        value={activeFilters[group.key]}
+                        onValueChange={(val) =>
+                          handleAccordionFilterChange(group.key, val)
+                        }
+                      >
+                        <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                          <SelectValue placeholder={`Select ${group.label}`} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                          {group.options.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              className="text-bg-primary"
+                              value={option.value}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </div>
           )}
-        </>
+
+          {/* Add Button */}
+          {showAddButton && (
+            <Button
+              onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
+              className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
+            >
+              <Plus className="w-5 h-5 !mr-2" />
+              Add
+            </Button>
+          )}
+
+          {/* Delete Selected Button */}
+          {showDeleteButtonInHeader && (
+            <Button
+              onClick={() => onDeleteInHeader(selectedRows)}
+              className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
+              disabled={selectedRows.length === 0}
+            >
+              <Trash className="w-5 h-5 !mr-2" />
+              Delete Selected
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="max-h-[calc(100vh-300px)]">
@@ -171,7 +244,9 @@ export default function DataTable({
           <TableHeader>
             <TableRow>
               {/* New TableHead for row number */}
-              <TableHead className="text-bg-primary font-semibold w-12">#</TableHead>
+              <TableHead className="text-bg-primary font-semibold w-12">
+                #
+              </TableHead>
               {showRowSelection && (
                 <TableHead className="text-bg-primary font-semibold w-12">
                   <input
@@ -203,7 +278,9 @@ export default function DataTable({
           <TableBody>
             {paginatedData.length > 0 ? (
               paginatedData.map((row, index) => (
-                <TableRow key={index}>
+                <TableRow key={row.id || index}>
+                  {" "}
+                  {/* Use row.id if available, fallback to index */}
                   {/* New TableCell for row number */}
                   <TableCell className="!px-2 !py-1 text-sm">
                     {startIndex + index + 1}
@@ -233,13 +310,19 @@ export default function DataTable({
                       {col.key === "status" ? (
                         <div className="flex justify-center items-center gap-2">
                           <Switch
-                            checked={row.status?.toLowerCase() === "active"}
+                            checked={
+                              String(
+                                getNestedValue(row, col.key)
+                              )?.toLowerCase() === "active"
+                            } // Use getNestedValue for status
                             onCheckedChange={(checked) =>
                               onToggleStatus?.(row, checked ? 1 : 0)
                             }
                             className={clsx(
                               "relative inline-flex h-6 w-11 rounded-full transition-colors focus:outline-none",
-                              row.status?.toLowerCase() === "active"
+                              String(
+                                getNestedValue(row, col.key)
+                              )?.toLowerCase() === "active" // Use getNestedValue for status
                                 ? "bg-bg-primary"
                                 : "bg-gray-300"
                             )}
@@ -247,7 +330,9 @@ export default function DataTable({
                             <span
                               className={clsx(
                                 "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
-                                row.status?.toLowerCase() === "active"
+                                String(
+                                  getNestedValue(row, col.key)
+                                )?.toLowerCase() === "active" // Use getNestedValue for status
                                   ? "translate-x-5"
                                   : "translate-x-1"
                               )}
@@ -260,18 +345,23 @@ export default function DataTable({
                         </div>
                       ) : col.key === "map" ? (
                         (() => {
-                          const url = row[col.key];
+                          const url = getNestedValue(row, col.key); // Use getNestedValue for map URL
                           if (!url) return "N/A";
 
                           const displayText =
                             url.length > 20
-                              ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}`
+                              ? `${url.substring(0, 10)}...${url.substring(
+                                  url.length - 10
+                                )}`
                               : url;
 
                           return (
                             <div className="relative w-[120px] truncate group">
                               <a
-                                href={`https://www.google.com/maps/search/?api=1&query=$$${encodeURIComponent(url)}`}
+                                // CORRECTED LINE HERE:
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  url
+                                )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:text-blue-800 hover:underline"

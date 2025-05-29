@@ -334,10 +334,16 @@ export default function VAdmin() {
   };
 
   // Define filter options for status, including an "All" option
-  const filterOptionsForZones = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+   const filterOptionsForZones = [
+    {
+      key: "status", 
+      label: "Status", 
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" }, 
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
   ];
 
   return (

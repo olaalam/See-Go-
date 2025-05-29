@@ -261,11 +261,16 @@ const Village_roless = () => {
   ];
 
   const filterOptionsForvillage_roless = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      key: "status", // This matches the filterKey
+      label: "Filter by Status", // Label for the filter group in the UI
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" }, // Make sure these values match your data's status values
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
   ];
-
 
 
   return (

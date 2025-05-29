@@ -160,7 +160,6 @@ const Providers = () => {
           }
         }
 
-
         return {
           id: provider.id,
           name: nameClickable,
@@ -420,10 +419,39 @@ const Providers = () => {
   ];
 
   const filterOptionsForVillages = [
-    { value: "all", label: "All" },
-    ...zones.map((zone) => ({ value: zone.name, label: zone.name })), // Filter by zone name
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      key: "zone",
+      label: "Filter by Zone",
+      options: [
+        { value: "all", label: "All Zones" },
+        ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
+      ],
+    },
+        {
+      key: "village",
+      label: "Filter by Village",
+      options: [
+        { value: "all", label: "All Villages" },
+        ...village.map((village) => ({ value: village.name, label: village.name })),
+      ],
+    },
+            {
+      key: "service",
+      label: "Filter by Service",
+      options: [
+        { value: "all", label: "All Services" },
+        ...services.map((service) => ({ value: service.name, label: service.name })),
+      ],
+    },
+    {
+      key: "status",
+      label: "Filter by Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
   ];
 
   return (

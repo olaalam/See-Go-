@@ -283,15 +283,26 @@ const Admins = () => {
 
   // --- START OF FILTER FIX ---
   // Define filter options for status and role
-  const filterOptions = [
-    { value: "all", label: "All" },
-    // Options for "status" filter
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
-    // Options for "role" filter
-    { value: "0", label: "Admin" }, // Role 0 for Admin
-    { value: "1", label: "Provider" }, // Role 1 for Provider
-  ];
+const filterOptions = [
+  {
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "all", label: "All Statuses" },
+      { value: "Active", label: "Active" },
+      { value: "Inactive", label: "Inactive" },
+    ],
+  },
+  {
+    key: "role",
+    label: "Role", // يمكنك تغيير الـ label حسب ما يناسبك، مثل "Role Type"
+    options: [
+      { value: "all", label: "All Roles" }, // إضافة خيار "All Roles"
+      { value: "0", label: "Admin" },
+      { value: "1", label: "Provider" },
+    ],
+  },
+];
   // --- END OF FILTER FIX ---
 
   return (

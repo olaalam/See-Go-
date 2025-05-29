@@ -18,8 +18,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import InvoiceDialog from "@/components/InvoiceDialog"; 
-import MapLocationPicker from "@/components/MapLocationPicker";// Adjust this path based on where you put InvoiceDialog.jsx
+import InvoiceDialog from "@/components/InvoiceDialog";
+import MapLocationPicker from "@/components/MapLocationPicker"; // Adjust this path based on where you put InvoiceDialog.jsx
+
 const Villages = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -31,15 +32,18 @@ const Villages = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const token = localStorage.getItem("token");
   const [imageErrors, setImageErrors] = useState({});
-const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
-const [invoiceVillageId, setInvoiceVillageId] = useState(null);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [invoiceVillageId, setInvoiceVillageId] = useState(null);
+
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
+
   const fetchZones = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/zone", {
@@ -81,7 +85,7 @@ const [invoiceVillageId, setInvoiceVillageId] = useState(null);
         }, {});
 
         const name = translations[currentLang]?.name || village.name || "—";
-        const rawName = name;
+        const rawName = name; // Keep rawName for editing purposes if needed, but 'name' is for display and search
 
         const nameClickable = (
           <span
@@ -118,15 +122,14 @@ const [invoiceVillageId, setInvoiceVillageId] = useState(null);
 
         return {
           id: village.id,
-          name: nameClickable,
-          rawName,
+          name: nameClickable, // This is the JSX for display
+          rawName, // This is the plain text name for editing/search
           description,
           img: image,
           numberOfUnits: village.units_count ?? "0",
           status: village.status === 1 ? "active" : "inactive", // Ensure status is lowercase for consistent filtering
           zone_id: village.zone_id,
-          zoneName, // Keep zoneName for display
-          zone: zoneName, // Add 'zone' key with its name for filtering
+          zone: zoneName, // Use 'zone' key for both display and filtering consistency
           map,
           population,
           image_link: village.image_link,
@@ -151,7 +154,7 @@ const [invoiceVillageId, setInvoiceVillageId] = useState(null);
   const handleEdit = (village) => {
     const editableVillage = {
       ...village,
-      name: village.rawName,
+      name: village.rawName, // Use the raw name for the input field
     };
     setselectedRow(editableVillage);
     setIsEditOpen(true);
@@ -170,7 +173,7 @@ const [invoiceVillageId, setInvoiceVillageId] = useState(null);
       status,
       zone_id,
       map,
-      numberOfUnits, // Changed from numberOfVillages to numberOfUnits
+      numberOfUnits,
     } = selectedRow;
 
     if (!zone_id || isNaN(zone_id)) {
@@ -184,14 +187,14 @@ const [invoiceVillageId, setInvoiceVillageId] = useState(null);
     formData.append("status", status === "active" ? "1" : "0"); // Use lowercase "active"
     formData.append("zone_id", zone_id.toString());
     formData.append("location", map);
-    formData.append("units_count", parseInt(numberOfUnits)); // Changed from villages_count to units_count
+    formData.append("units_count", parseInt(numberOfUnits));
 
-if (selectedRow.imageFile) {
-  formData.append("image", selectedRow.imageFile);
-} else if (selectedRow.image_link) {
-  // Send the existing image as a fallback
-  formData.append("image", selectedRow.image_link);
-}
+    if (selectedRow.imageFile) {
+      formData.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // Send the existing image as a fallback
+      formData.append("image", selectedRow.image_link);
+    }
 
     try {
       const response = await fetch(
@@ -296,37 +299,50 @@ if (selectedRow.imageFile) {
     { key: "name", label: "Village Name" },
     { key: "description", label: "Description" },
     { key: "numberOfUnits", label: "Number of Units" },
-    { key: "zoneName", label: "Zone" }, // This is for display
+    { key: "zone", label: "Zone" }, // Changed key to 'zone' for consistency
     { key: "map", label: "Location" },
     { key: "img", label: "Image" },
     { key: "population", label: "Population" },
-      {
-    key: "invoice",
-    label: "Invoice",
-    // This `render` function will allow you to customize how the cell content is displayed.
-    // `row` here refers to the current village object in the data table.
-    render: (row) => (
-      <button
-        onClick={() => {
-          setInvoiceVillageId(row.id);
-          setIsInvoiceOpen(true);
-        }}
-        className="px-3 py-1 text-sm bg-bg-primary text-white rounded-md hover:bg-teal-600 transition-colors"
-      >
-        View Invoice
-      </button>
-    ),
-  },
+    {
+      key: "invoice",
+      label: "Invoice",
+      render: (row) => (
+        <button
+          onClick={() => {
+            setInvoiceVillageId(row.id);
+            setIsInvoiceOpen(true);
+          }}
+          className="px-3 py-1 text-sm bg-bg-primary text-white rounded-md hover:bg-teal-600 transition-colors"
+        >
+          View Invoice
+        </button>
+      ),
+    },
     { key: "status", label: "Status" },
   ];
 
-  // Prepare filter options for zone and status
+  // --- Start of the key change ---
+  // Prepare filter options for zone and status in the grouped format expected by DataTable
   const filterOptionsForVillages = [
-    { value: "all", label: "All" }, // Option to clear filters
-    ...zones.map((zone) => ({ value: zone.name, label: zone.name })), // Filter by zone name
-    { value: "active", label: "Active" }, // Filter by status
-    { value: "inactive", label: "Inactive" }, // Filter by status
+    {
+      key: "zone",
+      label: "Filter by Zone",
+      options: [
+        { value: "all", label: "All Zones" },
+        ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
+      ],
+    },
+    {
+      key: "status",
+      label: "Filter by Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
   ];
+  // --- End of the key change ---
 
   return (
     <div className="p-4">
@@ -340,20 +356,19 @@ if (selectedRow.imageFile) {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["rawName", "description"]} 
-        showFilter={true} // Ensure the filter dropdown is shown
-        filterKey={["zone","status"]} // Default filter for the dropdown will be by 'zone'
-        filterOptions={filterOptionsForVillages}
-      >
-
-      </DataTable>
-{isInvoiceOpen && (
-  <InvoiceDialog
-    open={isInvoiceOpen}
-    onOpenChange={setIsInvoiceOpen}
-    villageId={invoiceVillageId}
-  />
-)}
+        searchKeys={["name", "description"]}
+        showFilter={true}
+        // No need for filterKey prop anymore as it's part of the filterOptions structure
+        // filterKey={["zone", "status"]}
+        filterOptions={filterOptionsForVillages} // Pass the correctly structured options
+      ></DataTable>
+      {isInvoiceOpen && (
+        <InvoiceDialog
+          open={isInvoiceOpen}
+          onOpenChange={setIsInvoiceOpen}
+          villageId={invoiceVillageId}
+        />
+      )}
       {selectedRow && (
         <>
           <EditDialog
@@ -364,96 +379,92 @@ if (selectedRow.imageFile) {
             zones={zones}
             onChange={onChange}
           >
-                        <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <label htmlFor="name" className="text-gray-400 !pb-3">
+                Village Name
+              </label>
+              <Input
+                id="name"
+                value={selectedRow?.name || ""}
+                onChange={(e) => onChange("name", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
 
-            <label htmlFor="name" className="text-gray-400 !pb-3">
-              Village Name
-            </label>
-            <Input
-              id="name"
-              value={selectedRow?.name || ""}
-              onChange={(e) => onChange("name", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
+              <label htmlFor="description" className="text-gray-400 !pb-3">
+                Description
+              </label>
+              <Input
+                id="description"
+                value={selectedRow?.description || ""}
+                onChange={(e) => onChange("description", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
 
-            <label htmlFor="description" className="text-gray-400 !pb-3">
-              Description
-            </label>
-            <Input
-              id="description"
-              value={selectedRow?.description || ""}
-              onChange={(e) => onChange("description", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
-
-            <label htmlFor="zone" className="text-gray-400 !pb-3">
-              Zone
-            </label>
-            <Select
-              value={selectedRow?.zone_id?.toString()}
-              onValueChange={(value) => onChange("zone_id", value)}
-            >
-              <SelectTrigger
-                id="zone"
-                className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+              <label htmlFor="zone" className="text-gray-400 !pb-3">
+                Zone
+              </label>
+              <Select
+                value={selectedRow?.zone_id?.toString()}
+                onValueChange={(value) => onChange("zone_id", value)}
               >
-                <SelectValue placeholder="Select Zone" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                {zones.map((zone) => (
-                  <SelectItem
-                    key={zone.id}
-                    value={zone.id.toString()}
-                    className="text-bg-primary"
-                  >
-                    {zone.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-  <label htmlFor="location" className="text-gray-400 !pb-3">
-          Location
-        </label>
-        {/* هنا استبدال Input بـ MapLocationPicker */}
-        <MapLocationPicker
-          value={selectedRow?.map || ""} // القيمة الحالية للموقع
-          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
-          placeholder="Search or select location on map"
-        />
+                <SelectTrigger
+                  id="zone"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                >
+                  <SelectValue placeholder="Select Zone" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {zones.map((zone) => (
+                    <SelectItem
+                      key={zone.id}
+                      value={zone.id.toString()}
+                      className="text-bg-primary"
+                    >
+                      {zone.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              {/* هنا استبدال Input بـ MapLocationPicker */}
+              <MapLocationPicker
+                value={selectedRow?.map || ""} // القيمة الحالية للموقع
+                onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
+                placeholder="Search or select location on map"
+              />
 
+              <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
+                Number of Units
+              </label>
+              <Input
+                id="numberOfUnits"
+                type="number"
+                value={selectedRow?.numberOfUnits || ""}
+                onChange={(e) => onChange("numberOfUnits", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
 
-
-            <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
-              Number of Units
-            </label>
-            <Input
-              id="numberOfUnits"
-              type="number"
-              value={selectedRow?.numberOfUnits || ""}
-              onChange={(e) => onChange("numberOfUnits", e.target.value)}
-              className="!my-2 text-bg-primary !p-4"
-            />
-
-
-            <label htmlFor="image" className="text-gray-400">
-              Image
-            </label>
-            {selectedRow?.image_link && (
-              <div className="flex items-center gap-4 mb-2">
-                <img
-                  src={selectedRow.image_link}
-                  alt="Current"
-                  className="w-12 h-12 rounded-md object-cover border"
-                />
-              </div>
-            )}
-            <Input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-              onChange={handleImageChange}
-            />
+              <label htmlFor="image" className="text-gray-400">
+                Image
+              </label>
+              {selectedRow?.image_link && (
+                <div className="flex items-center gap-4 mb-2">
+                  <img
+                    src={selectedRow.image_link}
+                    alt="Current"
+                    className="w-12 h-12 rounded-md object-cover border"
+                  />
+                </div>
+              )}
+              <Input
+                type="file"
+                id="image"
+                accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={handleImageChange}
+              />
             </div>
           </EditDialog>
 

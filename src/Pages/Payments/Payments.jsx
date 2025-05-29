@@ -226,11 +226,17 @@ export default function PaymentsPage() {
       },
     },
   ];
-  // Prepare filter options for zone and status
-  const statusFilterOptions = [
-    { value: "all", label: "All" },
-    { value: "approved", label: "Approved" },
-    { value: "rejected", label: "Rejected" },
+
+    const statusFilterOptions = [
+    {
+      key: "status", 
+      label: "Status", 
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "approved", label: "Approved" }, 
+        { value: "rejected", label: "Rejected" },
+      ],
+    },
   ];
 
   return (

@@ -111,12 +111,12 @@ const Services = () => {
     formData.append("name", name);
     formData.append("status", status === "Active" ? 1 : 0);
 
-if (selectedRow.imageFile) {
-  formData.append("image", selectedRow.imageFile);
-} else if (selectedRow.image_link) {
-  // Send the existing image as a fallback
-  formData.append("image", selectedRow.image_link);
-}
+    if (selectedRow.imageFile) {
+      formData.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // Send the existing image as a fallback
+      formData.append("image", selectedRow.image_link);
+    }
 
     try {
       const response = await fetch(
@@ -248,11 +248,18 @@ if (selectedRow.imageFile) {
     }
   };
 
-  // Define filter options for status, including an "All" option
+  // --- START OF THE KEY CHANGE ---
+  // Define filter options for status, now correctly grouped for DataTableLayout
   const filterOptionsForServices = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      key: "status", 
+      label: "Status", 
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" }, 
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
   ];
 
   const columns = [
@@ -275,9 +282,9 @@ if (selectedRow.imageFile) {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={["name"]}
-        showFilter={true} // Ensure the filter dropdown is shown
-        filterKey={["status"]} // Specify that we want to filter by the 'status' key
-        filterOptions={filterOptionsForServices}
+        showFilter={true} 
+        filterKey={["status"]}
+        filterOptions={filterOptionsForServices} // Pass the correctly structured options
       />
 
       {selectedRow && (
@@ -287,7 +294,7 @@ if (selectedRow.imageFile) {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
-            columns={columns}
+            columns={columns} // You might not need `columns` here for the EditDialog itself
             onChange={onChange}
           >
             <label htmlFor="name" className="text-gray-400 !pb-3">
@@ -321,15 +328,13 @@ if (selectedRow.imageFile) {
               className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
               onChange={handleImageChange}
             />
-
-
           </EditDialog>
 
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            selectedRow={selectedRow}
+            name={selectedRow.name} // Assuming selectedRow.name exists for display in DeleteDialog
           />
         </>
       )}

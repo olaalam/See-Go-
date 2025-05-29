@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import DataTable from "@/components/DataTableLayout";
+import DataTable from "@/components/DataTableLayout"; // تأكد من المسار الصحيح
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
@@ -9,14 +9,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
-// You might not need these for the Zones component's EditDialog unless it's a generic dialog
-// import {
-//   Select,
-//   SelectTrigger,
-//   SelectValue,
-//   SelectContent,
-//   SelectItem,
-// } from "@/components/ui/select";
 
 const Zones = () => {
   const dispatch = useDispatch();
@@ -133,13 +125,12 @@ const Zones = () => {
     formData.append("description", description);
     // Convert status back to 1 or 0 for the API
     formData.append("status", status === "active" ? 1 : 0);
-if (selectedRow.imageFile) {
-  formData.append("image", selectedRow.imageFile);
-} else if (selectedRow.image_link) {
-  // Send the existing image as a fallback
-  formData.append("image", selectedRow.image_link);
-}
-
+    if (selectedRow.imageFile) {
+      formData.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // Send the existing image as a fallback
+      formData.append("image", selectedRow.image_link);
+    }
 
     try {
       const response = await fetch(
@@ -247,11 +238,27 @@ if (selectedRow.imageFile) {
     { key: "status", label: "Status" },
   ];
 
-  // Define filter options for status, including an "All" option
+  // Define filter options for status, now structured for Accordion
+  // كل فلتر هو عبارة عن كائن { label, key, options }
   const filterOptionsForZones = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      label: "Status", // اسم الفلتر الذي سيظهر في الـ Accordion
+      key: "status", // الـ key الذي سيتم الفلترة بناءً عليه في البيانات
+      options: [
+        { value: "all", label: "All" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+    // يمكنك إضافة المزيد من الفلاتر هنا إذا أردت، بنفس الهيكل
+    // {
+    //   label: "Another Filter",
+    //   key: "another_key",
+    //   options: [
+    //     { value: "option1", label: "Option 1" },
+    //     { value: "option2", label: "Option 2" },
+    //   ],
+    // },
   ];
 
   return (
@@ -268,7 +275,7 @@ if (selectedRow.imageFile) {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         showFilter={true} // Ensure the filter dropdown is shown
-        filterKey={["status"]} // Specify that we want to filter by the 'status' key
+        // filterKey={["status"]} // هذا لم يعد مطلوبًا بهذا الشكل مع هيكل filterOptions الجديد
         filterOptions={filterOptionsForZones} // Pass the defined filter options
         searchKeys={["description", "name"]}
       />

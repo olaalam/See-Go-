@@ -39,6 +39,7 @@ const Login = () => {
       dispatch(setUser(data));
       localStorage.setItem("user", JSON.stringify(data));
       localStorage.setItem("token", data.token);
+      
       toast.success("Login successful");
 
       const redirectTo = new URLSearchParams(location.search).get("redirect");

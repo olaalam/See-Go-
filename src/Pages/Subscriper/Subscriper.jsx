@@ -171,9 +171,15 @@ export default function SubscribersPage() {
   };
 
   const filterOptionsForZones = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
+    {
+      key: "status", 
+      label: "Status", 
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" }, 
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
   ];
 
   const columns = [

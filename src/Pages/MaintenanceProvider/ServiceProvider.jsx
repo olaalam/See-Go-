@@ -339,14 +339,33 @@ const Service_provider = () => {
   const uniqueMaintenanceTypeOptions = Array.from(new Set(maintenanceTypes.map(mt => mt.name)))
     .filter(name => name && name !== "—")
     .map(name => ({ value: name, label: name }));
-
-  const filterOptionsForServices = [
-    { value: "all", label: "All" },
-    ...uniqueVillageOptions,
-    ...uniqueMaintenanceTypeOptions,
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
-  ];
+const filterOptionsForServices = [
+  {
+    key: "village",
+    label: "Village",
+    options: [
+      { value: "all", label: "All Villages" },
+      ...uniqueVillageOptions, // Assuming uniqueVillageOptions are already in { value: "id", label: "Name" } format
+    ],
+  },
+  {
+    key: "maintenanceType",
+    label: "Maintenance Type",
+    options: [
+      { value: "all", label: "All Types" },
+      ...uniqueMaintenanceTypeOptions, // Assuming uniqueMaintenanceTypeOptions are already in { value: "id", label: "Name" } format
+    ],
+  },
+  {
+    key: "status", // This will represent the "Active" / "Inactive" filter
+    label: "Status",
+    options: [
+      { value: "all", label: "All Statuses" },
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
   const columns = [
     { key: "name", label: "Provider" },
