@@ -48,7 +48,7 @@ export default function VillageDetailsCard({
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-6 bg-transparent !my-6">
+        <TabsList className="grid !ms-3 w-[90%] grid-cols-4 gap-6 bg-transparent !my-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
                       data-[state=active]:bg-bg-primary data-[state=active]:text-white

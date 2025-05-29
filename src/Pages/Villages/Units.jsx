@@ -132,15 +132,20 @@ export default function VUnit() {
 
   // --- Filtering Logic Refinement ---
   // Generate unique 'type_unit' filter options from adminData
-  const uniqueUnitTypes = Array.from(new Set(adminData.map(unit => unit.type_unit)))
-    .filter(type => type && type !== "—") // Filter out empty or placeholder names
-    .map(type => ({ value: type, label: type }));
+const uniqueUnitTypes = Array.from(new Set(adminData.map(unit => unit.type_unit)))
+  .filter(type => type && type !== "—") // Filter out empty or placeholder names
+  .map(type => ({ value: type, label: type }));
 
-  const filterOptionsForUnits = [
-    { value: "all", label: "All" }, // Option to clear all filters
-    ...uniqueUnitTypes,
-  ];
-
+const filterOptionsForUnits = [
+  {
+    key: "unitType", // هذا هو المفتاح الذي سيمثل فئة الفلترة (نوع الوحدة)
+    label: "Unit Type", // هذا هو النص الذي سيظهر كعنوان للفلتر
+    options: [
+      { value: "all", label: "All Unit Types" }, // خيار "الكل" لهذه الفئة
+      ...uniqueUnitTypes, 
+    ],
+  },
+];
   return (
     <div>
       <ToastContainer />
