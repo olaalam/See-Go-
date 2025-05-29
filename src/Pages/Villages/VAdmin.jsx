@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom"; 
+import { useParams, useNavigate } from "react-router-dom";
 import DataTable from "@/components/DataTableLayout";
 import DeleteDialog from "@/components/DeleteDialog";
 import EditDialog from "@/components/EditDialog";
@@ -15,6 +15,7 @@ import { toast, ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
 import { Label } from "@radix-ui/react-label";
 import { Outlet } from "react-router-dom";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function VAdmin() {
   const [adminData, setAdminData] = useState([]);
@@ -22,14 +23,22 @@ export default function VAdmin() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // New state for save loading
   const [villageOptions, setVillageOptions] = useState([]);
   const [villagePositions, setVillagePositions] = useState([]);
-  const { id } = useParams(); 
-  const navigate = useNavigate(); 
+  const [imageErrors, setImageErrors] = useState({});
+
+  const { id } = useParams();
+  const navigate = useNavigate();
   const token = localStorage.getItem("token");
+
+  const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  };
 
   // Corrected columns array
   const columns = [
+    { label: "Image", key: "image" },
     {
       label: "Username",
       key: "name",
@@ -40,16 +49,42 @@ export default function VAdmin() {
     { key: "status", label: "Status" },
   ];
 
-  const getAuthHeaders = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  });
+  // Modified getAuthHeaders to return an object suitable for both JSON and FormData
+  const getAuthHeaders = (isFormData = false) => {
+    const headers = {};
+    if (!isFormData) {
+      headers["Content-Type"] = "application/json";
+    }
+    headers.Authorization = `Bearer ${token}`;
+    return headers;
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedRow((prev) => ({
+        ...prev,
+        imageFile: file, // Store the actual File object
+        image_link: URL.createObjectURL(file), // Create a temporary URL for preview
+      }));
+    } else {
+      setSelectedRow((prev) => ({
+        ...prev,
+        imageFile: null,
+        image_link: prev?.original_image_link, // Revert to original if file cleared
+      }));
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        if (!token) throw new Error("Missing auth token");
+        if (!token) {
+          toast.error("Authentication token is missing. Please log in.");
+          navigate("/login"); // Redirect to login if no token
+          return;
+        }
 
         const adminRes = await fetch(
           `https://bcknd.sea-go.org/admin/village_admin/${id}`,
@@ -57,19 +92,37 @@ export default function VAdmin() {
             headers: getAuthHeaders(),
           }
         );
+
+        if (!adminRes.ok) {
+          throw new Error(`HTTP error! status: ${adminRes.status}`);
+        }
         const adminJson = await adminRes.json();
         console.log("VAdmin", adminJson);
-        const villagePositions = adminJson.village_positions;
+        const villagePositions = Array.isArray(adminJson.village_positions)
+          ? adminJson.village_positions
+          : [];
         setVillagePositions(villagePositions);
 
         const formattedAdmins = (
-          Array.isArray(adminJson.admins)
-            ? adminJson.admins
-            : [] // If adminJson.admins is not an array, default to an empty array
+          Array.isArray(adminJson.admins) ? adminJson.admins : []
         ).map((admin) => {
           const position = villagePositions.find(
             (pos) => pos.id === admin.admin_position_id
           );
+          const name = admin?.name || "N/A"; // Fallback for name
+          const image =
+            admin?.image_link && !imageErrors[admin.id] ? (
+              <img
+                src={admin.image_link}
+                alt={name}
+                className="w-12 h-12 rounded-md object-cover aspect-square"
+                onError={() => handleImageError(admin.id)}
+              />
+            ) : (
+              <Avatar className="w-12 h-12">
+                <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            );
           return {
             ...admin,
             status:
@@ -78,20 +131,22 @@ export default function VAdmin() {
                 : admin.status === 1
                 ? "Active"
                 : "Inactive",
-            role: position ? position.name : "Unknown", 
+            role: position ? position.name : "Unknown",
+            image,
+            original_image_link: admin.image_link, // Store original for reversion
           };
         });
         setAdminData(formattedAdmins);
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Failed to load admin data.");
+        toast.error(`Failed to load admin data: ${error.message}`);
         setAdminData([]); // Ensure adminData is an empty array on error
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [id, token, navigate]);
+  }, [id, token, navigate, imageErrors]); // Added imageErrors to dependency array
 
   useEffect(() => {
     const fetchVillageOptions = async () => {
@@ -147,7 +202,10 @@ export default function VAdmin() {
           )
         );
       } else {
-        toast.error("Failed to update status.");
+        const errorData = await response.json();
+        toast.error(
+          `Failed to update status: ${errorData.message || response.statusText}`
+        );
       }
     } catch (err) {
       console.error("Error updating status:", err);
@@ -161,6 +219,11 @@ export default function VAdmin() {
   };
 
   const handleDeleteConfirm = async () => {
+    if (!selectedRow?.id) {
+      toast.error("No admin selected for deletion.");
+      setIsDeleteOpen(false);
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/delete/${selectedRow.id}`,
@@ -176,82 +239,100 @@ export default function VAdmin() {
           prev.filter((admin) => admin.id !== selectedRow.id)
         );
         setIsDeleteOpen(false);
+        setSelectedRow(null); // Clear selected row after deletion
       } else {
-        toast.error("Failed to delete admin.");
+        const errorData = await response.json();
+        toast.error(
+          `Failed to delete admin: ${errorData.message || response.statusText}`
+        );
       }
     } catch (error) {
-      toast.error("Error deleting admin.", error);
+      console.error("Error deleting admin:", error);
+      toast.error("Error deleting admin.");
     }
   };
 
   const handleEdit = (admin) => {
-    setSelectedRow({ ...admin });
+    // Store original image link for reverting if image selection is cancelled
+    setSelectedRow({ ...admin, original_image_link: admin.image_link });
     setIsEditOpen(true);
   };
 
   const handleSave = async () => {
+    if (!selectedRow) return;
+
+    setIsSaving(true); // Start loading for save
     const {
       id,
       name,
       email,
       phone,
-      password,
+      password, // Password field - be cautious about sending it if not meant for update
       admin_position_id,
-      status, 
+      status,
       village_id,
+      imageFile, // The actual file object
     } = selectedRow;
 
+    // Create FormData for file upload if an image file is selected
+    const formData = new FormData();
+    formData.append("name", name || "");
+    formData.append("email", email || "");
+    formData.append("phone", phone || "");
+    // Only append password if it's not empty, assuming it's optional for update
+    if (password) {
+      formData.append("password", password);
+    }
+    formData.append("admin_position_id", admin_position_id);
+    formData.append("status", status === "Active" ? 1 : 0);
+    formData.append("village_id", village_id);
+
+    // If a new image file is selected, append it to FormData
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+
     try {
+      // Use getAuthHeaders(true) to indicate FormData, which means no Content-Type header
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/update/${id}`,
         {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            name,
-            email,
-            phone,
-            password,
-            admin_position_id,
-            status: status === "Active" ? 1 : 0, 
-            village_id,
-          }),
+          method: "POST", // Postman image indicates POST for update
+          headers: getAuthHeaders(true), // This will only include Authorization
+          body: formData,
         }
       );
 
       if (response.ok) {
         toast.success("Admin updated successfully!");
-        setAdminData((prev) =>
-          prev.map((admin) =>
-            admin.id === id
-              ? {
-                  ...admin,
-                  name,
-                  email,
-                  phone,
-                  admin_position_id,
-                  status: status === "Active" ? "Active" : "Inactive", 
-                  village_id,
-                }
-              : admin
-          )
-        );
+        // Re-fetch data after successful update to get the latest image link and other data
+        // This is safer than manually updating state for complex scenarios like image uploads
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
-        toast.error("Failed to update admin.");
+        const errorData = await response.json();
+        toast.error(
+          `Failed to update admin: ${errorData.message || response.statusText}`
+        );
       }
     } catch (err) {
-      toast.error("Error updating admin.", err);
+      console.error("Error updating admin:", err);
+      toast.error("Error updating admin.");
+    } finally {
+      setIsSaving(false); // End loading for save
     }
   };
 
   const onChange = (key, value) => {
     setSelectedRow((prev) => ({
       ...prev,
-      [key]: key === "village_id" || key === "admin_position_id" ? parseInt(value, 10) : value, 
+      [key]:
+        key === "village_id" || key === "admin_position_id"
+          ? parseInt(value, 10)
+          : value,
     }));
   };
+
   // Define filter options for status, including an "All" option
   const filterOptionsForZones = [
     { value: "all", label: "All" },
@@ -264,7 +345,7 @@ export default function VAdmin() {
       <ToastContainer />
       {isLoading ? (
         <Loading />
-      ) : ( // Corrected: This `else` block now correctly wraps the DataTable and dialogs
+      ) : (
         <>
           <DataTable
             data={adminData}
@@ -274,9 +355,9 @@ export default function VAdmin() {
             onEdit={handleEdit}
             onToggleStatus={handleToggleStatus}
             onDelete={handleDelete}
-            searchKeys={["name", "email", "phone", "role"]} 
-            showFilter={true} 
-            filterKey={["status"]} 
+            searchKeys={["name", "email", "phone", "role"]}
+            showFilter={true}
+            filterKey={["status"]}
             filterOptions={filterOptionsForZones}
           />
 
@@ -288,6 +369,7 @@ export default function VAdmin() {
                 onSave={handleSave}
                 selectedRow={selectedRow}
                 onChange={onChange}
+                isSaving={isSaving} // Pass isSaving state to EditDialog
               >
                 <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   <InputField
@@ -308,6 +390,14 @@ export default function VAdmin() {
                     value={selectedRow?.phone}
                     onChange={(val) => onChange("phone", val)}
                   />
+                  {/* Password field - use type="password" if you allow editing 
+                  <InputField
+                    label="Password (leave blank to keep current)"
+                    id="password"
+                    type="password" // Important for password input
+                    value={selectedRow?.password || ""} // Value should be empty for security if not meant to display current
+                    onChange={(val) => onChange("password", val)}
+                  />*/}
                   {villagePositions.length > 0 && (
                     <div className="w-full">
                       <Label htmlFor="adminPosition" className="text-gray-400">
@@ -358,6 +448,26 @@ export default function VAdmin() {
                         ))}
                       </SelectContent>
                     </Select>
+
+                    <label htmlFor="image" className="text-gray-400">
+                      Image
+                    </label>
+                    {selectedRow?.image_link && (
+                      <div className="flex items-center gap-4 mb-2">
+                        <img
+                          src={selectedRow.image_link}
+                          alt="Current"
+                          className="w-12 h-12 rounded-md object-cover border"
+                        />
+                      </div>
+                    )}
+                    <Input
+                      type="file"
+                      id="image"
+                      accept="image/*"
+                      className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                      onChange={handleImageChange}
+                    />
                   </div>
                 </div>
               </EditDialog>
@@ -372,7 +482,7 @@ export default function VAdmin() {
           )}
           <Outlet />
         </>
-      )} 
+      )}
     </div>
   );
 }

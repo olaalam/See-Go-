@@ -13,6 +13,7 @@ export default function Addsubscrier() {
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+
   const [optionsData, setOptionsData] = useState({
     types: [],
     paymentMethods: [],
@@ -35,14 +36,11 @@ export default function Addsubscrier() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const response = await fetch(
-          "https://bcknd.sea-go.org/admin/subscriper",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await fetch("https://bcknd.sea-go.org/admin/subscriper", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const data = await response.json();
         console.log(data);
 
@@ -79,6 +77,7 @@ export default function Addsubscrier() {
 
     fetchOptions();
   }, []);
+
   const handleInputChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
@@ -93,68 +92,77 @@ export default function Addsubscrier() {
       ? optionsData.villagePackages
       : [];
 
-const handleSubmit = async () => {
-  dispatch(showLoader());
+  const handleSubmit = async () => {
+    dispatch(showLoader());
 
-  const body = new FormData();
-  body.append("type", formData.type);
-  body.append("payment_method_id", formData.payment_method_id);
-  body.append("package_id", formData.package_id);
+    const body = new FormData();
+    body.append("type", formData.type);
+    body.append("payment_method_id", formData.payment_method_id);
+    body.append("package_id", formData.package_id);
 
-  if (formData.type === "provider") {
-    body.append("service_id", formData.service_id);
-    body.append("provider_id", formData.provider_id);
-  } else if (formData.type === "village") {
-    body.append("village_id", formData.village_id);
-  }
+    if (formData.type === "provider") {
+      body.append("service_id", formData.service_id);
+      body.append("provider_id", formData.provider_id);
+    } else if (formData.type === "village") {
+      body.append("village_id", formData.village_id);
+    }
 
-  console.log("Submitting form with data:", Object.fromEntries(body.entries()));
-
-  try {
-    const response = await fetch(
-      "https://bcknd.sea-go.org/admin/subscriper/add",
-      {
+    try {
+      const response = await fetch("https://bcknd.sea-go.org/admin/subscriper/add", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
         body,
-      }
-    );
+      });
 
-    if (response.ok) {
-      toast.success("Subscriber added successfully!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-      setFormData({
-        type: "",
-        payment_method_id: "",
-        package_id: "",
-        service_id: "",
-        village_id: "",
-        provider_id: "",
-      });
+      if (response.ok) {
+        toast.success("Subscriber added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        setFormData({
+          type: "",
+          payment_method_id: "",
+          package_id: "",
+          service_id: "",
+          village_id: "",
+          provider_id: "",
+        });
         navigate("/subscribers");
-    } else {
-      const errorData = await response.json();
-      console.error("Error response:", errorData);
-      toast.error(errorData.message || "Failed to add subscriber.", {
+      } else {
+        let errorMessage = "Failed to add subscriber.";
+        try {
+          const errorData = await response.json();
+
+          if (errorData?.errors && typeof errorData.errors === "object") {
+            errorMessage = Object.values(errorData.errors)
+              .flat()
+              .join(", ");
+          } else if (errorData?.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === "string") {
+            errorMessage = errorData;
+          }
+        } catch (jsonError) {
+          console.error("Failed to parse error response", jsonError);
+        }
+
+        toast.error(errorMessage, {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting subscriber:", error);
+      toast.error("An error occurred!", {
         position: "top-right",
         autoClose: 3000,
       });
+    } finally {
+      dispatch(hideLoader());
     }
-  } catch (error) {
-    console.error("Error submitting subscriber:", error);
-    toast.error("An error occurred!", {
-      position: "top-right",
-      autoClose: 3000,
-    });
-  } finally {
-    dispatch(hideLoader());
-  }
-};
-
+  };
 
   const baseFields = [
     {
@@ -222,7 +230,7 @@ const handleSubmit = async () => {
       <Add
         fields={fields}
         values={formData}
-        onChange={ handleInputChange}
+        onChange={handleInputChange}
       />
 
       <div className="!my-6">

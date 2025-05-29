@@ -35,7 +35,8 @@ const Admins = () => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-  const fetchAdmins = async () => { // Changed to fetchAdmins for consistency
+  const fetchAdmins = async () => {
+    // Changed to fetchAdmins for consistency
     dispatch(showLoader());
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/admins", {
@@ -160,6 +161,7 @@ const Admins = () => {
                   ...admin,
                   name: responseData?.admin?.name || name,
                   phone: responseData?.admin?.phone || phone,
+                  password:responseData?.admin?.password || password,
                   email: responseData?.admin?.email || email,
                   role: responseData?.admin?.provider_only, // Keep as boolean/numeric
                   gender: responseData?.admin?.gender || gender,
@@ -236,12 +238,15 @@ const Admins = () => {
 
       if (response.ok) {
         toast.success("Admin status updated successfully!");
-        setAdmins((prevAdmins) => // Changed to prevAdmins for consistency
-          prevAdmins.map((admin) =>
-            admin.id === id
-              ? { ...admin, status: newStatus === 1 ? "active" : "inactive" } // Ensure lowercase
-              : admin
-          )
+        setAdmins(
+          (
+            prevAdmins // Changed to prevAdmins for consistency
+          ) =>
+            prevAdmins.map((admin) =>
+              admin.id === id
+                ? { ...admin, status: newStatus === 1 ? "active" : "inactive" } // Ensure lowercase
+                : admin
+            )
         );
       } else {
         const errorData = await response.json();
@@ -261,15 +266,6 @@ const Admins = () => {
     }));
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedRow((prev) => ({
-        ...prev,
-        imageFile: file,
-      }));
-    }
-  };
 
   const columns = [
     { key: "name", label: "Name" },
@@ -351,8 +347,8 @@ const Admins = () => {
               {/* This logic for role in EditDialog assumes 'role' is a boolean/numeric (0 or 1) */}
               <Select
                 value={selectedRow?.role?.toString()} // Convert to string for Select component
-                onValueChange={(value) =>
-                  onChange("role", parseInt(value)) // Convert back to number
+                onValueChange={
+                  (value) => onChange("role", parseInt(value)) // Convert back to number
                 }
               >
                 <SelectTrigger
@@ -380,6 +376,17 @@ const Admins = () => {
                 onChange={(e) => onChange("phone", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
+              <label htmlFor="password" className="text-gray-400 !pb-3">
+                Password
+              </label>
+
+              <Input
+                id="password"
+                type="password"
+                value={selectedRow?.password || ""}
+                onChange={(e) => onChange("password", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
               <label htmlFor="gender" className="text-gray-400 !pb-3">
                 Gender
               </label>
@@ -402,7 +409,6 @@ const Admins = () => {
                   </SelectItem>
                 </SelectContent>
               </Select>
-
             </div>
           </EditDialog>
           <DeleteDialog

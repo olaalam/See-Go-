@@ -114,6 +114,7 @@ export default function Addvillage_admin() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
+        image: formData.image, // Assuming you handle file upload separately
         admin_position_id: parseInt(formData.admin_position_id, 10),
         status: formData.status === "active" ? 1 : 0,
         village_id: parseInt(villageId, 10), // <<< IMPORTANT: Use villageId from params here
@@ -141,6 +142,7 @@ export default function Addvillage_admin() {
           email: "",
           phone: "",
           password: "",
+          image: null,
           admin_position_id: "",
           status: "active",
           // village_id: "", // No longer needed here
@@ -186,6 +188,8 @@ export default function Addvillage_admin() {
       name: "admin_position_id",
       options: positionOptions,
     },
+        { type: "file", name: "image"},
+
     // REMOVED: No longer need the "Select Village" dropdown
     // {
     //   type: "select",

@@ -213,15 +213,30 @@ export default function AddProvider() {
         });
         navigate("/providers"); // Navigate after successful submission and state reset
       } else {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        toast.error(errorData.message || "Failed to add provider.", {
+        let errorMessage = "Failed to add subscriber.";
+        try {
+          const errorData = await response.json();
+
+          if (errorData?.errors && typeof errorData.errors === "object") {
+            errorMessage = Object.values(errorData.errors)
+              .flat()
+              .join(", ");
+          } else if (errorData?.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === "string") {
+            errorMessage = errorData;
+          }
+        } catch (jsonError) {
+          console.error("Failed to parse error response", jsonError);
+        }
+
+        toast.error(errorMessage, {
           position: "top-right",
           autoClose: 3000,
         });
       }
     } catch (error) {
-      console.error("Error submitting provider:", error);
+      console.error("Error submitting subscriber:", error);
       toast.error("An error occurred!", {
         position: "top-right",
         autoClose: 3000,

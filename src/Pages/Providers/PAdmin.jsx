@@ -15,6 +15,7 @@ import { toast, ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
 import { Label } from "@radix-ui/react-label";
 import { Outlet } from "react-router-dom";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"; // Assuming you have Avatar components
 
 export default function PAdmin() {
   const [adminData, setAdminData] = useState([]);
@@ -23,6 +24,7 @@ export default function PAdmin() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [providerOptions, setproviderOptions] = useState([]);
+  const [imageErrors, setImageErrors] = useState({});
 
   const [providerPositions, setproviderPositions] = useState([]);
   const { id } = useParams();
@@ -30,17 +32,35 @@ export default function PAdmin() {
 
   const columns = [
     { label: "Username", key: "name" },
+    { label: "Image", key: "image" },
     { label: "Email", key: "email" },
     { label: "Phone Number", key: "phone" },
     { label: "Role", key: "admin_position_name" }, // Changed key to match formatted data
     { key: "status", label: "Status" },
   ];
-
+  const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  };
   const getAuthHeaders = () => ({
-    "Content-Type": "application/json",
+    // Content-Type will be set automatically for FormData
     Authorization: `Bearer ${token}`,
   });
-
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedRow((prev) => ({
+        ...prev,
+        imageFile: file, // Store the actual File object
+        image_link: URL.createObjectURL(file), // Create a temporary URL for preview
+      }));
+    } else {
+      setSelectedRow((prev) => ({
+        ...prev,
+        imageFile: null,
+        image_link: prev?.original_image_link, // Revert to original if file cleared
+      }));
+    }
+  };
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -50,7 +70,10 @@ export default function PAdmin() {
         const adminRes = await fetch(
           `https://bcknd.sea-go.org/admin/provider_admin/${id}`,
           {
-            headers: getAuthHeaders(),
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
         const adminJson = await adminRes.json();
@@ -66,6 +89,20 @@ export default function PAdmin() {
           const position = providerPositionsData.find(
             (pos) => pos.id === admin.admin_position_id
           );
+          const name = admin.name || "N/A"; // Define name here
+          const image =
+            admin?.image_link && !imageErrors[admin.id] ? (
+              <img
+                src={admin.image_link}
+                alt={name}
+                className="w-12 h-12 rounded-md object-cover aspect-square"
+                onError={() => handleImageError(admin.id)}
+              />
+            ) : (
+              <Avatar className="w-12 h-12">
+                <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            );
           return {
             ...admin,
             status:
@@ -75,6 +112,8 @@ export default function PAdmin() {
                 ? "Active"
                 : "Inactive",
             admin_position_name: position ? position.name : "Unknown", // Add formatted role name
+            image: image, // Add the image JSX to the formatted data
+            original_image_link: admin.image_link, // Store original link for reverting
           };
         });
         setAdminData(formattedAdmins);
@@ -85,7 +124,7 @@ export default function PAdmin() {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, token, imageErrors]); // Added token and imageErrors to dependencies
 
   useEffect(() => {
     const fetchproviderOptions = async () => {
@@ -93,7 +132,10 @@ export default function PAdmin() {
         const providersRes = await fetch(
           "https://bcknd.sea-go.org/admin/provider",
           {
-            headers: getAuthHeaders(),
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
 
@@ -124,8 +166,13 @@ export default function PAdmin() {
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/status/${row.id}?status=${newStatus}`,
-
-        { method: "PUT", headers: getAuthHeaders() }
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       if (response.ok) {
@@ -161,7 +208,10 @@ export default function PAdmin() {
         `https://bcknd.sea-go.org/admin/provider_admin/delete/${selectedRow.id}`,
         {
           method: "DELETE",
-          headers: getAuthHeaders(),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -194,53 +244,53 @@ export default function PAdmin() {
       admin_position_id,
       status,
       provider_id,
+      imageFile, // This is the File object from state
     } = selectedRow;
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("email", email);
+    formData.append("phone", phone);
+    if (password) {
+      // Only append password if it's provided/changed
+      formData.append("password", password);
+    }
+    if (imageFile) {
+      formData.append("image", imageFile); // Append the File object
+    }
+    formData.append("admin_position_id", admin_position_id);
+    formData.append("status", status === "Active" ? 1 : 0);
+    formData.append("provider_id", provider_id);
+
+    // If your backend expects a PUT request, you might need to handle the method override
+    // For POST with FormData, this is generally sufficient.
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/update/${id}`,
         {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            name,
-            email,
-            phone,
-            password,
-            admin_position_id,
-            status: selectedRow?.status === "Active" ? 1 : 0,
-            provider_id,
-          }),
+          method: "POST", // Use POST for FormData if your backend expects it for updates
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // 'Content-Type': 'multipart/form-data' is set automatically by browser for FormData
+          },
+          body: formData, // Send FormData
         }
       );
 
       if (response.ok) {
         toast.success("Admin updated successfully!");
-        setAdminData((prev) =>
-          prev.map((admin) =>
-            admin.id === id
-              ? {
-                  ...admin,
-                  name,
-                  email,
-                  phone,
-                  admin_position_id,
-                  status: status === "Active" ? "Active" : "Inactive",
-                  provider_id,
-                  admin_position_name: providerPositions.find(
-                    (pos) => pos.id === admin_position_id
-                  )?.name || "Unknown",
-                }
-              : admin
-          )
-        );
+        // Re-fetch data to get the latest image_link and other updated info
+        // This is safer than manually updating the state for image
+        await fetchData(); // Call fetchData again to refresh the table
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
-        toast.error("Failed to update admin.");
+        const errorData = await response.json(); // Get error details from backend
+        toast.error(`Failed to update admin: ${errorData.message || response.statusText}`);
       }
     } catch (err) {
-      toast.error("Error updating admin.", err);
+      toast.error(`Error updating admin: ${err.message || err}`);
     }
   };
 
@@ -261,6 +311,68 @@ export default function PAdmin() {
     { value: "active", label: "Active" }, // Filter by status
     { value: "inactive", label: "Inactive" }, // Filter by status
   ];
+
+  // Refetch data function
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      if (!token) throw new Error("Missing auth token");
+
+      const adminRes = await fetch(
+        `https://bcknd.sea-go.org/admin/provider_admin/${id}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const adminJson = await adminRes.json();
+      const providerPositionsData = adminJson.provider_positions;
+      setproviderPositions(providerPositionsData);
+
+      const formattedAdmins = (
+        Array.isArray(adminJson.admins)
+          ? adminJson.admins
+          : [adminJson.admins]
+      ).map((admin) => {
+        const position = providerPositionsData.find(
+          (pos) => pos.id === admin.admin_position_id
+        );
+        const name = admin.name || "N/A";
+        const image =
+          admin?.image_link && !imageErrors[admin.id] ? (
+            <img
+              src={admin.image_link}
+              alt={name}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(admin.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          );
+        return {
+          ...admin,
+          status:
+            typeof admin.status === "string"
+              ? admin.status
+              : admin.status === 1
+              ? "Active"
+              : "Inactive",
+          admin_position_name: position ? position.name : "Unknown",
+          image: image,
+          original_image_link: admin.image_link,
+        };
+      });
+      setAdminData(formattedAdmins);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -359,6 +471,25 @@ export default function PAdmin() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <label htmlFor="image" className="text-gray-400">
+                      Image
+                    </label>
+                    {selectedRow?.image_link && (
+                      <div className="flex items-center gap-4 mb-2">
+                        <img
+                          src={selectedRow.image_link}
+                          alt="Current"
+                          className="w-12 h-12 rounded-md object-cover border"
+                        />
+                      </div>
+                    )}
+                    <Input
+                      type="file"
+                      id="image"
+                      accept="image/*"
+                      className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                      onChange={handleImageChange}
+                    />
                   </div>
                 </div>
               </EditDialog>

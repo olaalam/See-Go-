@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
 import DeleteDialog from "@/components/DeleteDialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
@@ -18,29 +16,55 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import FooterInvoiceImage from "@/assets/FooterInvoice.png";
+import { Plus, Trash } from "lucide-react"; // Import icons for Add and Delete buttons
+import { useNavigate } from "react-router-dom"; // Assuming you use react-router-dom for navigation
 
 const Subscription = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [subscriptions, setsubscriptions] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [services, setServices] = useState([]);
-  const [selectedRow, setselectedRow] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [tab, setTab] = useState("provider"); // State for active tab
   const token = localStorage.getItem("token");
+
+  // State for search and filter
+  const [searchValue, setSearchValue] = useState("");
+  const [filterValue, setFilterValue] = useState("all"); // Default filter value
+  const navigate = useNavigate(); // Initialize useNavigate hook
+
+  // Define filter options
+  const filterOptions = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+
   const fetchServices = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/service_type", {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
-      console.log("All responsive data:", result); // تحقق من البيانات الكاملة
-
       const formattedServices = (result.service_types || []).map((service) => {
         const currentLang = localStorage.getItem("lang") || "en";
         const name =
@@ -52,15 +76,13 @@ const Subscription = () => {
           name,
         };
       });
-
-      console.log("Formatted services:", formattedServices); // تحقق من تنسيق الخدمات
-      setServices(formattedServices); // تحديث الحالة بالخدمات
+      setServices(formattedServices);
     } catch (err) {
       console.error("Error fetching services:", err);
     }
   };
 
-  const fetchsubscriptions = async () => {
+  const fetchSubscriptions = async () => {
     dispatch(showLoader());
     try {
       const response = await fetch(
@@ -70,7 +92,6 @@ const Subscription = () => {
         }
       );
       const result = await response.json();
-      console.log("all responsive", result);
       const currentLang = localStorage.getItem("lang") || "en";
 
       const formatted = (result.packages || []).map((subscription) => {
@@ -98,10 +119,10 @@ const Subscription = () => {
         const price = subscription.price || "—";
         const discount = subscription.discount || "—";
         const feez = subscription.feez || "—";
-        const admin_num=subscription.admin_num;
+        const admin_num = subscription.admin_num;
         const security_num = subscription.security_num || "—";
-        const maintenance_module=subscription.maintenance_module;
-        const beach_pool_module=subscription.beach_pool_module;
+        const maintenance_module = subscription.maintenance_module;
+        const beach_pool_module = subscription.beach_pool_module;
 
         return {
           id: subscription.id,
@@ -121,30 +142,54 @@ const Subscription = () => {
         };
       });
 
-      setsubscriptions(formatted);
+      setSubscriptions(formatted);
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
     } finally {
       dispatch(hideLoader());
     }
   };
-  useEffect(() => {
-    console.log("services loaded:", services);
-  }, [services]);
 
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchsubscriptions(), fetchServices()]);
+      await Promise.all([fetchSubscriptions(), fetchServices()]);
     };
     fetchData();
   }, []);
+
+  // Filter and search subscriptions based on the selected tab, search value, and filter value
+  const filteredSubscriptions = subscriptions.filter((subscription) => {
+    // Tab filtering
+    let tabMatch = true;
+    if (tab === "provider") {
+      tabMatch = subscription.type === "provider";
+    } else if (tab === "village") {
+      tabMatch = subscription.type === "village";
+    } else if (tab === "maintenance") {
+      tabMatch = subscription.type === "village" && subscription.maintenance_module;
+    }
+
+    // Search filtering
+    const searchMatch = subscription.name
+      .toLowerCase()
+      .includes(searchValue.toLowerCase());
+
+    // Status filtering
+    let statusMatch = true;
+    if (filterValue === "active") {
+      statusMatch = subscription.status === "Active";
+    } else if (filterValue === "inactive") {
+      statusMatch = subscription.status === "Inactive";
+    }
+
+    return tabMatch && searchMatch && statusMatch;
+  });
 
   const handleEdit = async (subscription) => {
     if (services.length === 0) {
       await fetchServices();
     }
-
-    setselectedRow({
+    setSelectedRow({
       ...subscription,
       service_id: subscription.service_id ?? subscription.service?.id ?? "",
     });
@@ -152,17 +197,9 @@ const Subscription = () => {
   };
 
   const handleDelete = (subscription) => {
-    setselectedRow(subscription);
+    setSelectedRow(subscription);
     setIsDeleteOpen(true);
   };
-  useEffect(() => {
-    if (isEditOpen && selectedRow) {
-      console.log(
-        "service_id عند فتح الـ Edit Dialog:",
-        selectedRow.service_id
-      );
-    }
-  }, [isEditOpen, selectedRow]);
 
   const handleSave = async () => {
     const {
@@ -186,30 +223,30 @@ const Subscription = () => {
       return;
     }
 
-    const updatedsubscription = new FormData();
-    updatedsubscription.append("id", id);
-    updatedsubscription.append("name", name || "");
-    updatedsubscription.append("feez", feez || "");
-    updatedsubscription.append("description", description || "");
-    updatedsubscription.append("status", status === "Active" ? "1" : "0");
-    updatedsubscription.append("service_id", service_id);
-    updatedsubscription.append("price", price || "");
-    updatedsubscription.append("type", type || "");
-    updatedsubscription.append("discount", discount || "");
+    const updatedSubscription = new FormData();
+    updatedSubscription.append("id", id);
+    updatedSubscription.append("name", name || "");
+    updatedSubscription.append("feez", feez || "");
+    updatedSubscription.append("description", description || "");
+    updatedSubscription.append("status", status === "Active" ? "1" : "0");
+    updatedSubscription.append("service_id", service_id);
+    updatedSubscription.append("price", price || "");
+    updatedSubscription.append("type", type || "");
+    updatedSubscription.append("discount", discount || "");
 
     if (type === "village") {
-      updatedsubscription.append("admin_num", selectedRow.admin_num || "0");
-      updatedsubscription.append(
+      updatedSubscription.append("admin_num", selectedRow.admin_num || "0");
+      updatedSubscription.append(
         "security_num",
         selectedRow.security_num || "0"
       );
-      updatedsubscription.append(
+      updatedSubscription.append(
         "maintenance_module",
-        selectedRow.maintenance_module || "0"
+        selectedRow.maintenance_module ? "1" : "0" // Ensure boolean is converted to 0 or 1
       );
-      updatedsubscription.append(
+      updatedSubscription.append(
         "beach_pool_module",
-        selectedRow.beach_pool_module || "0"
+        selectedRow.beach_pool_module ? "1" : "0" // Ensure boolean is converted to 0 or 1
       );
     }
 
@@ -221,54 +258,21 @@ const Subscription = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          body: updatedsubscription,
+          body: updatedSubscription,
         }
       );
 
       if (response.ok) {
-        toast.success("subscription updated successfully!");
-        const responseData = await response.json();
-
-        setsubscriptions((prev) =>
-          prev.map((subscription) =>
-            subscription.id === id
-              ? {
-                  ...subscription,
-                  name: responseData?.subscription?.name || name,
-                  status:
-                    responseData?.subscription?.status === 1
-                      ? "Active"
-                      : "Inactive",
-                  image_link:
-                    responseData?.subscription?.image_link ||
-                    subscription.image_link,
-                  price: responseData?.subscription?.price,
-                  type: responseData?.subscription?.type,
-                  discount: responseData?.subscription?.discount,
-                  feez: responseData?.subscription?.feez,
-                  description: responseData?.subscription?.description,
-                  service_id: responseData?.subscription?.service_id,
-                  security_num: responseData?.subscription?.security_num,
-                  admin_num: responseData?.subscription?.admin_num,
-                  maintenance_module:
-                    responseData?.subscription?.maintenance_module,
-                  beach_pool_module:
-                    responseData?.subscription?.beach_pool_module,
-                }
-              : subscription
-          )
-        );
+        toast.success("Subscription updated successfully!");
+        // Re-fetch subscriptions to ensure all data is up-to-date and consistent
+        await fetchSubscriptions();
         setIsEditOpen(false);
-        setselectedRow(null);
-        await fetchsubscriptions();
+        setSelectedRow(null);
       } else {
-        const errorData = await response.json();
-        console.error("Update failed:", errorData);
         toast.error("Failed to update subscription!");
       }
     } catch (error) {
-      console.error("Error updating subscription:", error);
-      toast.error("Error occurred while updating subscription!");
+      toast.error("Error occurred while updating subscription!", error);
     }
   };
 
@@ -283,8 +287,8 @@ const Subscription = () => {
       );
 
       if (response.ok) {
-        toast.success("subscription deleted successfully!");
-        setsubscriptions(
+        toast.success("Subscription deleted successfully!");
+        setSubscriptions(
           subscriptions.filter(
             (subscription) => subscription.id !== selectedRow.id
           )
@@ -299,7 +303,7 @@ const Subscription = () => {
   };
 
   const onChange = (key, value) => {
-    setselectedRow((prev) => ({
+    setSelectedRow((prev) => ({
       ...prev,
       [key]: key === "service_id" ? parseInt(value, 10) : value,
     }));
@@ -317,9 +321,9 @@ const Subscription = () => {
       );
 
       if (response.ok) {
-        toast.success("subscription status updated successfully!");
-        setsubscriptions((prevsubscriptions) =>
-          prevsubscriptions.map((subscription) =>
+        toast.success("Subscription status updated successfully!");
+        setSubscriptions((prevSubscriptions) =>
+          prevSubscriptions.map((subscription) =>
             subscription.id === id
               ? {
                   ...subscription,
@@ -335,44 +339,215 @@ const Subscription = () => {
       toast.error("Error occurred while updating subscription status!", error);
     }
   };
-  useEffect(() => {
-    console.log("services loaded:", services);
-  }, [services]);
-  // Define filter options for status, including an "All" option
-  const filterOptionsForZones = [
-    { value: "all", label: "All" },
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
-  ];
-  const columns = [
-    { key: "type", label: "Type" },
-    { key: "name", label: "Name " },
 
-    { key: "serviceName", label: "Service " },
-    { key: "price", label: "price" },
-    { key: "description", label: "description" },
+  // Dummy functions/variables for the new elements for now
+  const onAdd = () => {
+    // You'll likely navigate to a new page or open a modal for adding a new subscription
+    navigate("/packages/add"); // Example navigation
+  };
+  const showAddButton = true; // Set to true to show the add button
+  const showFilter = true; // Set to true to show the filter
+  const selectedRows = []; // Assuming this would be used for multi-delete
+  const showDeleteButtonInHeader = false; // Set to true if you want a delete selected button in the header
+  const onDeleteInHeader = (rows) => {
+    console.log("Delete selected rows:", rows);
+    // Implement multi-delete logic here
+  };
 
-    { key: "discount", label: "Discount" },
-    { key: "feez", label: "Fees" },
-    { key: "status", label: "Status" },
-  ];
 
   return (
-    <div className="p-4">
+    <div className="!p-4">
       {isLoading && <FullPageLoader />}
-      <ToastContainer />
-      <DataTable
-        data={subscriptions}
-        columns={columns}
-        addRoute="/packages/add"
-        className="table-compact"
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "serviceName", "type"]}
-        filterKey={["status"]} // Specify that we want to filter by the 'status' key
-        filterOptions={filterOptionsForZones} // Pass the defined filter options
-      />
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-4 bg-transparent !mb-6">
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 transition-all
+                               data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                               hover:bg-teal-100 hover:text-teal-700"
+            value="provider"
+          >
+            Provider
+          </TabsTrigger>
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 transition-all
+                               data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                               hover:bg-teal-100 hover:text-teal-700"
+            value="village"
+          >
+            Village
+          </TabsTrigger>
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 transition-all
+                               data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                               hover:bg-teal-100 hover:text-teal-700"
+            value="maintenance"
+          >
+            Maintenance Type
+          </TabsTrigger>
+        </TabsList>
+        <ToastContainer />
+
+        {/* Search, Filter, and Add section */}
+        <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
+          <Input
+            placeholder="Search..."
+            className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+          />
+          {showFilter && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={filterValue} onValueChange={setFilterValue}>
+                <SelectTrigger className="w-[120px] border-bg-primary focus:ring-bg-primary rounded-[10px] !px-2">
+                  <SelectValue placeholder="Filter by" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-bg-primary rounded-md shadow-lg !p-3">
+                  {filterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showAddButton && (
+                <Button
+                  onClick={onAdd}
+                  className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
+                >
+                  <Plus className="w-5 h-5 !mr-2" />
+                  Add
+                </Button>
+              )}
+              {showDeleteButtonInHeader && (
+                <Button
+                  onClick={() => onDeleteInHeader(selectedRows)}
+                  className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
+                  disabled={selectedRows.length === 0}
+                >
+                  <Trash className="w-5 h-5 !mr-2" />
+                  Delete Selected
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+        {/* End of Search, Filter, and Add section */}
+
+        {/* Card Layout for Subscriptions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredSubscriptions.map((subscription) => (
+            <Card
+              key={subscription.id}
+              className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col justify-between min-h-[340px]"
+            >
+              <CardHeader
+                className=" !p-4 flex justify-between items-center"
+                style={{
+                  backgroundImage: `url(${FooterInvoiceImage})`, // Use .src for image import
+                  backgroundSize: "cover",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  color: "white",
+                }}
+              >
+                <div>
+                  <CardTitle className="text-xl text-bg-primary font-bold">
+                    {subscription.name}
+                  </CardTitle>
+                  <CardDescription className="text-sm text-bg-primary">
+                    {subscription.type}
+                  </CardDescription>
+                </div>
+                {subscription.discount !== "—" && (
+                  <span className="bg-gray-300 text-black text-xs font-semibold !px-2 !!py-1 rounded-full">
+                    {subscription.discount}% OFF
+                  </span>
+                )}
+              </CardHeader>
+
+              <CardContent className="!p-4 flex-1">
+                <p className="text-gray-600 text-sm !mb-2">
+                  {subscription.description}
+                </p>
+                <p className="text-lg font-semibold text-gray-800">
+                  <span className="line-through text-gray-500 !mr-2">
+                    {subscription.feez !== "—" ? `${subscription.feez} EGP` : ""}
+                  </span>
+                  {subscription.price} EGP
+                </p>
+                <div className="!mt-3 space-y-2">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Service:</span>{" "}
+                    {subscription.serviceName}
+                  </p>
+                  {subscription.type === "village" && (
+                    <>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Admin Number:</span>{" "}
+                        {subscription.admin_num}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Security Number:</span>{" "}
+                        {subscription.security_num}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Maintenance Module:</span>{" "}
+                        {subscription.maintenance_module ? "Enabled" : "Disabled"}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Beach/Pool Module:</span>{" "}
+                        {subscription.beach_pool_module ? "Enabled" : "Disabled"}
+                      </p>
+                    </>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-700 text-sm">
+                      Status:
+                    </span>
+                    <Switch
+                      checked={subscription.status === "Active"}
+                      onCheckedChange={(checked) =>
+                        handleToggleStatus(subscription, checked ? 1 : 0)
+                      }
+                      className={`${
+                        subscription.status === "Active"
+                          ? "data-[state=checked]:bg-bg-primary"
+                          : "data-[state=unchecked]:bg-gray-500"
+                      }`}
+                    />
+                    <span
+                      className={
+                        subscription.status === "Active"
+                          ? "text-bg-primary text-sm"
+                          : "text-red-600 text-sm"
+                      }
+                    >
+                      {subscription.status}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+
+              <CardFooter className="!p-4 border-t border-gray-200 flex justify-between">
+                <Button
+                  onClick={() => handleEdit(subscription)}
+                  className="bg-bg-primary hover:bg-teal-600 cursor-pointer text-white rounded-lg !px-4 !py-2"
+                >
+                  Edit
+                </Button>
+                <Button
+                  onClick={() => handleDelete(subscription)}
+                  className="bg-red-500 hover:bg-red-600 text-white rounded-lg !px-4 !py-2"
+                >
+                  Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </Tabs>
+
+      {/* Edit and Delete Dialogs */}
       {selectedRow && (
         <>
           <EditDialog
@@ -419,7 +594,7 @@ const Subscription = () => {
               </Select>
 
               <label htmlFor="description" className="text-gray-400 !pb-3">
-                description
+                Description
               </label>
               <Input
                 label="description"
@@ -429,7 +604,7 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
               <label htmlFor="feez" className="text-gray-400 !pb-3">
-                fees
+                Fees
               </label>
               <Input
                 label="feez"
@@ -439,67 +614,67 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-{selectedRow?.type === "village" && (
-  <>
-    <label htmlFor="admin_num" className="text-gray-400 !pb-3">
-      Admin Number
-    </label>
-    <Input
-      id="admin_num"
-      value={selectedRow?.admin_num || ""}
-      onChange={(e) => onChange("admin_num", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
+              {selectedRow?.type === "village" && (
+                <>
+                  <label htmlFor="admin_num" className="text-gray-400 !pb-3">
+                    Admin Number
+                  </label>
+                  <Input
+                    id="admin_num"
+                    value={selectedRow?.admin_num || ""}
+                    onChange={(e) => onChange("admin_num", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label htmlFor="security_num" className="text-gray-400 !pb-3">
-      Security Number
-    </label>
-    <Input
-      id="security_num"
-      value={selectedRow?.security_num || ""}
-      onChange={(e) => onChange("security_num", e.target.value)}
-      className="!my-2 text-bg-primary !p-4"
-    />
+                  <label htmlFor="security_num" className="text-gray-400 !pb-3">
+                    Security Number
+                  </label>
+                  <Input
+                    id="security_num"
+                    value={selectedRow?.security_num || ""}
+                    onChange={(e) => onChange("security_num", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label
-      htmlFor="maintenance_module"
-      className="text-gray-400 !pb-3"
-    >
-      Maintenance Module (0 or 1)
-    </label>
-    <Input
-      id="maintenance_module"
-      type="number"
-      min="0"
-      max="1"
-      value={selectedRow?.maintenance_module || ""}
-      onChange={(e) =>
-        onChange("maintenance_module", e.target.value)
-      }
-      className="!my-2 text-bg-primary !p-4"
-    />
+                  <label
+                    htmlFor="maintenance_module"
+                    className="text-gray-400 !pb-3"
+                  >
+                    Maintenance Module (0 or 1)
+                  </label>
+                  <Input
+                    id="maintenance_module"
+                    type="number"
+                    min="0"
+                    max="1"
+                    value={selectedRow?.maintenance_module || ""}
+                    onChange={(e) =>
+                      onChange("maintenance_module", e.target.value)
+                    }
+                    className="!my-2 text-bg-primary !p-4"
+                  />
 
-    <label
-      htmlFor="beach_pool_module"
-      className="text-gray-400 !pb-3"
-    >
-      Beach/Pool Module (0 or 1)
-    </label>
-    <Input
-      id="beach_pool_module"
-      type="number"
-      min="0"
-      max="1"
-      value={selectedRow?.beach_pool_module || ""}
-      onChange={(e) =>
-        onChange("beach_pool_module", e.target.value)
-      }
-      className="!my-2 text-bg-primary !p-4"
-    />
-  </>
-)}
+                  <label
+                    htmlFor="beach_pool_module"
+                    className="text-gray-400 !pb-3"
+                  >
+                    Beach/Pool Module (0 or 1)
+                  </label>
+                  <Input
+                    id="beach_pool_module"
+                    type="number"
+                    min="0"
+                    max="1"
+                    value={selectedRow?.beach_pool_module || ""}
+                    onChange={(e) =>
+                      onChange("beach_pool_module", e.target.value)
+                    }
+                    className="!my-2 text-bg-primary !p-4"
+                  />
+                </>
+              )}
               <label htmlFor="price" className="text-gray-400 !pb-3">
-                price
+                Price
               </label>
               <Input
                 type="number"
@@ -510,7 +685,7 @@ const Subscription = () => {
                 className="!my-2 text-bg-primary !p-4"
               />
               <label htmlFor="discount" className="text-gray-400 !pb-3">
-                discount
+                Discount
               </label>
               <Input
                 type="number"

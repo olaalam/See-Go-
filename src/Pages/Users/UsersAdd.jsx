@@ -1,4 +1,4 @@
-import { useState} from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
@@ -7,25 +7,25 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
+
 export default function AddVillage() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
-    const navigate = useNavigate();
-
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-      name: "",
-      status: "",
-      user_type: "",
-      email: "",
-      phone: "",
-      password: "",
-      gender: "",
-      birthDate: "",
-      rent_from: "",
-      rent_to: "",
-      parent_user_id: "",
+    name: "",
+    status: "",
+    user_type: "",
+    email: "",
+    phone: "",
+    password: "",
+    gender: "",
+    birthDate: "",
+    rent_from: "",
+    rent_to: "",
+    parent_user_id: "",
   });
 
   const handleInputChange = (name, value) => {
@@ -38,109 +38,111 @@ export default function AddVillage() {
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
+  const handleSubmit = async () => {
+    const rentFrom = new Date(formData.rent_from);
+    const rentTo = new Date(formData.rent_to);
 
+    if (rentTo < rentFrom) {
+      toast.error("Rent To date cannot be earlier than Rent From date.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
 
- const handleSubmit = async () => {
-  const rentFrom = new Date(formData.rent_from);
-  const rentTo = new Date(formData.rent_to);
+    dispatch(showLoader());
 
-  if (rentTo < rentFrom) {
-   toast.error("Rent To date cannot be earlier than Rent From date.", {
-    position: "top-right",
-    autoClose: 3000,
-   });
-   return;
-  }
+    const body = new FormData();
+    body.append("name", formData.name);
+    body.append("status", formData.status === "active" ? "1" : "0");
+    body.append("email", formData.email);
+    body.append("phone", formData.phone);
+    body.append("password", formData.password);
+    body.append("gender", formData.gender);
+    body.append("birthDate", formatDate(formData.birthDate));
+    body.append("rent_from", formatDate(formData.rent_from));
+    body.append("rent_to", formatDate(formData.rent_to));
+    body.append("parent_user_id", formData.parent_user_id);
 
-  dispatch(showLoader());
+    try {
+      const response = await fetch("https://bcknd.sea-go.org/admin/user/add", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body,
+      });
 
-  const body = new FormData();
-  body.append("name", formData.name);
-  body.append("status", formData.status === "active" ? "1" : "0");
-  body.append("email", formData.email);
-  body.append("phone", formData.phone);
-  body.append("password", formData.password);
-  body.append("gender", formData.gender);
-  body.append("birthDate", formatDate(formData.birthDate));
-  body.append("rent_from", formatDate(formData.rent_from));
-  body.append("rent_to", formatDate(formData.rent_to));
-  body.append("parent_user_id", formData.parent_user_id);
+      const result = await response.json();
 
-  try {
-   const response = await fetch("https://bcknd.sea-go.org/admin/user/add", {
-    method: "POST",
-    headers: {
-     Authorization: `Bearer ${token}`,
-    },
-    body,
-   });
+      if (response.ok) {
+        toast.success("User added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
 
-   if (response.ok) {
-    toast.success("User added successfully!", {
-     position: "top-right",
-     autoClose: 3000,
-    });
-
-        // Introduce a delay before navigating
         setTimeout(() => {
-            navigate("/users");
-        }, 1000); // Navigate after 1 second (adjust as needed)
+          navigate("/users");
+        }, 1000);
 
-    setFormData({
-      name: "",
-      status: "",
-      user_type: "",
-      email: "",
-      phone: "",
-      password: "",
-      gender: "",
-      birthDate: "",
-      rent_from: "",
-      rent_to: "",
-      //parent_user_id: "",
-    });
-   } else {
-    const errorData = await response.json();
-    console.error("Error response:", errorData);
-    toast.error(errorData.message || "Failed to add User.", {
-     position: "top-right",
-     autoClose: 3000,
-    });
-        // Only navigate to /users on success, so remove this line from here
-        // navigate("/users");
- }
- } catch (error) {
- console.error("Error submitting User:", error);
- toast.error("An error occurred!", {
-  position: "top-right",
-  autoClose: 3000,
- });
- } finally {
- dispatch(hideLoader());
- }
- };
+        setFormData({
+          name: "",
+          status: "",
+          user_type: "",
+          email: "",
+          phone: "",
+          password: "",
+          gender: "",
+          birthDate: "",
+          rent_from: "",
+          rent_to: "",
+          parent_user_id: "",
+        });
+      } else {
+        let errorMessage = "Failed to add provider admin.";
+        if (result?.errors && typeof result.errors === "object") {
+          errorMessage = Object.entries(result.errors)
+            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
+            .join(" | ");
+        } else if (result?.message) {
+          errorMessage = result.message;
+        }
+
+        toast.error(errorMessage, {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting admin:", error);
+      toast.error("An unexpected error occurred.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    } finally {
+      dispatch(hideLoader());
+    }
+  };
+
   const fieldsEn = [
     { type: "input", placeholder: "User Name", name: "name" },
     { type: "input", inputType: "email", placeholder: "Email", name: "email" },
     { type: "input", placeholder: "Phone", name: "phone" },
     { type: "input", inputType: "password", placeholder: "Password", name: "password" },
     { type: "input", inputType: "date", placeholder: "BirthDate", name: "birthDate" },
-
-    //{ type: "input", placeholder: "Follower User", name: "parent_user_id" },
     {
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-
-            },
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+    },
     {
       type: "select",
       placeholder: "Gender",
@@ -162,7 +164,7 @@ export default function AddVillage() {
 
       <Add
         fields={fieldsEn}
-       values={formData}
+        values={formData}
         onChange={handleInputChange}
       />
 

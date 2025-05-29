@@ -7,8 +7,8 @@ import { toast, ToastContainer } from "react-toastify";
 
 import "react-toastify/dist/ReactToastify.css";
 
-import EditDialog from "@/components/EditDialog"; // تأكد من استيراد EditDialog
-import DeleteDialog from "@/components/DeleteDialog"; // تأكد من استيراد DeleteDialog
+import EditDialog from "@/components/EditDialog";
+import DeleteDialog from "@/components/DeleteDialog";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -35,13 +35,15 @@ const Providers = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [providers, setProviders] = useState([]);
+  // ستتم تعبئة هذه الحالات من استجابة الـ providers
   const [village, setVillage] = useState([]);
   const [zones, setZones] = useState([]);
   const [services, setServices] = useState([]);
+
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-    const [imageErrors, setImageErrors] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
@@ -50,86 +52,9 @@ const Providers = () => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
-    const handleImageError = (id) => {
+
+  const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
-  };
-
-  const fetchZones = async () => {
-    try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/zone", {
-        headers: getAuthHeaders(),
-      });
-      const result = await res.json();
-      const currentLang = localStorage.getItem("lang") || "en";
-      const formattedZones = (result.zones || []).map((zone) => {
-        // تأكد من وجود result.zones
-        const translations = zone.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {});
-        return {
-          id: zone.id,
-          name: translations[currentLang]?.name || zone.name,
-        };
-      });
-      setZones(formattedZones);
-    } catch (err) {
-      console.error("Error fetching zones:", err);
-    }
-  };
-
-  const fetchServices = async () => {
-    try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/service_type", {
-        headers: getAuthHeaders(),
-      });
-      const result = await res.json();
-      console.log("All responsive data:", result);
-      const formattedServices = (result.service_types || []).map((service) => {
-        const currentLang = localStorage.getItem("lang") || "ar";
-        const name =
-          service.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value || service.name;
-        return {
-          id: service.id,
-          name,
-        };
-      });
-
-      console.log("Formatted services:", formattedServices);
-      setServices(formattedServices);
-    } catch (err) {
-      console.error("Error fetching services:", err);
-    }
-  };
-
-  const fetchVillage = async () => {
-    try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/village", {
-        headers: getAuthHeaders(),
-      });
-      const result = await res.json();
-      console.log("Village API response:", result);
-      const currentLang = localStorage.getItem("lang") || "en";
-      const formattedvillage = (result.villages || []).map((village) => {
-        const translations = village.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {});
-        return {
-          id: village.id,
-          name: translations[currentLang]?.name || village.name,
-          zone_id: village.zone_id, // تأكد من جلب zone_id هنا
-        };
-      });
-      console.log("Formatted villages:", formattedvillage);
-      setVillage(formattedvillage);
-    } catch (err) {
-      console.error("Error fetching village:", err);
-    }
   };
 
   const fetchProviders = async () => {
@@ -141,15 +66,47 @@ const Providers = () => {
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
+      // 1. Populate Zones state from result.zone
+      const formattedZones = (result.zones || []).map((zone) => {
+        const name =
+          zone.translations?.find(
+            (t) => t.locale === currentLang && t.key === "name"
+          )?.value || zone.name;
+        return { id: zone.id, name: name };
+      });
+      setZones(formattedZones);
+
+      // 2. Populate Village state from result.village
+      const formattedVillages = (result.villages || []).map((v) => {
+        const name =
+          v.translations?.find(
+            (t) => t.locale === currentLang && t.key === "name"
+          )?.value || v.name;
+        return { id: v.id, name: name, zone_id: v.zone_id };
+      });
+      setVillage(formattedVillages);
+
+      // 3. Populate Services state from result.services_types
+      const formattedServices = (result.services_types || []).map((service) => {
+        const name =
+          service.translations?.find(
+            (t) => t.locale === currentLang && t.key === "name"
+          )?.value || service.name;
+        return { id: service.id, name: name };
+      });
+      setServices(formattedServices);
+
+      // 4. Process providers array
       const formatted = (result.providers || []).map((provider) => {
-        const translations = provider.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {});
+        const translations =
+          provider.translations?.reduce((acc, t) => {
+            if (!acc[t.locale]) acc[t.locale] = {};
+            acc[t.locale][t.key] = t.value;
+            return acc;
+          }, {}) || {};
 
         const name = translations[currentLang]?.name || provider.name || "—";
-        const rawName = name;
+        const rawName = name; // للاستخدام في حقول الإدخال
 
         const nameClickable = (
           <span
@@ -159,16 +116,15 @@ const Providers = () => {
             {name}
           </span>
         );
-        const map =
-          translations[currentLang]?.location || provider.location || "—";
+        const map = translations[currentLang]?.location || provider.location || "—";
         const description =
           translations[currentLang]?.description || provider.description || "—";
-        const serviceName =
-          provider.service?.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value ||
-          provider.service?.name ||
-          "—";
+
+        // Find service name from the comprehensive services list
+        const serviceObj = formattedServices.find(
+          (s) => s.id === provider.service_id
+        );
+        const serviceName = serviceObj ? serviceObj.name : "—";
 
         const image =
           provider?.image_link && !imageErrors[provider.id] ? (
@@ -187,11 +143,23 @@ const Providers = () => {
         const phone = provider.phone || "—";
         const rating = provider.rate || "—";
 
-        const villageData = village.find((v) => v.id === provider.village_id);
-        const villageName = villageData?.name || "—";
-        const zoneData = zones.find((z) => z.id === villageData?.zone_id); // البحث عن الـ zone بناءً على villageData.zone_id
-        const zoneName = zoneData?.name || "—";
-        const zone_id = villageData?.zone_id || null; // حفظ zone_id هنا
+        // Find village name from the comprehensive village list
+        const villageObj = formattedVillages.find(
+          (v) => v.id === provider.village_id
+        );
+        const villageName = villageObj ? villageObj.name : "—";
+
+        // Find zone name and ID using the village_id from the provider and the comprehensive lists
+        let zoneName = "—";
+        let zone_id = null;
+        if (villageObj && villageObj.zone_id) {
+          const zoneObj = formattedZones.find((z) => z.id === villageObj.zone_id);
+          if (zoneObj) {
+            zoneName = zoneObj.name;
+            zone_id = zoneObj.id;
+          }
+        }
+
 
         return {
           id: provider.id,
@@ -209,54 +177,36 @@ const Providers = () => {
           image_link: provider.image_link,
           villageName,
           village_id: provider.village_id,
-          zoneName, // إضافة zoneName إلى الـ formatted provider
-          zone_id, // إضافة zone_id إلى الـ formatted provider
-          open_from: provider.open_from, // تأكد من جلبها من API
-          open_to: provider.open_to, // تأكد من جلبها من API
+          zoneName,
+          zone_id, // تأكد من وجود zone_id هنا
+          open_from: provider.open_from,
+          open_to: provider.open_to,
         };
       });
 
       setProviders(formatted);
     } catch (error) {
       console.error("Error fetching providers:", error);
+      toast.error("حدث خطأ أثناء جلب البيانات!");
     } finally {
       dispatch(hideLoader());
     }
   };
 
+  // جلب بيانات المزودين عند تحميل المكون لأول مرة
   useEffect(() => {
-    console.log("services loaded:", services);
-  }, [services]);
-
-  // يجب أن يتم جلب جميع البيانات الأساسية قبل جلب الـ providers
-  useEffect(() => {
-    const loadInitialData = async () => {
-      await fetchZones(); // جلب المناطق أولاً
-      await fetchVillage(); // ثم القرى (لأن القرى تعتمد على المناطق)
-      await fetchServices();
-    };
-    loadInitialData();
-  }, []);
-
-  // جلب الـ providers بعد التأكد من جلب village و zones
-  useEffect(() => {
-    if (village.length > 0 && zones.length > 0) {
-      // تأكد من أن zones و village تم جلبها
-      fetchProviders();
-    }
-  }, [village, zones]); // إضافة zones كاعتمادية
+    fetchProviders();
+  }, []); // لا توجد تبعيات، يتم التشغيل مرة واحدة عند التحميل
 
   const handleEdit = async (provider) => {
-    if (services.length === 0) {
-      await fetchServices();
-    }
     setselectedRow({
       ...provider,
-      service_id: provider.service_id ?? provider.service?.id ?? "",
+      service_id: provider.service_id ?? "",
       name: provider.rawName, // استخدام rawName هنا للحقل النصي
-      open_from: provider.open_from || "", // تأكد من أن القيمة موجودة هنا
-      open_to: provider.open_to || "", // تأكد من أن القيمة موجودة هنا
-      zone_id: provider.zone_id, // تأكد من تمرير zone_id
+      open_from: provider.open_from || "",
+      open_to: provider.open_to || "",
+      zone_id: provider.zone_id, // التأكد من تمرير zone_id
+      village_id: provider.village_id, // التأكد من تمرير village_id
     });
     setIsEditOpen(true);
   };
@@ -272,7 +222,7 @@ const Providers = () => {
         "service_id عند فتح الـ Edit Dialog:",
         selectedRow.service_id
       );
-      console.log("selectedRow data عند فتح الـ Edit Dialog:", selectedRow); // تحقق من البيانات عند فتح نافذة التعديل
+      console.log("selectedRow data عند فتح الـ Edit Dialog:", selectedRow);
     }
   }, [isEditOpen, selectedRow]);
 
@@ -284,25 +234,25 @@ const Providers = () => {
       status,
       service_id,
       village_id,
-      zone_id, 
+      zone_id, // يجب أن يكون متوفراً
       phone,
       open_from,
       open_to,
+      map: location, // الحصول على الموقع من selectedRow
     } = selectedRow;
 
     // تحقق من الحقول المفتوحة
     if (!village_id || isNaN(parseInt(village_id, 10))) {
-      // التأكد من التحويل لعدد صحيح
       toast.error("Village ID is missing or invalid");
       return;
     }
     if (!service_id || isNaN(parseInt(service_id, 10))) {
-      // التأكد من التحويل لعدد صحيح
       toast.error("Service ID is missing or invalid");
       return;
     }
+    // No need to check zone_id here if it's derived from village_id in the backend,
+    // but keep it for consistency if your API expects it.
     if (!zone_id || isNaN(parseInt(zone_id, 10))) {
-      // التحقق من zone_id
       toast.error("Zone ID is missing or invalid");
       return;
     }
@@ -310,38 +260,40 @@ const Providers = () => {
     const updatedProvider = new FormData();
     updatedProvider.append("id", id);
     updatedProvider.append("name", name || "");
-    updatedProvider.append("location", location|| "");
+    updatedProvider.append("location", location || ""); // استخدام قيمة الموقع
     updatedProvider.append("description", description || "");
     updatedProvider.append("status", status === "Active" ? "1" : "0");
-    updatedProvider.append("service_id", parseInt(service_id, 10)); // تأكد من إرساله كعدد صحيح
+    updatedProvider.append("service_id", parseInt(service_id, 10));
     updatedProvider.append("phone", phone || "");
-    updatedProvider.append("village_id", parseInt(village_id, 10)); // تأكد من إرساله كعدد صحيح
+    updatedProvider.append("village_id", parseInt(village_id, 10));
     updatedProvider.append("zone_id", parseInt(zone_id, 10)); // أرسل zone_id
 
     const formatTimeWithSeconds = (time) => {
       if (!time) return "";
-      // تأكد من أن الوقت يتم إرساله بتنسيق 'HH:mm:ss' إذا كان API يتوقعه كذلك
       return time.length === 5 ? `${time}:00` : time;
     };
 
     updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
     updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
 
-if (selectedRow.imageFile) {
-  updatedProvider.append("image", selectedRow.imageFile);
-} else if (selectedRow.image_link) {
-  // Send the existing image as a fallback
-  updatedProvider.append("image", selectedRow.image_link);
-}
-
+    if (selectedRow.imageFile) {
+      updatedProvider.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // إذا لم يتم رفع صورة جديدة ولكن هناك رابط صورة موجود، قد تحتاج Backend لمعرفة ذلك.
+      // لا يتم عادة إرسال image_link كـ "fallback" هنا، بل إما الصورة الجديدة أو لا شيء إذا لم تتغير.
+      // هذا الجزء يعتمد على كيفية توقع الـ Backend للصور الموجودة.
+      // For now, retaining original logic for existing image link handling.
+      // updatedProvider.append("image_link_fallback", selectedRow.image_link); // Example: send as a fallback
+    }
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/update/${id}`,
         {
-          method: "POST",
+          method: "POST", // تأكد أن الـ API يقبل POST مع FormData
           headers: {
             Authorization: `Bearer ${token}`,
+            // 'Content-Type': 'multipart/form-data' لا يتم وضعها هنا عند استخدام FormData
           },
           body: updatedProvider,
         }
@@ -349,7 +301,7 @@ if (selectedRow.imageFile) {
 
       if (response.ok) {
         toast.success("Provider updated successfully!");
-        fetchProviders();
+        fetchProviders(); // إعادة جلب المزودين لتحديث الجدول
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
@@ -394,6 +346,19 @@ if (selectedRow.imageFile) {
         newValue = parseInt(value, 10);
       }
 
+      // If village_id changes, update zone_id based on the selected village's zone_id
+      if (key === "village_id") {
+        const selectedVillage = village.find((v) => v.id === parseInt(value, 10));
+        if (selectedVillage) {
+          return {
+            ...prev,
+            [key]: newValue,
+            zone_id: selectedVillage.zone_id, // Update zone_id automatically
+            rawName: key === "name" ? value : prev.rawName,
+          };
+        }
+      }
+
       return {
         ...prev,
         [key]: newValue,
@@ -409,6 +374,7 @@ if (selectedRow.imageFile) {
       setselectedRow((prev) => ({
         ...prev,
         imageFile: file,
+        image_link: URL.createObjectURL(file), // لعرض معاينة فورية للصورة الجديدة
       }));
     }
   };
@@ -440,31 +406,25 @@ if (selectedRow.imageFile) {
     }
   };
 
-  useEffect(() => {
-    // هذا useEffect يبدو متكرراً
-    console.log("services loaded:", services);
-  }, [services]);
-
   const columns = [
     { key: "name", label: "Provider " },
     { key: "serviceName", label: "Service " },
     { key: "map", label: "Location" },
     { key: "description", label: "description" },
     { key: "villageName", label: "Village" },
-    { key: "zoneName", label: "Zone" }, // إضافة Zone كعمود في الجدول
+    { key: "zoneName", label: "Zone" },
     { key: "img", label: "Image" },
     { key: "phone", label: "Phone" },
     { key: "rating", label: "Rating" },
     { key: "status", label: "Status" },
   ];
 
-    const filterOptionsForVillages = [
-    { value: "all", label: "All" }, // Option to clear filters
+  const filterOptionsForVillages = [
+    { value: "all", label: "All" },
     ...zones.map((zone) => ({ value: zone.name, label: zone.name })), // Filter by zone name
-    { value: "active", label: "Active" }, // Filter by status
-    { value: "inactive", label: "Inactive" }, // Filter by status
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
   ];
-
 
   return (
     <div className="p-6">
@@ -486,8 +446,8 @@ if (selectedRow.imageFile) {
           "villageName",
           "zoneName",
         ]}
-        showFilter={true} // Ensure the filter dropdown is shown
-        filterKey={["zone", "status"]} // Default filter for the dropdown will be by 'zone'
+        showFilter={true}
+        filterKey={["zone", "status"]}
         filterOptions={filterOptionsForVillages}
       />
 
@@ -498,7 +458,9 @@ if (selectedRow.imageFile) {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
-            zones={zones}
+            zones={zones} // يتم تمرير zones التي تم استخلاصها
+            village={village} // يتم تمرير village التي تم استخلاصها
+            services={services} // يتم تمرير services التي تم استخلاصها
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -508,27 +470,26 @@ if (selectedRow.imageFile) {
               <Input
                 label="Provider Name"
                 id="name"
-                value={selectedRow?.name} // استخدام name لعرض القيمة الحالية
+                value={selectedRow?.name}
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-  <label htmlFor="location" className="text-gray-400 !pb-3">
-          Location
-        </label>
-        {/* هنا استبدال Input بـ MapLocationPicker */}
-        <MapLocationPicker
-          value={selectedRow?.map || ""} // القيمة الحالية للموقع
-          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
-          placeholder="Search or select location on map"
-        />
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              <MapLocationPicker
+                value={selectedRow?.map || ""}
+                onChange={(newValue) => onChange("map", newValue)}
+                placeholder="Search or select location on map"
+              />
 
               <label htmlFor="zone" className="text-gray-400 !pb-3">
                 Zone
               </label>
               <Select
-                value={selectedRow?.zone_id?.toString() || ""} // تأكد من أن القيمة سلسلة نصية
+                value={selectedRow?.zone_id?.toString() || ""}
                 onValueChange={(value) => onChange("zone_id", value)}
-                disabled={zones.length === 0} // تعطيل السلكت إذا لم تكن هناك مناطق
+                disabled={zones.length === 0}
               >
                 <SelectTrigger
                   id="zone"
@@ -675,27 +636,27 @@ if (selectedRow.imageFile) {
                   )}
                 </SelectContent>
               </Select>
-            <label htmlFor="image" className="text-gray-400">
-              Image
-            </label>
+              <label htmlFor="image" className="text-gray-400">
+                Image
+              </label>
 
-            {selectedRow?.image_link && (
-              <div className="flex items-center gap-4 mb-2">
-                <img
-                  src={selectedRow.image_link}
-                  alt="Current"
-                  className="w-12 h-12 rounded-md object-cover border"
-                />
-              </div>
-            )}
+              {selectedRow?.image_link && (
+                <div className="flex items-center gap-4 mb-2">
+                  <img
+                    src={selectedRow.image_link}
+                    alt="Current"
+                    className="w-12 h-12 rounded-md object-cover border"
+                  />
+                </div>
+              )}
 
-            <Input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-              onChange={handleImageChange}
-            />
+              <Input
+                type="file"
+                id="image"
+                accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={handleImageChange}
+              />
             </div>
           </EditDialog>
           <DeleteDialog

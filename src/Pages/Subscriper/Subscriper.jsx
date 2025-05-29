@@ -228,7 +228,7 @@ export default function SubscribersPage() {
     <div>
       <ToastContainer />
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid !ms-3 w-[90%] grid-cols-4 gap-4 bg-transparent !mb-6">
+        <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-4 bg-transparent !mb-6">
 
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all

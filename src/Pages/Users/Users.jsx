@@ -24,7 +24,7 @@ const Users = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
-  const [villages, setVillages] = useState([]); 
+  const [villages, setVillages] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -67,13 +67,13 @@ const Users = () => {
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
-      
+
       const formatted = result?.users?.map((u) => {
         const trans = u.translations?.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
           return acc;
         }, {});
-                const name = u.name || "—";
+        const name = u.name || "—";
         const rawName = name;
 
         const nameClickable = (
@@ -92,7 +92,11 @@ const Users = () => {
           phone: u.phone || "—",
           gender: trans?.[lang]?.gender || u.gender || "—",
           // Normalize user_type to lowercase for consistent filtering
-          user_type: (trans?.[lang]?.user_type || u.user_type || "—").toLowerCase(),
+          user_type: (
+            trans?.[lang]?.user_type ||
+            u.user_type ||
+            "—"
+          ).toLowerCase(),
           // Normalize status to lowercase for consistent filtering
           status: u.status === 1 ? "active" : "inactive",
           img: u.image_link ? (
@@ -150,14 +154,7 @@ const Users = () => {
     } = selectedRow;
 
     // You might want to remove password from this check if it's not always required for updates
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !gender ||
-      !birthDate ||
-      !user_type
-    ) {
+    if (!name || !email || !phone || !gender || !birthDate || !user_type) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -219,7 +216,8 @@ const Users = () => {
     setselectedRow((prev) => ({
       ...prev,
       // Ensure user_type and status are normalized to lowercase when set
-      [key]: (key === "user_type" || key === "status") ? value.toLowerCase() : value,
+      [key]:
+        key === "user_type" || key === "status" ? value.toLowerCase() : value,
     }));
   };
 
@@ -245,9 +243,14 @@ const Users = () => {
   };
 
   // Dynamically generate filter options for user_type and combine with status options
-  const userTypeOptions = Array.from(new Set(users.map(user => user.user_type)))
-    .filter(type => type !== "—") // Filter out placeholder values if any
-    .map(type => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) })); // Capitalize for display
+  const userTypeOptions = Array.from(
+    new Set(users.map((user) => user.user_type))
+  )
+    .filter((type) => type !== "—") // Filter out placeholder values if any
+    .map((type) => ({
+      value: type,
+      label: type.charAt(0).toUpperCase() + type.slice(1),
+    })); // Capitalize for display
 
   const filterOptionsForUsers = [
     { value: "all", label: "All" },
@@ -261,9 +264,8 @@ const Users = () => {
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
     { key: "user_type", label: "Account Type" },
-        { key: "gender", label: "Gender" },
+    { key: "gender", label: "Gender" },
     { key: "status", label: "Status" },
-
   ];
 
   return (
@@ -309,6 +311,13 @@ const Users = () => {
                 id="phone"
                 value={selectedRow.phone}
                 onChange={(val) => onChange("phone", val)}
+              />
+              <InputField
+                label="Password"
+                type="password"
+                id="password"
+                value={selectedRow.password}
+                onChange={(val) => onChange("password", val)}
               />
               <InputField
                 label="Birth Date"
