@@ -178,8 +178,12 @@ export default function DataTable({
 
         <div className="flex items-center gap-3 flex-wrap">
           {showFilter && filterOptions.length > 0 && (
-            <div class="w-full md:w-auto border border-bg-primary rounded-[10px]">
-              <Accordion type="single" collapsible className="w-[200px] border-bg-primary">
+            <div className="w-full md:w-auto border border-bg-primary rounded-[10px]">
+              <Accordion
+                type="single"
+                collapsible
+                className="w-[200px] border-bg-primary"
+              >
                 {filterOptions.map((group) => (
                   <AccordionItem key={group.key} value={group.key}>
                     <AccordionTrigger className="flex items-center justify-between !py-2 text-bg-primary font-medium border-b border-gray-200 hover:no-underline !px-4">
@@ -358,7 +362,6 @@ export default function DataTable({
                           return (
                             <div className="relative w-[120px] truncate group">
                               <a
-                                // CORRECTED LINE HERE:
                                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                                   url
                                 )}`}

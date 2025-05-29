@@ -104,18 +104,19 @@ const Villages = () => {
           village.zone?.name ||
           "—";
 
-        const image = village?.image_link && !imageErrors[village.id] ? (
-          <img
-            src={village?.image_link}
-            alt={name}
-            className="w-12 h-12 rounded-md object-cover aspect-square"
-            onError={() => handleImageError(village.id)}
-          />
-        ) : (
-          <Avatar className="w-12 h-12">
-            <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        );
+        const image =
+          village?.image_link && !imageErrors[village.id] ? (
+            <img
+              src={village?.image_link}
+              alt={name}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(village.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          );
 
         const map = village.location || "—";
         const population = village.population_count || "—";
@@ -166,15 +167,8 @@ const Villages = () => {
   };
 
   const handleSave = async () => {
-    const {
-      id,
-      name,
-      description,
-      status,
-      zone_id,
-      map,
-      numberOfUnits,
-    } = selectedRow;
+    const { id, name, description, status, zone_id, map, numberOfUnits } =
+      selectedRow;
 
     if (!zone_id || isNaN(zone_id)) {
       toast.error("Zone ID is missing or invalid");
@@ -297,27 +291,14 @@ const Villages = () => {
 
   const columns = [
     { key: "name", label: "Village Name" },
+    { key: "img", label: "Image" },
     { key: "description", label: "Description" },
     { key: "numberOfUnits", label: "Number of Units" },
     { key: "zone", label: "Zone" }, // Changed key to 'zone' for consistency
     { key: "map", label: "Location" },
-    { key: "img", label: "Image" },
+
     { key: "population", label: "Population" },
-    {
-      key: "invoice",
-      label: "Invoice",
-      render: (row) => (
-        <button
-          onClick={() => {
-            setInvoiceVillageId(row.id);
-            setIsInvoiceOpen(true);
-          }}
-          className="px-3 py-1 text-sm bg-bg-primary text-white rounded-md hover:bg-teal-600 transition-colors"
-        >
-          View Invoice
-        </button>
-      ),
-    },
+
     { key: "status", label: "Status" },
   ];
 

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react"; // Import useMemo
 
 import DataTable from "@/components/DataTableLayout";
 
@@ -35,6 +35,7 @@ const Providers = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [providers, setProviders] = useState([]);
+  const [allProviders, setAllProviders] = useState([]); // Store original fetched data
   // ستتم تعبئة هذه الحالات من استجابة الـ providers
   const [village, setVillage] = useState([]);
   const [zones, setZones] = useState([]);
@@ -44,6 +45,12 @@ const Providers = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+
+  // New state for filter selections
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState("all");
+  const [selectedVillageFilter, setSelectedVillageFilter] = useState("all");
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState("all");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
@@ -116,7 +123,8 @@ const Providers = () => {
             {name}
           </span>
         );
-        const map = translations[currentLang]?.location || provider.location || "—";
+        const map =
+          translations[currentLang]?.location || provider.location || "—";
         const description =
           translations[currentLang]?.description || provider.description || "—";
 
@@ -153,7 +161,9 @@ const Providers = () => {
         let zoneName = "—";
         let zone_id = null;
         if (villageObj && villageObj.zone_id) {
-          const zoneObj = formattedZones.find((z) => z.id === villageObj.zone_id);
+          const zoneObj = formattedZones.find(
+            (z) => z.id === villageObj.zone_id
+          );
           if (zoneObj) {
             zoneName = zoneObj.name;
             zone_id = zoneObj.id;
@@ -183,7 +193,8 @@ const Providers = () => {
         };
       });
 
-      setProviders(formatted);
+      setAllProviders(formatted); // Store the full list
+      setProviders(formatted); // Initialize displayed providers
     } catch (error) {
       console.error("Error fetching providers:", error);
       toast.error("حدث خطأ أثناء جلب البيانات!");
@@ -196,6 +207,50 @@ const Providers = () => {
   useEffect(() => {
     fetchProviders();
   }, []); // لا توجد تبعيات، يتم التشغيل مرة واحدة عند التحميل
+
+  // Filtering logic using useMemo to optimize performance
+  const filteredProviders = useMemo(() => {
+    let currentFilteredProviders = [...allProviders];
+
+    if (selectedZoneFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.zoneName === selectedZoneFilter
+      );
+    }
+
+    if (selectedVillageFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.villageName === selectedVillageFilter
+      );
+    }
+
+    if (selectedServiceFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.serviceName === selectedServiceFilter
+      );
+    }
+
+    if (selectedStatusFilter !== "all") {
+      // Note: 'status' in data is "Active" or "Inactive", filter values are "active" or "inactive"
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) =>
+          provider.status.toLowerCase() === selectedStatusFilter.toLowerCase()
+      );
+    }
+
+    return currentFilteredProviders;
+  }, [
+    allProviders,
+    selectedZoneFilter,
+    selectedVillageFilter,
+    selectedServiceFilter,
+    selectedStatusFilter,
+  ]);
+
+  useEffect(() => {
+    // Update displayed providers whenever filters change
+    setProviders(filteredProviders);
+  }, [filteredProviders]);
 
   const handleEdit = async (provider) => {
     setselectedRow({
@@ -329,6 +384,10 @@ const Providers = () => {
           providers.filter((provider) => provider.id !== selectedRow.id)
         );
         setIsDeleteOpen(false);
+        // After deletion, re-apply filters to the remaining allProviders
+        setAllProviders(
+          allProviders.filter((provider) => provider.id !== selectedRow.id)
+        );
       } else {
         toast.error("Failed to delete provider!");
       }
@@ -347,7 +406,9 @@ const Providers = () => {
 
       // If village_id changes, update zone_id based on the selected village's zone_id
       if (key === "village_id") {
-        const selectedVillage = village.find((v) => v.id === parseInt(value, 10));
+        const selectedVillage = village.find(
+          (v) => v.id === parseInt(value, 10)
+        );
         if (selectedVillage) {
           return {
             ...prev,
@@ -390,8 +451,9 @@ const Providers = () => {
       );
       if (response.ok) {
         toast.success("Provider status updated successfully!");
-        setProviders((prevproviders) =>
-          prevproviders.map((provider) =>
+        // Update allProviders and let useMemo re-calculate filteredProviders
+        setAllProviders((prevAllProviders) =>
+          prevAllProviders.map((provider) =>
             provider.id === id
               ? { ...provider, status: newStatus === 1 ? "Active" : "Inactive" }
               : provider
@@ -407,17 +469,16 @@ const Providers = () => {
 
   const columns = [
     { key: "name", label: "Provider " },
-    { key: "serviceName", label: "Service " },
-    { key: "map", label: "Location" },
-    { key: "description", label: "description" },
-    { key: "villageName", label: "Village" },
-    { key: "zoneName", label: "Zone" },
     { key: "img", label: "Image" },
+    { key: "zoneName", label: "Zone" },
+    { key: "serviceName", label: "Service " },
+    { key: "villageName", label: "Village" },
     { key: "phone", label: "Phone" },
     { key: "rating", label: "Rating" },
     { key: "status", label: "Status" },
   ];
 
+  // Modified filterOptionsForVillages to include onChange handlers
   const filterOptionsForVillages = [
     {
       key: "zone",
@@ -426,22 +487,34 @@ const Providers = () => {
         { value: "all", label: "All Zones" },
         ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
       ],
+      selectedValue: selectedZoneFilter, // Pass current selected value
+      onValueChange: setSelectedZoneFilter, // Pass setter function
     },
-        {
+    {
       key: "village",
       label: "Filter by Village",
       options: [
         { value: "all", label: "All Villages" },
-        ...village.map((village) => ({ value: village.name, label: village.name })),
+        ...village.map((v) => ({
+          value: v.name,
+          label: v.name,
+        })),
       ],
+      selectedValue: selectedVillageFilter,
+      onValueChange: setSelectedVillageFilter,
     },
-            {
+    {
       key: "service",
       label: "Filter by Service",
       options: [
         { value: "all", label: "All Services" },
-        ...services.map((service) => ({ value: service.name, label: service.name })),
+        ...services.map((service) => ({
+          value: service.name,
+          label: service.name,
+        })),
       ],
+      selectedValue: selectedServiceFilter,
+      onValueChange: setSelectedServiceFilter,
     },
     {
       key: "status",
@@ -451,6 +524,8 @@ const Providers = () => {
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
+      selectedValue: selectedStatusFilter,
+      onValueChange: setSelectedStatusFilter,
     },
   ];
 
@@ -460,7 +535,7 @@ const Providers = () => {
       <ToastContainer position="top-right" autoClose={3000} />
 
       <DataTable
-        data={providers}
+        data={providers} // Pass the filtered data here
         columns={columns}
         addRoute="/providers/add"
         className="table-compact"
@@ -475,8 +550,7 @@ const Providers = () => {
           "zoneName",
         ]}
         showFilter={true}
-        filterKey={["zone", "status"]}
-        filterOptions={filterOptionsForVillages}
+        filterOptions={filterOptionsForVillages} // Pass the enhanced filterOptions
       />
 
       {selectedRow && (

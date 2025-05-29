@@ -12,13 +12,14 @@ import {
 } from "lucide-react";
 import VAdmin from "@/Pages/Villages/VAdmin";
 import PAdmin from "@/Pages/Providers/PAdmin";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom"; // Import useParams
 import Units from "@/Pages/Villages/Units";
 import Gallery from "./Gallery";
 
 // Import new components for Owner, Visits, and Services tabs (you'll need to create these)
 import Owner from "@/Pages/Users/Owner"; // Assuming this path
 import Services from "@/Pages/Users/Services"; // Assuming this path
+import InvoiceCard from "@/Pages/Invoice/Invoice";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -39,16 +40,21 @@ export default function VillageDetailsCard({
   entityType,
 }) {
   const location = useLocation();
+  const { id } = useParams(); // <-- Get villageId from URL parameters
   // Determine if it's a user single page based on the URL
-  const isUserSinglePage = location.pathname.startsWith("/users/single-page-u/");
+  const isUserSinglePage = location.pathname.startsWith(
+    "/users/single-page-u/"
+  );
   const isProviderPage = location.pathname.includes("/providers/");
 
   if (!data) return null;
+    console.log("VillageDetailsCard data:", data); // Add this line
+    console.log("Village ID from URL params:", id); // Add this line to verify
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid !ms-3 w-[90%] grid-cols-4 gap-6 bg-transparent !my-6">
+        <TabsList className="grid !ms-3 w-[90%] grid-cols-5 gap-6 bg-transparent !my-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
                       data-[state=active]:bg-bg-primary data-[state=active]:text-white
@@ -77,7 +83,6 @@ export default function VillageDetailsCard({
               >
                 Services
               </TabsTrigger>
-
             </>
           ) : (
             <>
@@ -95,17 +100,28 @@ export default function VillageDetailsCard({
                           hover:bg-teal-100 hover:text-teal-700"
                 value="gallery"
               >
-                Gallery
+                Images
               </TabsTrigger>
+
               {entityType === "village" && (
-                <TabsTrigger
-                  className="rounded-[10px] border text-bg-primary py-2 transition-all
-                            data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                            hover:bg-teal-100 hover:text-teal-700"
-                  value="units"
-                >
-                  Units
-                </TabsTrigger>
+                <>
+                  <TabsTrigger
+                    className="rounded-[10px] border text-bg-primary py-2 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700"
+                    value="units"
+                  >
+                    Units
+                  </TabsTrigger>
+                  <TabsTrigger
+                    className="rounded-[10px] border text-bg-primary py-2 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700"
+                    value="invoice"
+                  >
+                    Invoices
+                  </TabsTrigger>
+                </>
               )}
             </>
           )}
@@ -192,14 +208,18 @@ export default function VillageDetailsCard({
                   <div className="flex items-center gap-2">
                     {/* Changed icon from Clock to relevant one, e.g., Mail or AtSign */}
                     {/* Assuming you have a Mail or AtSign icon from lucide-react, or you can add one */}
-                    <Globe className="w-4 font-semibold h-4 text-[#297878]" /> {/* Using Globe as a placeholder */}
-                    <span>Email: {data.email}</span> {/* Removed formatTime */}
+                    <Globe className="w-4 font-semibold h-4 text-[#297878]" />{" "}
+                    {/* Using Globe as a placeholder */}
+                    <span>Email: {data.email}</span>{" "}
+                    {/* Removed formatTime */}
                   </div>
                 )}
                 {data.user_type && (
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 font-semibold h-4 text-[#297878]" /> {/* Changed icon to Users for user type */}
-                    <span>User Type: {data.user_type}</span> {/* Removed formatTime */}
+                    <Users className="w-4 font-semibold h-4 text-[#297878]" />{" "}
+                    {/* Changed icon to Users for user type */}
+                    <span>User Type: {data.user_type}</span>{" "}
+                    {/* Removed formatTime */}
                   </div>
                 )}
                 {data.open_to && (
@@ -232,6 +252,10 @@ export default function VillageDetailsCard({
             </TabsContent>
             <TabsContent value="units">
               <Units />
+            </TabsContent>
+            {/* Pass villageId from useParams to InvoiceCard */}
+            <TabsContent value="invoice">
+              <InvoiceCard villageId={id} />
             </TabsContent>
           </>
         )}

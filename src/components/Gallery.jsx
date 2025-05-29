@@ -10,23 +10,25 @@ export default function Gallery() {
 
   return (
     <>
-      <Tabs defaultValue="profile"   className="w-full">
+      <Tabs defaultValue="cover"   className="w-full">
         <TabsList className="grid w-[50%]  grid-cols-2 gap-6 bg-transparent my-6 !m-auto">
-                    <TabsTrigger
-            value="profile"
-            className="rounded-[10px] border text-bg-primary py-2 transition-all
-              data-[state=active]:bg-bg-primary data-[state=active]:text-white
-              hover:bg-teal-100 hover:text-teal-700"
-          >
-            <FaUser className="w-5 h-5" />
-          </TabsTrigger>
+
           <TabsTrigger
             value="cover"
             className="rounded-[10px] border text-bg-primary py-2 transition-all
               data-[state=active]:bg-bg-primary data-[state=active]:text-white
               hover:bg-teal-100 hover:text-teal-700"
           >
-            <FaImage className="w-5 h-5" />
+            Profile/Cover
+            
+          </TabsTrigger>
+                              <TabsTrigger
+            value="profile"
+            className="rounded-[10px] border text-bg-primary py-2 transition-all
+              data-[state=active]:bg-bg-primary data-[state=active]:text-white
+              hover:bg-teal-100 hover:text-teal-700"
+          >
+            Gallery
           </TabsTrigger>
 
         </TabsList>
