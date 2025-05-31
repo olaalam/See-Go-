@@ -16,6 +16,7 @@ import {
   Shield,
   Wrench,
   Users,
+  ShoppingBag,
 } from "lucide-react";
 
 import {
@@ -33,30 +34,7 @@ import { useEffect, useState } from "react";
 
 const navItems = [
   { label: "Home", to: "/", icon: <Home size={20} /> },
-  { label: "Zones", to: "/zones", icon: <Map size={20} /> },
-  {
-    label: "Types",
-    icon: <Grid size={20} />,
-    children: [
-      {
-        label: "Maintenance Types",
-        to: "/maintenance",
-        icon: <Wrench size={20} />,
-      },
-      {
-        label: "Service Types",
-        to: "/services",
-        icon: <FileText size={20} />,
-      },
-      {
-        label: "Unit Types",
-        to: "/units",
-        icon: <Building size={20} />,
-      },
-    ],
-    dropdownIcon: <ChevronDown size={20} />,
-  },
-  {
+    {
     label: "Businesses",
     icon: <Building2 size={20} />,
     children: [
@@ -78,7 +56,7 @@ const navItems = [
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-  {
+    {
     label: "Users",
     icon: <User size={20} />,
     children: [
@@ -91,17 +69,19 @@ const navItems = [
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-  {
+    {
     label: "Subscribers",
     to: "/subscribers",
     icon: <Users size={20} />,
   },
+
+  
   {
     label: "Payments",
     to: "/payments",
     icon: <DollarSign size={20} />,
   },
-  {
+    {
     label: "Data",
     icon: <Database size={20} />,
     children: [
@@ -114,6 +94,28 @@ const navItems = [
         label: "For Sale",
         to: "/for-sale",
         icon: <Building2 size={20} />,
+      },
+    ],
+    dropdownIcon: <ChevronDown size={20} />,
+  },
+    {
+    label: "Types",
+    icon: <Grid size={20} />,
+    children: [
+      {
+        label: "Maintenance Types",
+        to: "/maintenance",
+        icon: <Wrench size={20} />,
+      },
+      {
+        label: "Service Types",
+        to: "/services",
+        icon: <FileText size={20} />,
+      },
+      {
+        label: "Unit Types",
+        to: "/units",
+        icon: <Building size={20} />,
       },
     ],
     dropdownIcon: <ChevronDown size={20} />,
@@ -142,9 +144,16 @@ const navItems = [
         to: "/village-roles",
         icon: <Users size={20} />,
       },
+        { label: "Zones", to: "/zones", icon: <Map size={20} /> },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
+{
+  label: "Mall",
+  to: "/mall",
+  icon: <ShoppingBag size={20} />,
+},
+
 ];
 
 const allowedForProviderOnly = ["Service Providers"];

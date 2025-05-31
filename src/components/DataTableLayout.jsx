@@ -164,84 +164,73 @@ export default function DataTable({
 
   return (
     <div className="w-full !p-3 space-y-6">
-      <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-        {/* Search Input */}
-        <Input
-          placeholder="Search..."
-          className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
-          value={searchValue}
-          onChange={(e) => {
-            setSearchValue(e.target.value);
-            setCurrentPage(1); // Reset to first page on search
-          }}
-        />
+<div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
+  {/* Search Input */}
+  <Input
+    placeholder="Search..."
+    className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+    value={searchValue}
+    onChange={(e) => {
+      setSearchValue(e.target.value);
+      setCurrentPage(1); // Reset to first page on search
+    }}
+  />
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {showFilter && filterOptions.length > 0 && (
-            <div className="w-full md:w-auto border border-bg-primary rounded-[10px]">
-              <Accordion
-                type="single"
-                collapsible
-                className="w-[200px] border-bg-primary"
-              >
-                {filterOptions.map((group) => (
-                  <AccordionItem key={group.key} value={group.key}>
-                    <AccordionTrigger className="flex items-center justify-between !py-2 text-bg-primary font-medium border-b border-gray-200 hover:no-underline !px-4">
-                      {group.label}
-                    </AccordionTrigger>
-                    <AccordionContent className="overflow-hidden transition-all duration-300 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down !p-2">
-                      <Select
-                        value={activeFilters[group.key]}
-                        onValueChange={(val) =>
-                          handleAccordionFilterChange(group.key, val)
-                        }
-                      >
-                        <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                          <SelectValue placeholder={`Select ${group.label}`} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                          {group.options.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              className="text-bg-primary"
-                              value={option.value}
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </AccordionContent>
-                  </AccordionItem>
+  <div className="flex items-center gap-3 flex-wrap">
+    {showFilter && filterOptions.length > 0 && (
+      <div className="flex gap-3 flex-wrap">
+        {filterOptions.map((group) => (
+          <div key={group.key} className="w-[150px]">
+            <Select
+              value={activeFilters[group.key]}
+              onValueChange={(val) =>
+                handleAccordionFilterChange(group.key, val)
+              }
+            >
+              <SelectTrigger className="text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                <SelectValue placeholder={group.label} />
+              </SelectTrigger>
+              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                {group.options.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    className="text-bg-primary"
+                    value={option.value}
+                  >
+                    {option.label}
+                  </SelectItem>
                 ))}
-              </Accordion>
-            </div>
-          )}
-
-          {/* Add Button */}
-          {showAddButton && (
-            <Button
-              onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
-              className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
-            >
-              <Plus className="w-5 h-5 !mr-2" />
-              Add
-            </Button>
-          )}
-
-          {/* Delete Selected Button */}
-          {showDeleteButtonInHeader && (
-            <Button
-              onClick={() => onDeleteInHeader(selectedRows)}
-              className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
-              disabled={selectedRows.length === 0}
-            >
-              <Trash className="w-5 h-5 !mr-2" />
-              Delete Selected
-            </Button>
-          )}
-        </div>
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
       </div>
+    )}
+
+    {/* Add Button */}
+    {showAddButton && (
+      <Button
+        onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
+        className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
+      >
+        <Plus className="w-5 h-5 !mr-2" />
+        Add
+      </Button>
+    )}
+
+    {/* Delete Selected Button */}
+    {showDeleteButtonInHeader && (
+      <Button
+        onClick={() => onDeleteInHeader(selectedRows)}
+        className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
+        disabled={selectedRows.length === 0}
+      >
+        <Trash className="w-5 h-5 !mr-2" />
+        Delete Selected
+      </Button>
+    )}
+  </div>
+</div>
 
       <div className="max-h-[calc(100vh-300px)]">
         <Table className="!min-w-[600px]">

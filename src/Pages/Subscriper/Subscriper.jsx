@@ -275,6 +275,7 @@ export default function SubscribersPage() {
               onDelete={handleDeleteClick}
               searchKeys={["type", "subscriber", "payment_method"]}
               filterKey={["status"]}
+              showFilter={false}
               filterOptions={filterOptionsForZones}
             />
           )}

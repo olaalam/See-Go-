@@ -479,55 +479,42 @@ const Providers = () => {
   ];
 
   // Modified filterOptionsForVillages to include onChange handlers
+
   const filterOptionsForVillages = [
-    {
-      key: "zone",
-      label: "Filter by Zone",
-      options: [
-        { value: "all", label: "All Zones" },
-        ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
-      ],
-      selectedValue: selectedZoneFilter, // Pass current selected value
-      onValueChange: setSelectedZoneFilter, // Pass setter function
-    },
-    {
-      key: "village",
-      label: "Filter by Village",
-      options: [
-        { value: "all", label: "All Villages" },
-        ...village.map((v) => ({
-          value: v.name,
-          label: v.name,
-        })),
-      ],
-      selectedValue: selectedVillageFilter,
-      onValueChange: setSelectedVillageFilter,
-    },
-    {
-      key: "service",
-      label: "Filter by Service",
-      options: [
-        { value: "all", label: "All Services" },
-        ...services.map((service) => ({
-          value: service.name,
-          label: service.name,
-        })),
-      ],
-      selectedValue: selectedServiceFilter,
-      onValueChange: setSelectedServiceFilter,
-    },
-    {
-      key: "status",
-      label: "Filter by Status",
-      options: [
-        { value: "all", label: "All Statuses" },
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-      selectedValue: selectedStatusFilter,
-      onValueChange: setSelectedStatusFilter,
-    },
-  ];
+  {
+    key: "zoneName", // Changed to match the data key
+    label: "Zone",
+    options: [
+      { value: "all", label: "All Zones" },
+      ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
+    ],
+  },
+  {
+    key: "villageName", // Changed to match the data key
+    label: "Village",
+    options: [
+      { value: "all", label: "All Villages" },
+      ...village.map((v) => ({ value: v.name, label: v.name })),
+    ],
+  },
+  {
+    key: "serviceName", // Changed to match the data key
+    label: "Service",
+    options: [
+      { value: "all", label: "All Services" },
+      ...services.map((service) => ({ value: service.name, label: service.name })),
+    ],
+  },
+  {
+    key: "status", // Matches the data key
+    label: "Status",
+    options: [
+      { value: "all", label: "All Statuses" },
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
   return (
     <div className="p-6">

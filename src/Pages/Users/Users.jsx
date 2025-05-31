@@ -256,34 +256,25 @@ const Users = () => {
 
 
   // Restructure filter options for the accordion
-  const filterOptionsForUsers = [
-    {
-      label: "Account Type",
-      key: "user_type", // This key maps to the user object property
-      options: [
-        { value: "all", label: "All Account Types" },
-        ...userTypeOptions,
-      ],
-    },
-    {
-      label: "Status",
-      key: "status", // This key maps to the user object property
-      options: [
-        { value: "all", label: "All Statuses" },
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
-    // Add "Zones" filter if needed in the future
-    // {
-    //   label: "Zone",
-    //   key: "zone_id", // Assuming users have a zone_id
-    //   options: [
-    //     { value: "all", label: "All Zones" },
-    //     ...villages.map(v => ({ value: v.id, label: v.name }))
-    //   ],
-    // },
-  ];
+const filterOptionsForUsers = [
+  {
+    label: "Account Type",
+    key: "user_type",
+    options: [
+      { value: "all", label: "All Account Types" },
+      ...userTypeOptions,
+    ],
+  },
+  {
+    label: "Status",
+    key: "status",
+    options: [
+      { value: "all", label: "All Statuses" },
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
   const columns = [
     { key: "name", label: "User Name" },

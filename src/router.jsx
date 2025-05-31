@@ -41,6 +41,10 @@ import ServiceProviderAdd from "./Pages/MaintenanceProvider/ServiceProviderAdd";
 import VAdminRole from "./Pages/Villages/VAdminRole";
 import VAdminRoleAdd from "./Pages/Villages/VAdminRoleAdd";
 import SinglePageU from "./Pages/Users/SinglePageU";
+import Mall from "./Pages/Mall/Mall";
+import MallAdd from "./Pages/Mall/MallAdd";
+import SinglePageM from "./Pages/Mall/SinglePageM";
+import MAdminAdd from "./Pages/Mall/MAdminAdd";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
@@ -187,7 +191,18 @@ const router = createBrowserRouter([
           { path: "add", element: <ServiceProviderAdd /> },
         ],
       },
-
+      {
+        path: "mall",
+        children: [
+          { index: true, element: <Mall /> },
+          { path: "add", element: <MallAdd /> },
+          {
+            path: "single-page-m/:id",
+            element: <SinglePageM />,
+          },
+          { path: "single-page-m/:id/add", element: <MAdminAdd /> },
+        ],
+      },
       {
         path: "*",
         element: <NotFound />,

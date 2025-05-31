@@ -341,23 +341,23 @@ const Service_provider = () => {
     .map(name => ({ value: name, label: name }));
 const filterOptionsForServices = [
   {
-    key: "village",
+    key: "villageName", // Changed from "village" to match data key
     label: "Village",
     options: [
       { value: "all", label: "All Villages" },
-      ...uniqueVillageOptions, // Assuming uniqueVillageOptions are already in { value: "id", label: "Name" } format
+      ...uniqueVillageOptions,
     ],
   },
   {
-    key: "maintenanceType",
+    key: "maintenanceTypeName", // Changed from "maintenanceType" to match data key
     label: "Maintenance Type",
     options: [
       { value: "all", label: "All Types" },
-      ...uniqueMaintenanceTypeOptions, // Assuming uniqueMaintenanceTypeOptions are already in { value: "id", label: "Name" } format
+      ...uniqueMaintenanceTypeOptions,
     ],
   },
   {
-    key: "status", // This will represent the "Active" / "Inactive" filter
+    key: "status", // Matches the data key
     label: "Status",
     options: [
       { value: "all", label: "All Statuses" },
