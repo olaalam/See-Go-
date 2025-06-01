@@ -56,6 +56,11 @@ const navItems = [
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
+  {
+  label: "Mall",
+  to: "/mall",
+  icon: <ShoppingBag size={20} />,
+},
     {
     label: "Users",
     icon: <User size={20} />,
@@ -148,11 +153,7 @@ const navItems = [
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-{
-  label: "Mall",
-  to: "/mall",
-  icon: <ShoppingBag size={20} />,
-},
+
 
 ];
 

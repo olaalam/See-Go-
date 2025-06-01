@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+"use client"; 
+import { useEffect, useState, useMemo } from "react";
 import DataTable from "@/components/DataTableLayout";
-import DeleteDialog from "@/components/DeleteDialog";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
+import DeleteDialog from "@/components/DeleteDialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useDispatch, useSelector } from "react-redux";
+import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
+import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -11,528 +17,688 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { toast, ToastContainer } from "react-toastify";
-import Loading from "@/components/Loading";
-import { Label } from "@radix-ui/react-label";
-import { Outlet } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"; // Assuming you have Avatar components
+import { useParams } from "react-router-dom";
+import MapLocationPicker from "@/components/MapLocationPicker";
 
-export default function PAdmin() {
-  const [adminData, setAdminData] = useState([]);
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+const Providers = () => {
+  const dispatch = useDispatch();
+  const isLoading = useSelector((state) => state.loader.isLoading);
+  const [providers, setProviders] = useState([]);
+  const [allProviders, setAllProviders] = useState([]); // Store original fetched data
+
+  // هذه الحالات سنستخدمها لتخزين **الخيارات الفريدة** للفلاتر
+  // وسنستخدمها أيضاً لتعبئة قوائم الاختيار في EditDialog
+  const [availableZones, setAvailableZones] = useState([]);
+  const [availablePackages, setAvailablePackages] = useState([]); // Packages (which are villages in your context)
+  const [availableServices, setAvailableServices] = useState([]);
+
+  const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [providerOptions, setproviderOptions] = useState([]);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const { id } = useParams(); // mall_id from URL
 
-  const [providerPositions, setproviderPositions] = useState([]);
-  const { id } = useParams();
+  // New state for filter selections
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState("all");
+  const [selectedVillageFilter, setSelectedVillageFilter] = useState("all"); // Renamed to village for clarity in filter
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState("all");
+
   const token = localStorage.getItem("token");
 
-  const columns = [
-    { label: "Username", key: "name" },
-    { label: "Image", key: "image" },
-    { label: "Email", key: "email" },
-    { label: "Phone Number", key: "phone" },
-    { label: "Role", key: "admin_position_name" }, // Changed key to match formatted data
-    { key: "status", label: "Status" },
-  ];
+  const getAuthHeaders = () => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
-  const getAuthHeaders = () => ({
-    // Content-Type will be set automatically for FormData
-    Authorization: `Bearer ${token}`,
-  });
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setSelectedRow((prev) => ({
-        ...prev,
-        imageFile: file, // Store the actual File object
-        image_link: URL.createObjectURL(file), // Create a temporary URL for preview
-      }));
-    } else {
-      setSelectedRow((prev) => ({
-        ...prev,
-        imageFile: null,
-        image_link: prev?.original_image_link, // Revert to original if file cleared
-      }));
-    }
-  };
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        if (!token) throw new Error("Missing auth token");
 
-        const adminRes = await fetch(
-          `https://bcknd.sea-go.org/admin/provider_admin/${id}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const adminJson = await adminRes.json();
-        console.log("PAdmin", adminJson);
-        const providerPositionsData = adminJson.provider_positions;
-        setproviderPositions(providerPositionsData); // Store the raw positions
-
-        const formattedAdmins = (
-          Array.isArray(adminJson.admins)
-            ? adminJson.admins
-            : [adminJson.admins]
-        ).map((admin) => {
-          const position = providerPositionsData.find(
-            (pos) => pos.id === admin.admin_position_id
-          );
-          const name = admin.name || "N/A"; // Define name here
-          const image =
-            admin?.image_link && !imageErrors[admin.id] ? (
-              <img
-                src={admin.image_link}
-                alt={name}
-                className="w-12 h-12 rounded-md object-cover aspect-square"
-                onError={() => handleImageError(admin.id)}
-              />
-            ) : (
-              <Avatar className="w-12 h-12">
-                <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            );
-          return {
-            ...admin,
-            status:
-              typeof admin.status === "string"
-                ? admin.status
-                : admin.status === 1
-                ? "Active"
-                : "Inactive",
-            admin_position_name: position ? position.name : "Unknown", // Add formatted role name
-            image: image, // Add the image JSX to the formatted data
-            original_image_link: admin.image_link, // Store original link for reverting
-          };
-        });
-        setAdminData(formattedAdmins);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, token, imageErrors]); // Added token and imageErrors to dependencies
-
-  useEffect(() => {
-    const fetchproviderOptions = async () => {
-      try {
-        const providersRes = await fetch(
-          "https://bcknd.sea-go.org/admin/provider",
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (providersRes.ok) {
-          const providersData = await providersRes.json();
-          const currentLang = localStorage.getItem("lang") || "en";
-          setproviderOptions(
-            providersData.providers.map((v) => ({
-              value: v.id.toString(),
-              label:
-                v.translations.find((t) => t.locale === currentLang)?.name ||
-                v.name,
-            }))
-          );
-        } else {
-          toast.error("Failed to load providers.");
-        }
-      } catch (error) {
-        console.error("Error fetching providers:", error);
-        toast.error("Error loading providers.");
-      }
-    };
-
-    fetchproviderOptions();
-  }, [token]);
-
-  const handleToggleStatus = async (row, newStatus) => {
+  const fetchProviders = async () => {
+    dispatch(showLoader());
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/provider_admin/status/${row.id}?status=${newStatus}`,
+        `https://bcknd.sea-go.org/admin/mall/providers?mall_id=${id}`,
         {
-          method: "PUT",
+          headers: getAuthHeaders(),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      const currentLang = localStorage.getItem("lang") || "en";
+
+      // 1. Process providers array
+      const fetchedProviders = (result.provider || []).map((provider) => {
+        const translations =
+          provider.translations?.reduce((acc, t) => {
+            if (!acc[t.locale]) acc[t.locale] = {};
+            acc[t.locale][t.key] = t.value;
+            return acc;
+          }, {}) || {};
+
+        const name = translations[currentLang]?.name || provider.name || "—";
+        const map =
+          translations[currentLang]?.location || provider.location || "—";
+        const description =
+          translations[currentLang]?.description || provider.description || "—";
+
+        const rawImageLink = provider?.image_link;
+        let imageUrl = rawImageLink;
+        // Fix for double base URL issue
+        if (
+          rawImageLink &&
+          rawImageLink.startsWith(
+            "https://bcknd.sea-go.org/storage/https://bcknd.sea-go.org/storage/"
+          )
+        ) {
+          imageUrl = rawImageLink.replace(
+            "https://bcknd.sea-go.org/storage/",
+            ""
+          );
+        } else if (rawImageLink && !rawImageLink.startsWith("http")) {
+          imageUrl = `https://bcknd.sea-go.org/storage/${rawImageLink}`;
+        }
+
+        const image =
+          imageUrl && !imageErrors[provider.id] ? (
+            <img
+              src={imageUrl}
+              alt={provider.name}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(provider.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{name?.charAt(0) || "P"}</AvatarFallback>
+            </Avatar>
+          );
+
+        const phone = provider.phone || "—";
+        const rating = provider.rate || "—";
+
+        // استخراج الأسماء والمعرفات مباشرة من الكائنات المتداخلة
+        const service_id = provider.service?.id || null;
+        const serviceName = provider.service?.name || "—";
+
+        // الـ API تعطي `package_id` و `village_id`، ونحن نستخدم `package` ككائن قرية
+        const package_obj_id = provider.package?.id || null;
+        const villageName = provider.package?.name || "—"; // This is the package name
+
+        const zone_id = provider.zone?.id || null; // تأكد من الحصول على zone_id من الكائن zone
+        const zoneName = provider.zone?.name || "—";
+        const adminName = provider.super_admin?.name || "—";
+
+        return {
+          id: provider.id,
+          name,
+          rawName: provider.name, // Store original name for editing
+          map,
+          description,
+          img: image,
+          numberOfproviders: provider.providers_count ?? "0",
+          status: provider.status === 1 ? "Active" : "Inactive",
+          service_id,
+          phone,
+          rating,
+          image_link: imageUrl,
+          package_id: package_obj_id, // استخدام package_obj_id كـ package_id
+          village_id: provider.village_id, // هذا village_id من البيانات الأصلية للمزود (إذا كان موجوداً ومختلفاً عن package_id)
+          zone_id,
+          open_from: provider.open_from,
+          open_to: provider.open_to,
+          zoneName,
+          adminName,
+          villageName, // This is the package name
+          serviceName,
+        };
+      });
+
+      setAllProviders(fetchedProviders); // Store the full list
+      setProviders(fetchedProviders); // Initialize displayed providers
+
+      // 2. Collect unique zones, packages, and services for filter options and EditDialog
+           if (result.zones) {
+        setAvailableZones(result.zones.map(zone => ({
+          id: zone.id.toString(),
+          name: zone.name
+        })));
+      }
+            if (result.service_type) {
+        setAvailableServices(result.service_type.map(service => ({
+          id: service.id.toString(),
+          name: service.name
+        })));
+      }
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+      toast.error("Error fetching providers:", error.message || "Unknown error");
+    } finally {
+      dispatch(hideLoader());
+    }
+  };
+
+  useEffect(() => {
+    fetchProviders();
+  }, [id]); // Depend on id from useParams to refetch if mall changes
+
+  const filteredProviders = useMemo(() => {
+    let currentFilteredProviders = [...allProviders];
+
+    if (selectedZoneFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.zoneName === selectedZoneFilter
+      );
+    }
+
+    if (selectedVillageFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.villageName === selectedVillageFilter
+      );
+    }
+
+    if (selectedServiceFilter !== "all") {
+      currentFilteredProviders = currentFilteredProviders.filter(
+        (provider) => provider.serviceName === selectedServiceFilter
+      );
+    }
+
+
+
+    return currentFilteredProviders;
+  }, [
+    allProviders,
+    selectedZoneFilter,
+    selectedVillageFilter,
+    selectedServiceFilter,
+
+  ]);
+
+  useEffect(() => {
+    setProviders(filteredProviders);
+  }, [filteredProviders]);
+
+const handleEdit = async (provider) => {
+  // Note: 'package_id' from fetched data is used as 'village_id' in selectedRow for the EditDialog's 'Package' field
+  setselectedRow({
+    ...provider,
+    service_id: provider.service_id ?? "",
+    name: provider.rawName, // Use rawName for editing
+    open_from: provider.open_from || "", // Corrected
+    open_to: provider.open_to || "", // Corrected
+    zone_id: provider.zone_id,
+  });
+  setIsEditOpen(true);
+};
+
+  const handleDelete = (provider) => {
+    setselectedRow(provider);
+    setIsDeleteOpen(true);
+  };
+
+  const handleSave = async () => {
+    // Validate required fields before sending
+    if (!selectedRow) return;
+
+    const {
+      id,
+      name,
+      description,
+      status,
+      service_id,
+      zone_id,
+      phone,
+      open_from,
+      open_to,
+      map: location,
+    } = selectedRow;
+
+    // Basic validation
+    if (!name || name.trim() === "") {
+      toast.error("Provider Name is required.");
+      return;
+    }
+    if (!service_id) {
+      toast.error("Service is required.");
+      return;
+    }
+
+    if (!zone_id) {
+      toast.error("Zone is required.");
+      return;
+    }
+
+    // Convert string IDs to integers
+    const parsedServiceId = parseInt(service_id, 10);
+
+    const parsedZoneId = parseInt(zone_id, 10);
+
+    if (isNaN(parsedServiceId)) {
+      toast.error("Invalid Service ID.");
+      return;
+    }
+
+    if (isNaN(parsedZoneId)) {
+      toast.error("Invalid Zone ID.");
+      return;
+    }
+
+    const updatedProvider = new FormData();
+    updatedProvider.append("id", id);
+    updatedProvider.append("name", name.trim());
+    updatedProvider.append("location", location || "");
+    updatedProvider.append("description", description || "");
+    updatedProvider.append("status", status === "Active" ? "1" : "0");
+    updatedProvider.append("service_id", parsedServiceId);
+    updatedProvider.append("phone", phone || "");
+    updatedProvider.append("zone_id", parsedZoneId);
+
+    const formatTimeWithSeconds = (time) => {
+      if (!time) return "";
+      // Ensure time is in HH:MM:SS format
+      return time.length === 5 ? `${time}:00` : time;
+    };
+
+    updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
+    updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
+
+    if (selectedRow.imageFile) {
+      updatedProvider.append("image", selectedRow.imageFile);
+    } else if (selectedRow.image_link) {
+      // Send the existing image as a fallback
+      updatedProvider.append("image", selectedRow.image_link);
+    }
+
+
+
+    try {
+      const response = await fetch(
+        `https://bcknd.sea-go.org/admin/provider/update/${id}`,
+        {
+          method: "POST", // Use POST for FormData updates
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            // "Content-Type" is not set for FormData, browser sets it automatically with boundary
           },
+          body: updatedProvider,
         }
       );
 
       if (response.ok) {
-        toast.success("Provider status updated!");
-
-        setAdminData((prev) =>
-          prev.map((admin) =>
-            admin.id === row.id
-              ? {
-                  ...admin,
-                  status: newStatus === 1 ? "Active" : "Inactive",
-                }
-              : admin
-          )
-        );
+        toast.success("Provider updated successfully!");
+        await fetchProviders(); // Re-fetch to update the table
+        setIsEditOpen(false);
+        setselectedRow(null);
       } else {
-        toast.error("Failed to update status.");
+        const errorData = await response.json();
+        console.error("Update failed:", errorData);
+        toast.error(errorData.message || "Failed to update provider!");
       }
-    } catch (err) {
-      console.error("Error updating status:", err);
-      toast.error("Error updating status.");
+    } catch (error) {
+      console.error("Error updating provider:", error);
+      toast.error("Error occurred while updating provider!");
     }
-  };
-
-  const handleDelete = (admin) => {
-    setSelectedRow(admin);
-    setIsDeleteOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/provider_admin/delete/${selectedRow.id}`,
+        `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: getAuthHeaders(),
         }
       );
-
       if (response.ok) {
-        toast.success("Admin deleted!");
-        setAdminData((prev) =>
-          prev.filter((admin) => admin.id !== selectedRow.id)
+        toast.success("Provider deleted successfully!");
+        // Update both displayed and allProviders state
+        setProviders(
+          providers.filter((provider) => provider.id !== selectedRow.id)
+        );
+        setAllProviders(
+          allProviders.filter((provider) => provider.id !== selectedRow.id)
         );
         setIsDeleteOpen(false);
+        setselectedRow(null); // Clear selected row after deletion
       } else {
-        toast.error("Failed to delete admin.");
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to delete provider!");
       }
     } catch (error) {
-      toast.error("Error deleting admin.", error);
-    }
-  };
-
-  const handleEdit = (admin) => {
-    setSelectedRow({ ...admin });
-    setIsEditOpen(true);
-  };
-
-  const handleSave = async () => {
-    const {
-      id,
-      name,
-      email,
-      phone,
-      password,
-      admin_position_id,
-      status,
-      provider_id,
-      imageFile, // This is the File object from state
-    } = selectedRow;
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("email", email);
-    formData.append("phone", phone);
-    if (password) {
-      // Only append password if it's provided/changed
-      formData.append("password", password);
-    }
-    if (imageFile) {
-      formData.append("image", imageFile); // Append the File object
-    }
-    formData.append("admin_position_id", admin_position_id);
-    formData.append("status", status === "Active" ? 1 : 0);
-    formData.append("provider_id", provider_id);
-
-    // If your backend expects a PUT request, you might need to handle the method override
-    // For POST with FormData, this is generally sufficient.
-
-    try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/provider_admin/update/${id}`,
-        {
-          method: "POST", // Use POST for FormData if your backend expects it for updates
-          headers: {
-            Authorization: `Bearer ${token}`,
-            // 'Content-Type': 'multipart/form-data' is set automatically by browser for FormData
-          },
-          body: formData, // Send FormData
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Admin updated successfully!");
-        // Re-fetch data to get the latest image_link and other updated info
-        // This is safer than manually updating the state for image
-        await fetchData(); // Call fetchData again to refresh the table
-        setIsEditOpen(false);
-        setSelectedRow(null);
-      } else {
-        const errorData = await response.json(); // Get error details from backend
-        toast.error(`Failed to update admin: ${errorData.message || response.statusText}`);
-      }
-    } catch (err) {
-      toast.error(`Error updating admin: ${err.message || err}`);
+      console.error("Error occurred while deleting provider:", error);
+      toast.error("Error occurred while deleting provider!");
     }
   };
 
   const onChange = (key, value) => {
-    setSelectedRow((prev) => ({
-      ...prev,
-      [key]: key === "provider_id" ? parseInt(value, 10) : value,
-    }));
-  };
-  const filterOptionsForAdmins = [
-    {
-      key: "admin_position_name",
-      label: "Filter by position",
-      options: [
-        { value: "all", label: "All positions" },
-        ...providerPositions.map((position) => ({ value: position.name, label: position.name })),
-      ],
-    },
-    {
-      key: "status",
-      label: "Filter by Status",
-      options: [
-        { value: "all", label: "All Statuses" },
-        { value: "active", label: "Active" },
-        { value: "inactive", label: "Inactive" },
-      ],
-    },
-  ];
+    setselectedRow((prev) => {
+      let newValue = value;
+      // Convert to integer only if the key is an ID
+      if (["service_id", "village_id", "zone_id"].includes(key)) {
+        newValue = parseInt(value, 10);
+      }
 
+      const updatedRow = { ...prev, [key]: newValue };
 
-  // Refetch data function
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      if (!token) throw new Error("Missing auth token");
-
-      const adminRes = await fetch(
-        `https://bcknd.sea-go.org/admin/provider_admin/${id}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const adminJson = await adminRes.json();
-      const providerPositionsData = adminJson.provider_positions;
-      setproviderPositions(providerPositionsData);
-
-      const formattedAdmins = (
-        Array.isArray(adminJson.admins)
-          ? adminJson.admins
-          : [adminJson.admins]
-      ).map((admin) => {
-        const position = providerPositionsData.find(
-          (pos) => pos.id === admin.admin_position_id
+      // إذا تغيرت القرية (Package)، نحدث المنطقة تلقائيًا لتتوافق مع المنطقة الخاصة بهذه القرية
+      if (key === "village_id") {
+        const selectedVillagePackage = availablePackages.find(
+          (v) => v.id === parseInt(value, 10)
         );
-        const name = admin.name || "N/A";
-        const image =
-          admin?.image_link && !imageErrors[admin.id] ? (
-            <img
-              src={admin.image_link}
-              alt={name}
-              className="w-12 h-12 rounded-md object-cover aspect-square"
-              onError={() => handleImageError(admin.id)}
-            />
-          ) : (
-            <Avatar className="w-12 h-12">
-              <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          );
-        return {
-          ...admin,
-          status:
-            typeof admin.status === "string"
-              ? admin.status
-              : admin.status === 1
-              ? "Active"
-              : "Inactive",
-          admin_position_name: position ? position.name : "Unknown",
-          image: image,
-          original_image_link: admin.image_link,
-        };
-      });
-      setAdminData(formattedAdmins);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setIsLoading(false);
+        if (
+          selectedVillagePackage &&
+          selectedVillagePackage.zone_id !== prev.zone_id
+        ) {
+          updatedRow.zone_id = selectedVillagePackage.zone_id;
+        }
+      }
+
+      // إذا تغيرت المنطقة، قد نحتاج لتحديث القرية (Package) إذا كانت القرية المختارة سابقاً لا تنتمي للمنطقة الجديدة
+      // أو لجعلها فارغة لإجبار المستخدم على الاختيار من جديد
+      if (key === "zone_id" && prev.village_id) {
+        const currentSelectedVillagePackage = availablePackages.find(
+          (p) => p.id === prev.village_id
+        );
+        if (
+          currentSelectedVillagePackage &&
+          currentSelectedVillagePackage.zone_id !== newValue
+        ) {
+          updatedRow.village_id = ""; // Clear village_id if it no longer matches the new zone
+        }
+      }
+
+      return updatedRow;
+    });
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setselectedRow((prev) => ({
+        ...prev,
+        imageFile: file,
+        image_link: URL.createObjectURL(file), // Show preview
+      }));
     }
   };
 
+
+
+  const columns = [
+    { key: "name", label: "Provider " },
+    { key: "img", label: "Image" },
+    { key: "zoneName", label: "Zone" },
+    { key: "serviceName", label: "Service " },
+    {key:"adminName", label: "Admin Name"}, // Display as "Admin Name"
+    { key: "villageName", label: "Package" }, // Display as "Package"
+    { key: "phone", label: "Phone" },
+    { key: "rating", label: "Rating" },
+
+  ];
+
+  const filterOptions = [
+    {
+      key: "zoneName",
+      label: "Zone",
+      options: [
+        { value: "all", label: "All Zones" },
+        ...availableZones.map((zone) => ({ value: zone.name, label: zone.name })),
+      ],
+      onChange: (value) => setSelectedZoneFilter(value),
+      selectedValue: selectedZoneFilter,
+    },
+    {
+      key: "villageName",
+      label: "Package", // Display as "Package" in filter options
+      options: [
+        { value: "all", label: "All Packages" },
+        ...availablePackages
+          .filter(
+            (pkg) =>
+              selectedZoneFilter === "all" ||
+              pkg.zone_id ===
+                availableZones.find((z) => z.name === selectedZoneFilter)?.id
+          )
+          .map((v) => ({ value: v.name, label: v.name })),
+      ],
+      onChange: (value) => setSelectedVillageFilter(value),
+      selectedValue: selectedVillageFilter,
+    },
+    {
+      key: "serviceName",
+      label: "Service",
+      options: [
+        { value: "all", label: "All Services" },
+        ...availableServices.map((service) => ({
+          value: service.name,
+          label: service.name,
+        })),
+      ],
+      onChange: (value) => setSelectedServiceFilter(value),
+      selectedValue: selectedServiceFilter,
+    },
+
+  ];
+
+  // Filtered packages for the Edit Dialog's 'Package' select
+  // This will dynamically update based on the selectedZoneId in the dialog itself
+  const filteredPackagesForEditDialog = useMemo(() => {
+    if (!selectedRow?.zone_id) {
+      return availablePackages; // Show all if no zone is selected yet in the dialog
+    }
+    return availablePackages.filter(
+      (pkg) => pkg.zone_id === selectedRow.zone_id
+    );
+  }, [availablePackages, selectedRow?.zone_id]);
+
   return (
-    <div>
-      <ToastContainer />
-      {isLoading ? (
-        <Loading />
-      ) : adminData.length > 0 ? (
+    <div className="p-6">
+      {isLoading && <FullPageLoader />}
+      <ToastContainer position="top-right" autoClose={3000} />
+
+      <DataTable
+        data={providers}
+        columns={columns}
+        addRoute={`/mall/single-page-m/${id}/add`}
+        className="table-compact"
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+
+        searchKeys={[
+          "name",
+          "serviceName",
+          "location",
+          "villageName", // Search by package name
+          "zoneName",
+        ]}
+        showFilter={true}
+        filterOptions={filterOptions}
+      />
+
+      {selectedRow && (
         <>
-          <DataTable
-            data={adminData}
-            columns={columns}
-            className="table-compact"
-            addRoute={`/providers/single-page-p/${id}/add`}
-            onEdit={handleEdit}
-            onToggleStatus={handleToggleStatus}
-            onDelete={handleDelete}
-            searchKeys={["name", "email"]}
-            showFilter={true}
-            filterKey={["status", "admin_position_name"]} // Now filtering by both status AND role
-            filterOptions={filterOptionsForAdmins}
-            // Removed showAdditionalFilter, additionalFilterKey, additionalFilterOptions
-            // as we are combining them into one filter
-          />
-
-          {selectedRow && (
-            <>
-              <EditDialog
-                open={isEditOpen}
-                onOpenChange={setIsEditOpen}
-                onSave={handleSave}
-                selectedRow={selectedRow}
-                onChange={onChange}
-              >
-                <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                  <InputField
-                    label="Name"
-                    id="name"
-                    value={selectedRow?.name}
-                    onChange={(val) => onChange("name", val)}
-                  />
-                  <InputField
-                    label="Email"
-                    id="email"
-                    value={selectedRow?.email}
-                    onChange={(val) => onChange("email", val)}
-                  />
-                  <InputField
-                    label="Phone Number"
-                    id="phone"
-                    value={selectedRow?.phone}
-                    onChange={(val) => onChange("phone", val)}
-                  />
-                  <label htmlFor="position" className="text-gray-400">
-                    Admin Position
-                  </label>
-                  {providerPositions.length > 0 && (
-                    <Select
-                      id="position"
-                      value={selectedRow?.admin_position_id?.toString()}
-                      onValueChange={(value) =>
-                        onChange("admin_position_id", value)
-                      }
-                    >
-                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]">
-                        <SelectValue placeholder="Select position" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {providerPositions.map((position) => (
-                          <SelectItem
-                            key={position.id}
-                            value={position.id.toString()}
-                          >
-                            {position.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  <div>
-                    <label htmlFor="provider" className="text-gray-400">
-                      Provider
-                    </label>
-                    <Select
-                      value={selectedRow?.provider_id?.toString()}
-                      onValueChange={(value) => onChange("provider_id", value)}
-                    >
-                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]">
-                        <SelectValue placeholder="Select provider" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {providerOptions.map((v) => (
-                          <SelectItem key={v.value} value={v.value}>
-                            {v.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <label htmlFor="image" className="text-gray-400">
-                      Image
-                    </label>
-                    {selectedRow?.image_link && (
-                      <div className="flex items-center gap-4 mb-2">
-                        <img
-                          src={selectedRow.image_link}
-                          alt="Current"
-                          className="w-12 h-12 rounded-md object-cover border"
-                        />
-                      </div>
-                    )}
-                    <Input
-                      type="file"
-                      id="image"
-                      accept="image/*"
-                      className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                      onChange={handleImageChange}
-                    />
-                  </div>
-                </div>
-              </EditDialog>
-
-              <DeleteDialog
-                open={isDeleteOpen}
-                onOpenChange={setIsDeleteOpen}
-                onDelete={handleDeleteConfirm}
-                name={selectedRow?.name}
+          <EditDialog
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+            onSave={handleSave}
+            selectedRow={selectedRow}
+            zones={availableZones}
+            village={availablePackages} // Pass all available packages
+            services={availableServices}
+            onChange={onChange}
+          >
+            <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <label htmlFor="name" className="text-gray-400 !pb-3">
+                Provider Name
+              </label>
+              <Input
+                label="Provider Name"
+                id="name"
+                value={selectedRow?.name || ""}
+                onChange={(e) => onChange("name", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
               />
-            </>
-          )}
-          <Outlet />
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              <MapLocationPicker
+                value={selectedRow?.map || ""}
+                onChange={(newValue) => onChange("map", newValue)}
+                placeholder="Search or select location on map"
+              />
+
+              <label htmlFor="zone" className="text-gray-400 !pb-3">
+                Zone
+              </label>
+              <Select
+                value={selectedRow?.zone_id?.toString() || ""}
+                onValueChange={(value) => onChange("zone_id", value)}
+                disabled={availableZones.length === 0}
+              >
+                <SelectTrigger
+                  id="zone"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                >
+                  <SelectValue placeholder="Select Zone" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {availableZones.length > 0 ? (
+                    availableZones.map((zone) => (
+                      <SelectItem
+                        key={zone.id}
+                        value={zone.id.toString()}
+                        className="text-bg-primary "
+                      >
+                        {zone.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem
+                      value="no-zones"
+                      className="text-bg-primary"
+                      disabled
+                    >
+                      No zones available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+
+              <label htmlFor="description" className="text-gray-400 !pb-3">
+                Description
+              </label>
+              <Input
+                label="description"
+                id="description"
+                value={selectedRow?.description || ""}
+                onChange={(e) => onChange("description", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="phone" className="text-gray-400 !pb-3">
+                Phone
+              </label>
+              <Input
+                label="phone"
+                id="phone"
+                value={selectedRow?.phone || ""}
+                onChange={(e) => onChange("phone", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+              <label htmlFor="open_from" className="text-gray-400 !pb-3">
+                Open From
+              </label>
+              <Input
+                type="time"
+                id="open_from"
+                value={selectedRow?.open_from || ""}
+                onChange={(e) => onChange("open_from", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="open_to" className="text-gray-400 !pb-3">
+                Open To
+              </label>
+              <Input
+                type="time"
+                id="open_to"
+                value={selectedRow?.open_to || ""}
+                onChange={(e) => onChange("open_to", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="service" className="text-gray-400 !pb-3">
+                Service
+              </label>
+              <Select
+                value={selectedRow?.service_id?.toString() || ""}
+                onValueChange={(value) => onChange("service_id", value)}
+                disabled={availableServices.length === 0}
+              >
+                <SelectTrigger
+                  id="service"
+                  className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                >
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                  {availableServices.length > 0 ? (
+                    availableServices.map((service) => (
+                      <SelectItem
+                        key={service.id}
+                        value={service.id.toString()}
+                        className="text-bg-primary"
+                      >
+                        {service.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem
+                      value="no-services"
+                      className="text-bg-primary"
+                      disabled
+                    >
+                      No services available
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+
+
+
+              <label htmlFor="image" className="text-gray-400">
+                Image
+              </label>
+
+              {selectedRow?.image_link && (
+                <div className="flex items-center gap-4 mb-2">
+                  <img
+                    src={selectedRow.image_link}
+                    alt="Current"
+                    className="w-12 h-12 rounded-md object-cover border"
+                  />
+                </div>
+              )}
+
+              <Input
+                type="file"
+                id="image"
+                accept="image/*"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={handleImageChange}
+              />
+            </div>
+          </EditDialog>
+          <DeleteDialog
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            onDelete={handleDeleteConfirm}
+            name={selectedRow.name}
+          />
         </>
-      ) : (
-        <div className="text-center text-gray-500 p-4">
-          No admin users found for this provider.
-        </div>
       )}
     </div>
   );
-}
-
-const InputField = ({ label, id, value, onChange, type = "text" }) => (
-  <div>
-    <Label htmlFor={id} className="text-gray-400 !pb-1">
-      {label}
-    </Label>
-    <Input
-      id={id}
-      type={type}
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
-    />
-  </div>
-);
+};
+export default Providers;

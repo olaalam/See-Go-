@@ -49,7 +49,7 @@ function Gallery({ mallId, token }) {
   const fetchGalleryImages = async () => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/update_profile_image/${id}`,
+        `https://bcknd.sea-go.org/admin/mall_gallery/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -59,8 +59,8 @@ function Gallery({ mallId, token }) {
 
       const data = await response.json();
 
-      if (Array.isArray(data.mall_gallary)) {
-        setImages(data.mall_gallary);
+      if (Array.isArray(data.mall_gallery)) {
+        setImages(data.mall_gallery);
       } else {
         console.error("Unexpected API response:", data);
         toast.error("Failed to load images.");
@@ -76,7 +76,7 @@ function Gallery({ mallId, token }) {
   const handleDelete = async (imageId) => {
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/update_profile_image/delete/${imageId}`,
+        `https://bcknd.sea-go.org/admin/mall_gallery/delete/${imageId}`,
         {
           method: "DELETE",
           headers: {
@@ -139,11 +139,10 @@ function Header({ onUploadSuccess }) {
     const formData = new FormData();
     formData.append("image", imageFile);
     formData.append("status", status);
-    formData.append("mall_id", id);
 
     try {
       const response = await fetch(
-        `https://bcknd.sea-go.org/admin/update_profile_image/add/${id}`,
+        `https://bcknd.sea-go.org/admin/mall_gallery/add/${id}`,
         {
           method: "POST",
           headers: {

@@ -156,6 +156,7 @@ const Providers = () => {
           (v) => v.id === provider.village_id
         );
         const villageName = villageObj ? villageObj.name : "—";
+        const adminName = provider.super_admin?.name || "—";
 
         // Find zone name and ID using the village_id from the provider and the comprehensive lists
         let zoneName = "—";
@@ -187,7 +188,8 @@ const Providers = () => {
           villageName,
           village_id: provider.village_id,
           zoneName,
-          zone_id, // تأكد من وجود zone_id هنا
+          zone_id,
+          adminName,
           open_from: provider.open_from,
           open_to: provider.open_to,
         };
@@ -473,6 +475,7 @@ const Providers = () => {
     { key: "zoneName", label: "Zone" },
     { key: "serviceName", label: "Service " },
     { key: "villageName", label: "Village" },
+    { key: "adminName", label: "Admin Name" },
     { key: "phone", label: "Phone" },
     { key: "rating", label: "Rating" },
     { key: "status", label: "Status" },
@@ -481,40 +484,43 @@ const Providers = () => {
   // Modified filterOptionsForVillages to include onChange handlers
 
   const filterOptionsForVillages = [
-  {
-    key: "zoneName", // Changed to match the data key
-    label: "Zone",
-    options: [
-      { value: "all", label: "All Zones" },
-      ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
-    ],
-  },
-  {
-    key: "villageName", // Changed to match the data key
-    label: "Village",
-    options: [
-      { value: "all", label: "All Villages" },
-      ...village.map((v) => ({ value: v.name, label: v.name })),
-    ],
-  },
-  {
-    key: "serviceName", // Changed to match the data key
-    label: "Service",
-    options: [
-      { value: "all", label: "All Services" },
-      ...services.map((service) => ({ value: service.name, label: service.name })),
-    ],
-  },
-  {
-    key: "status", // Matches the data key
-    label: "Status",
-    options: [
-      { value: "all", label: "All Statuses" },
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
-];
+    {
+      key: "zoneName", // Changed to match the data key
+      label: "Zone",
+      options: [
+        { value: "all", label: "All Zones" },
+        ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
+      ],
+    },
+    {
+      key: "villageName", // Changed to match the data key
+      label: "Village",
+      options: [
+        { value: "all", label: "All Villages" },
+        ...village.map((v) => ({ value: v.name, label: v.name })),
+      ],
+    },
+    {
+      key: "serviceName", // Changed to match the data key
+      label: "Service",
+      options: [
+        { value: "all", label: "All Services" },
+        ...services.map((service) => ({
+          value: service.name,
+          label: service.name,
+        })),
+      ],
+    },
+    {
+      key: "status", // Matches the data key
+      label: "Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+  ];
 
   return (
     <div className="p-6">

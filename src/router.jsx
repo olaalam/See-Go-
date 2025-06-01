@@ -44,7 +44,7 @@ import SinglePageU from "./Pages/Users/SinglePageU";
 import Mall from "./Pages/Mall/Mall";
 import MallAdd from "./Pages/Mall/MallAdd";
 import SinglePageM from "./Pages/Mall/SinglePageM";
-import MAdminAdd from "./Pages/Mall/MAdminAdd";
+import MAdminAdd from "./Pages/Mall/MServiceAdd";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
