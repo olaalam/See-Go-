@@ -30,12 +30,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+
 
 export default function DataTable({
   data,
@@ -54,12 +49,9 @@ export default function DataTable({
   showEditButton = true,
   showDeleteButton = true,
   searchKeys = [],
-  // filterKey prop is no longer directly used for filtering logic here,
-  // as the new filterOptions structure implies the keys.
   filterOptions = [], // This is now an array of filter groups (e.g., [{label: "Type", key: "user_type", options: [...]}, ...])
 }) {
   const [searchValue, setSearchValue] = useState("");
-  // Replaced single filterValue with activeFilters object for multiple accordion filters
   const [activeFilters, setActiveFilters] = useState(() => {
     const initialFilters = {};
     filterOptions.forEach((group) => {

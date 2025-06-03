@@ -22,6 +22,7 @@ import Owner from "@/Pages/Users/Owner"; // Assuming this path
 import Services from "@/Pages/Users/Services"; // Assuming this path
 import InvoiceCard from "@/Pages/Invoice/Invoice";
 import ServiceProvider from "@/Pages/Mall/MService"; // Assuming you have this component for mall service providers
+import InvoiceList from "@/Pages/Invoice/InvoiceList";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -287,7 +288,7 @@ export default function VillageDetailsCard({
                   <Units />
                 </TabsContent>
                 <TabsContent value="invoice">
-                  <InvoiceCard villageId={id} />
+                  <InvoiceList villageId={id} />
                 </TabsContent>
               </>
             )}

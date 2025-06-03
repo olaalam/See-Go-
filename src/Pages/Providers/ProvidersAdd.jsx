@@ -8,18 +8,15 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
-
 export default function AddProvider() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
-  // Store all villages fetched from API
   const [allVillages, setAllVillages] = useState([]);
   const [services, setServices] = useState([]);
   const [zones, setZones] = useState([]);
-  // State for villages filtered by selected zone
   const [filteredVillages, setFilteredVillages] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -28,8 +25,8 @@ export default function AddProvider() {
       description: "",
       phone: "",
       service_id: "",
-      village: "", // Stores the ID of the selected village
-      zone: "",    // Stores the ID of the selected zone
+      village: "",
+      zone: "",
       location: "",
       status: "",
       image: null,
@@ -52,7 +49,6 @@ export default function AddProvider() {
         });
         const data = await response.json();
 
-        // Populate Services
         if (data.services_types) {
           setServices(
             data.services_types.map((service) => ({
@@ -62,7 +58,6 @@ export default function AddProvider() {
           );
         }
 
-        // Populate Zones
         if (data.zones) {
           setZones(
             data.zones.map((zone) => ({
@@ -72,17 +67,15 @@ export default function AddProvider() {
           );
         }
 
-        // Populate ALL Villages and store them
         if (data.villages) {
           setAllVillages(
             data.villages.map((village) => ({
               label: village.name,
               value: village.id.toString(),
-              zone_id: village.zone_id ? village.zone_id.toString() : null, // IMPORTANT: Ensure village object has zone_id
+              zone_id: village.zone_id ? village.zone_id.toString() : null,
             }))
           );
         }
-
       } catch (error) {
         console.error("Error fetching data for dropdowns:", error);
         toast.error("Failed to load dropdown options.");
@@ -92,14 +85,12 @@ export default function AddProvider() {
     fetchDataForDropdowns();
   }, [token]);
 
-  // Effect to filter villages whenever allVillages or selected zone changes
   useEffect(() => {
     if (formData.en.zone && allVillages.length > 0) {
       const villagesInSelectedZone = allVillages.filter(
         (village) => village.zone_id === formData.en.zone
       );
       setFilteredVillages(villagesInSelectedZone);
-      // If the currently selected village is no longer in the filtered list, reset it
       if (!villagesInSelectedZone.some(v => v.value === formData.en.village)) {
         setFormData(prev => ({
           ...prev,
@@ -107,7 +98,6 @@ export default function AddProvider() {
         }));
       }
     } else {
-      // If no zone is selected, or no villages are loaded, clear filtered villages
       setFilteredVillages([]);
       setFormData(prev => ({
         ...prev,
@@ -115,7 +105,6 @@ export default function AddProvider() {
       }));
     }
   }, [formData.en.zone, allVillages]);
-
 
   const handleFieldChange = (lang, name, value) => {
     setFormData((prev) => {
@@ -126,16 +115,12 @@ export default function AddProvider() {
           [name]: value,
         },
       };
-
-      // If the changed field is 'zone', reset 'village' and filter villages
       if (lang === 'en' && name === 'zone') {
-        newFormData.en.village = ""; // Reset village when zone changes
-        // The useEffect above will handle filtering villages based on new zone
+        newFormData.en.village = "";
       }
       return newFormData;
     });
   };
-
 
   const handleSubmit = async () => {
     dispatch(showLoader());
@@ -144,16 +129,15 @@ export default function AddProvider() {
     body.append("name", formData.en.name);
     body.append("description", formData.en.description);
     body.append("service_id", formData.en.service_id);
-    body.append("village_id", formData.en.village); // Ensure this matches the backend expectation
+    body.append("village_id", formData.en.village);
     body.append("location", formData.en.location);
-    body.append("zone_id", formData.en.zone); // Ensure this matches the backend expectation
-
+    body.append("zone_id", formData.en.zone);
     body.append("phone", formData.en.phone);
     body.append("status", formData.en.status === "active" ? "1" : "0");
 
     const formatTimeWithSeconds = (time) => {
       if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time; // If HH:mm, add :00
+      return time.length === 5 ? `${time}:00` : time;
     };
 
     body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
@@ -168,11 +152,6 @@ export default function AddProvider() {
     if (formData.ar.description) {
       body.append("ar_description", formData.ar.description);
     }
-
-    console.log(
-      "Submitting form with data:",
-      Object.fromEntries(body.entries())
-    );
 
     try {
       const response = await fetch(
@@ -189,34 +168,35 @@ export default function AddProvider() {
       if (response.ok) {
         toast.success("Provider added successfully!", {
           position: "top-right",
-          autoClose: 3000,
+          autoClose: 2000,
         });
-        // Reset form data after successful submission
-        setFormData({
-          en: {
-            name: "",
-            description: "",
-            service_id: "",
-            phone: "",
-            location: "",
-            status: "",
-            village: "",
-            zone: "",
-            image: null,
-            open_from: "",
-            open_to: "",
-          },
-          ar: {
-            name: "",
-            description: "",
-          },
-        });
-        navigate("/providers"); // Navigate after successful submission and state reset
+
+        setTimeout(() => {
+          setFormData({
+            en: {
+              name: "",
+              description: "",
+              service_id: "",
+              phone: "",
+              location: "",
+              status: "",
+              village: "",
+              zone: "",
+              image: null,
+              open_from: "",
+              open_to: "",
+            },
+            ar: {
+              name: "",
+              description: "",
+            },
+          });
+          navigate("/providers");
+        }, 2000);
       } else {
         let errorMessage = "Failed to add subscriber.";
         try {
           const errorData = await response.json();
-
           if (errorData?.errors && typeof errorData.errors === "object") {
             errorMessage = Object.values(errorData.errors)
               .flat()
@@ -248,58 +228,25 @@ export default function AddProvider() {
 
   const fields = [
     { type: "input", placeholder: "Provider Name", name: "name", lang: "en" },
-    {
-      type: "input",
-      placeholder: "Description",
-      name: "description",
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Service Type",
-      name: "service_id",
-      options: services,
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Zone",
-      name: "zone", // Matches formData key
-      options: zones,
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Village (Optional)",
-      name: "village", // Matches formData key
-      options: filteredVillages, // Use the filtered villages data
-      lang: "en",
-    },
+    { type: "input", placeholder: "Description", name: "description", lang: "en" },
+    { type: "select", placeholder: "Service Type", name: "service_id", options: services, lang: "en" },
+    { type: "select", placeholder: "Zone", name: "zone", options: zones, lang: "en" },
+    { type: "select", placeholder: "Village (Optional)", name: "village", options: filteredVillages, lang: "en" },
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     {
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-                      lang: "en",
-            },
-    {
-      type: "input",
-      placeholder: " (اختياري) الوصف",
-      name: "description",
-      lang: "ar",
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+      lang: "en",
     },
-    {
-      type: "input",
-      placeholder: " (اختياري) اسم المزود ",
-      name: "name",
-      lang: "ar",
-    },
+    { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
+    { type: "input", placeholder: " (اختياري) اسم المزود ", name: "name", lang: "ar" },
     { type: "map", placeholder: "Location", name: "location", lang: "en" },
   ];
 

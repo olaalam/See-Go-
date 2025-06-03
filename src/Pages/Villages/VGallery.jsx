@@ -13,13 +13,18 @@ import { useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Loading from "@/components/Loading";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+// Removed Select imports as they are no longer needed for status
+// import {
+//   Select,
+//   SelectTrigger,
+//   SelectValue,
+//   SelectContent,
+//   SelectItem,
+// } from "@/components/ui/select";
+
+// Import the Switch component (assuming it's from shadcn/ui)
+import { Switch } from "@/components/ui/switch"; // Adjust path if different
+import { Label } from "@/components/ui/label"; // Often used with Switch for accessibility
 
 // ✅ مكون ImageCard
 function ImageCard({ imageUrl, onDelete }) {
@@ -101,7 +106,7 @@ function Gallery({ villageId, token }) {
 
   useEffect(() => {
     fetchGalleryImages();
-  }, [villageId]);
+  }, [villageId, token]); // Added token to dependency array for completeness
 
   if (loading) return <Loading />;
 
@@ -128,7 +133,8 @@ function Header({ onUploadSuccess }) {
   const { id } = useParams();
   const token = localStorage.getItem("token");
   const [imageFile, setImageFile] = useState(null);
-  const [status, setStatus] = useState("1");
+  // Changed status state to boolean for the switch, default to true (active)
+  const [statusActive, setStatusActive] = useState(true);
 
   const handleImageUpload = async () => {
     if (!imageFile) {
@@ -138,7 +144,8 @@ function Header({ onUploadSuccess }) {
 
     const formData = new FormData();
     formData.append("image", imageFile);
-    formData.append("status", status);
+    // Convert boolean status to "1" or "0" string for the API
+    formData.append("status", statusActive ? "1" : "0");
     formData.append("village_id", id);
 
     try {
@@ -147,6 +154,9 @@ function Header({ onUploadSuccess }) {
         {
           method: "POST",
           headers: {
+            // FormData automatically sets Content-Type to multipart/form-data
+            // when not explicitly set, which is correct for file uploads.
+            // Do NOT set 'Content-Type': 'application/json' when sending FormData.
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -156,11 +166,12 @@ function Header({ onUploadSuccess }) {
       if (response.ok) {
         setOpenAddDialog(false);
         setImageFile(null);
-        setStatus("1");
+        setStatusActive(true); // Reset to active after successful upload
         onUploadSuccess();
         toast.success("Image uploaded successfully.");
       } else {
-        toast.error("Failed to upload image.");
+        const errorData = await response.json(); // Try to get error message from response
+        toast.error(errorData.message || "Failed to upload image.");
       }
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -189,22 +200,18 @@ function Header({ onUploadSuccess }) {
               onChange={(e) => setImageFile(e.target.files[0])}
               className="w-full !mb-3 cursor-pointer text-sm text-gray-500 file:!mr-4 file:!py-2 file:!px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bg-primary file:text-white hover:file:bg-teal-600"
             />
-            <Select value={status} onValueChange={(value) => setStatus(value)}>
-              <SelectTrigger
-                id="status"
-                className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[8px]"
-              >
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                <SelectItem value="1" className="text-bg-primary">
-                  Active
-                </SelectItem>
-                <SelectItem value="0" className="text-bg-primary">
-                  Inactive
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Replaced Select with Switch */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="status-switch"
+                checked={statusActive} // Use the boolean state
+                onCheckedChange={setStatusActive} // Update the boolean state
+                className="data-[state=checked]:bg-bg-primary" // Apply primary color when checked
+              />
+              <Label htmlFor="status-switch" className="text-bg-primary">
+                {statusActive ? "Active" : "Inactive"}
+              </Label>
+            </div>
           </div>
           <DialogFooter className="pt-6">
             <Button

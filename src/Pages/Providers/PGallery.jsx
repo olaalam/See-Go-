@@ -20,6 +20,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@radix-ui/react-dropdown-menu";
 
 // ✅ مكون ImageCard
 function ImageCard({ imageUrl, onDelete }) {
@@ -129,6 +131,7 @@ function Header({ onUploadSuccess }) {
   const token = localStorage.getItem("token");
   const [imageFile, setImageFile] = useState(null);
   const [status, setStatus] = useState("1");
+  const [statusActive, setStatusActive] = useState(true);
 
   const handleImageUpload = async () => {
     if (!imageFile) {
@@ -189,22 +192,17 @@ function Header({ onUploadSuccess }) {
               onChange={(e) => setImageFile(e.target.files[0])}
               className="w-full !mb-3 cursor-pointer text-sm text-gray-500 file:!mr-4 file:!py-2 file:!px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bg-primary file:text-white hover:file:bg-teal-600"
             />
-            <Select value={status} onValueChange={(value) => setStatus(value)}>
-              <SelectTrigger
-                id="status"
-                className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[8px]"
-              >
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                <SelectItem value="1" className="text-bg-primary">
-                  Active
-                </SelectItem>
-                <SelectItem value="0" className="text-bg-primary">
-                  Inactive
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="status-switch"
+                checked={statusActive} // Use the boolean state
+                onCheckedChange={setStatusActive} // Update the boolean state
+                className="data-[state=checked]:bg-bg-primary" // Apply primary color when checked
+              />
+              <Label htmlFor="status-switch" className="text-bg-primary">
+                {statusActive ? "Active" : "Inactive"}
+              </Label>
+            </div>
           </div>
           <DialogFooter className="pt-6">
             <Button
