@@ -187,6 +187,7 @@ export default function AddSubscription() {
       options: [
         { label: "Provider", value: "provider" },
         { label: "Village", value: "village" },
+        { label: "Maintenance", value: "maintenance_provider" },
       ],
       lang: "en",
     },
@@ -194,16 +195,15 @@ export default function AddSubscription() {
     { type: "number", placeholder: "Price", name: "price", lang: "en" },
     { type: "number", placeholder: "Fees", name: "feez", lang: "en" },
 
-
     {
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-                      lang: "en",
-            },
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+      lang: "en",
+    },
     {
       type: "input",
       placeholder: " (اختياري) الاسم",

@@ -123,7 +123,9 @@ const Subscription = () => {
         const security_num = subscription.security_num || "—";
         const maintenance_module = subscription.maintenance_module;
         const beach_pool_module = subscription.beach_pool_module;
-
+        const average =
+          subscription.feez && subscription.discount
+            ? (subscription.feez * (1 - subscription.discount / 100)):"-";
         return {
           id: subscription.id,
           name,
@@ -139,6 +141,7 @@ const Subscription = () => {
           price,
           discount,
           feez,
+          average,
         };
       });
 
@@ -166,7 +169,8 @@ const Subscription = () => {
     } else if (tab === "village") {
       tabMatch = subscription.type === "village";
     } else if (tab === "maintenance") {
-      tabMatch = subscription.type === "village" && subscription.maintenance_module;
+      tabMatch =
+        subscription.type === "maintenance_provider" && subscription.maintenance_module;
     }
 
     // Search filtering
@@ -201,80 +205,81 @@ const Subscription = () => {
     setIsDeleteOpen(true);
   };
 
-  const handleSave = async () => {
-    const {
-      id,
-      name,
-      type,
-      description,
-      status,
-      discount,
-      service_id,
-      price,
-      security_num,
-      maintenance_module,
-      beach_pool_module,
-      admin_num,
-      feez,
-    } = selectedRow;
+const handleSave = async () => {
+  const {
+    id,
+    name,
+    type,
+    description,
+    status,
+    discount,
+    service_id,
+    price,
+    feez,
+  } = selectedRow;
 
-    if (!service_id || isNaN(service_id)) {
-      toast.error("Service ID is missing or invalid");
-      return;
-    }
+  // ✅ فقط تحقق من service_id إذا كان type هو provider
+  if (type === "provider" && (!service_id || isNaN(service_id))) {
+    toast.error("Service ID is required for provider type");
+    return;
+  }
 
-    const updatedSubscription = new FormData();
-    updatedSubscription.append("id", id);
-    updatedSubscription.append("name", name || "");
-    updatedSubscription.append("feez", feez || "");
-    updatedSubscription.append("description", description || "");
-    updatedSubscription.append("status", status === "Active" ? "1" : "0");
+  const updatedSubscription = new FormData();
+  updatedSubscription.append("id", id);
+  updatedSubscription.append("name", name || "");
+  updatedSubscription.append("feez", feez || "");
+  updatedSubscription.append("description", description || "");
+  updatedSubscription.append("status", status === "Active" ? "1" : "0");
+  updatedSubscription.append("price", price || "");
+  updatedSubscription.append("type", type || "");
+  updatedSubscription.append("discount", discount || "");
+
+  // ✅ أضف service_id فقط إذا كان type = provider
+  if (type === "provider") {
     updatedSubscription.append("service_id", service_id);
-    updatedSubscription.append("price", price || "");
-    updatedSubscription.append("type", type || "");
-    updatedSubscription.append("discount", discount || "");
+  }
 
-    if (type === "village") {
-      updatedSubscription.append("admin_num", selectedRow.admin_num || "0");
-      updatedSubscription.append(
-        "security_num",
-        selectedRow.security_num || "0"
-      );
-      updatedSubscription.append(
-        "maintenance_module",
-        selectedRow.maintenance_module ? "1" : "0" // Ensure boolean is converted to 0 or 1
-      );
-      updatedSubscription.append(
-        "beach_pool_module",
-        selectedRow.beach_pool_module ? "1" : "0" // Ensure boolean is converted to 0 or 1
-      );
-    }
+  if (type === "village") {
+    updatedSubscription.append("admin_num", selectedRow.admin_num || "0");
+    updatedSubscription.append(
+      "security_num",
+      selectedRow.security_num || "0"
+    );
+    updatedSubscription.append(
+      "maintenance_module",
+      selectedRow.maintenance_module ? "1" : "0"
+    );
+    updatedSubscription.append(
+      "beach_pool_module",
+      selectedRow.beach_pool_module ? "1" : "0"
+    );
+  }
 
-    try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/subscription/update/${id}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: updatedSubscription,
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Subscription updated successfully!");
-        // Re-fetch subscriptions to ensure all data is up-to-date and consistent
-        await fetchSubscriptions();
-        setIsEditOpen(false);
-        setSelectedRow(null);
-      } else {
-        toast.error("Failed to update subscription!");
+  try {
+    const response = await fetch(
+      `https://bcknd.sea-go.org/admin/subscription/update/${id}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: updatedSubscription,
       }
-    } catch (error) {
-      toast.error("Error occurred while updating subscription!", error);
+    );
+
+    if (response.ok) {
+      toast.success("Subscription updated successfully!");
+      await fetchSubscriptions();
+      setIsEditOpen(false);
+      setSelectedRow(null);
+    } else {
+      toast.error("Failed to update subscription!");
     }
-  };
+  } catch (error) {
+    toast.error("Error occurred while updating subscription!", error);
+  }
+};
+
 
   const handleDeleteConfirm = async () => {
     try {
@@ -302,12 +307,18 @@ const Subscription = () => {
     }
   };
 
-  const onChange = (key, value) => {
-    setSelectedRow((prev) => ({
-      ...prev,
-      [key]: key === "service_id" ? parseInt(value, 10) : value,
-    }));
-  };
+const onChange = (key, value) => {
+  setSelectedRow((prev) => ({
+    ...prev,
+    [key]:
+      key === "service_id"
+        ? parseInt(value, 10)
+        : key === "type"
+        ? value.toLowerCase()
+        : value,
+  }));
+};
+
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
@@ -353,7 +364,6 @@ const Subscription = () => {
     console.log("Delete selected rows:", rows);
     // Implement multi-delete logic here
   };
-
 
   return (
     <div className="!p-4">
@@ -471,11 +481,19 @@ const Subscription = () => {
                 </p>
                 <p className="text-lg font-semibold text-gray-800">
                   <span className="line-through text-gray-500 !mr-2">
-                    {subscription.feez !== "—" ? `${subscription.feez} EGP` : ""}
+                    {subscription.feez !== "—"
+                      ? `${subscription.feez} EGP`
+                      : ""}
                   </span>
-                  {subscription.price} EGP
+                  <span className="text-gray-500">
+                    {subscription.average} EGP
+                  </span>
                 </p>
                 <div className="!mt-3 space-y-2">
+                  <span className="font-medium text-sm text-gray-700">
+                    Annual subscription fees :
+                  </span>{" "}
+                  {subscription.price} EGP
                   <p className="text-sm text-gray-700">
                     <span className="font-medium">Service:</span>{" "}
                     {subscription.serviceName}
@@ -492,11 +510,15 @@ const Subscription = () => {
                       </p>
                       <p className="text-sm text-gray-700">
                         <span className="font-medium">Maintenance Module:</span>{" "}
-                        {subscription.maintenance_module ? "Enabled" : "Disabled"}
+                        {subscription.maintenance_module
+                          ? "Enabled"
+                          : "Disabled"}
                       </p>
                       <p className="text-sm text-gray-700">
                         <span className="font-medium">Beach/Pool Module:</span>{" "}
-                        {subscription.beach_pool_module ? "Enabled" : "Disabled"}
+                        {subscription.beach_pool_module
+                          ? "Enabled"
+                          : "Disabled"}
                       </p>
                     </>
                   )}
@@ -573,10 +595,11 @@ const Subscription = () => {
               <label htmlFor="type" className="text-gray-400 !pb-3">
                 Type
               </label>
-              <Select
-                value={selectedRow?.type || ""}
-                onValueChange={(value) => onChange("type", value)}
-              >
+<Select
+  value={selectedRow?.type?.toLowerCase() || ""}
+  onValueChange={(value) => onChange("type", value)}
+>
+
                 <SelectTrigger
                   id="type"
                   className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
@@ -589,6 +612,9 @@ const Subscription = () => {
                   </SelectItem>
                   <SelectItem value="village" className="text-bg-primary">
                     Village
+                  </SelectItem>
+                  <SelectItem value="maintenance_provider" className="text-bg-primary">
+                    Maintenance
                   </SelectItem>
                 </SelectContent>
               </Select>

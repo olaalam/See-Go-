@@ -1,13 +1,24 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, ArrowLeft } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";  // استيراد useLocation
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
+import axios from "axios";
+import { toast } from "react-toastify";
+
+// Utility function to clear local/session storage on logout
+const clearAuthData = () => {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("village_id");
+  sessionStorage.clear();
+};
 
 export default function Navbar() {
   const userData = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
-  const location = useLocation();  // قراءة المسار الحالي
+  const location = useLocation();
   const userName = userData?.admin?.name;
+
   const userInitials = userName
     ? userName
         .split(" ")
@@ -16,15 +27,36 @@ export default function Navbar() {
         .join("")
     : "AD";
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    navigate("/login");
+  const handleLogout = async () => {
+
+    try {
+      const response = await axios.get("https://bcknd.sea-go.org/api/logout", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 200 || response.status === 204) {
+        clearAuthData();
+        toast.success("Logout successful");
+        navigate("/login");
+      } else {
+        throw new Error("Logout failed");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error(
+        error?.response?.data?.message ?? "An error occurred during logout"
+      );
+      clearAuthData();
+      navigate("/login");
+    }
   };
 
   return (
     <header className="w-full h-16 flex items-center justify-between !p-6">
-      {/* إخفاء زر السهم إذا كنا في الصفحة الرئيسية "/" */}
+      {/* Show back button only if not on the home page */}
       {location.pathname !== "/" && (
         <Button
           variant="ghost"
@@ -37,7 +69,7 @@ export default function Navbar() {
         </Button>
       )}
 
-      {/* Left: Welcome text with Avatar */}
+      {/* Left section: Avatar and welcome message */}
       <div className="flex items-center gap-2 text-teal-600 font-semibold text-lg">
         <Avatar className="w-9 h-9 bg-gray-300 text-white font-bold text-sm">
           <AvatarFallback>{userInitials}</AvatarFallback>
@@ -45,7 +77,7 @@ export default function Navbar() {
         Hello {userName || "Admin"}
       </div>
 
-      {/* Right: Icons */}
+      {/* Right section: Logout button */}
       <div className="flex items-center gap-6 text-teal-600 font-semibold">
         <Button
           variant="ghost"

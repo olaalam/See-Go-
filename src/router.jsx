@@ -45,6 +45,7 @@ import Mall from "./Pages/Mall/Mall";
 import MallAdd from "./Pages/Mall/MallAdd";
 import SinglePageM from "./Pages/Mall/SinglePageM";
 import MAdminAdd from "./Pages/Mall/MServiceAdd";
+import InvoiceCard from "./Pages/Invoice/Invoice";
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
@@ -92,6 +93,10 @@ const router = createBrowserRouter([
             element: <SinglePageV />,
           },
           { path: "single-page-v/:id/add", element: <VAdminAdd /> },
+          {
+            path: "single-page-v/:id/invoice/:invoiceId",
+            element: <InvoiceCard />,
+          },
         ],
       },
       {
@@ -113,7 +118,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Users /> },
           { path: "add", element: <UsersAdd /> },
-                    {
+          {
             path: "single-page-u/:id",
             element: <SinglePageU />,
           },
@@ -136,14 +141,19 @@ const router = createBrowserRouter([
             element: <SinglePageP />,
           },
           { path: "single-page-p/:id/add", element: <PAdminAdd /> },
+          {
+            path: "single-page-p/:id/invoice/:invoiceId",
+            element: <InvoiceCard />,
+          },
         ],
       },
-          { path: "provider-roles",
-                  children:[
-                    { index: true, element:<PAdminRole />},
-                    { path: "add", element:<PAdminRoleAdd/>}
-                  ]
-                  },
+      {
+        path: "provider-roles",
+        children: [
+          { index: true, element: <PAdminRole /> },
+          { path: "add", element: <PAdminRoleAdd /> },
+        ],
+      },
       {
         path: "packages",
         children: [

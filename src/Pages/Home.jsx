@@ -11,7 +11,6 @@ import {
   FaBuilding,
   FaUserCheck,
 } from "react-icons/fa";
-import { MdReportProblem } from "react-icons/md";
 
 const Home = () => {
   const [homeStats, setHomeStats] = useState({
@@ -99,8 +98,8 @@ const Home = () => {
   }
 
   return (
-    <div className="!p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="!p-4 flex !gap-3 md:flex-row flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {/* Number Of Village */}
         <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
@@ -136,16 +135,7 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Number Of Units */}
-        <div className="bg-[#F2FAFA] relative top-18 right-[6%] text-bg-primary !p-4 h-full items-center justify-center rotate-90 w-full rounded-2xl flex-col shadow flex border-r-4 border-bg-primary">
-          <div className="flex flex-col items-center justify-center rotate-[-90deg]">
-            <FaBuilding className="text-6xl text-[#0E7490] mb-2" />
-            <div className="text-4xl font-bold text-[#0E7490]">
-              {homeStats.units}
-            </div>
-            <div className="text-lg text-[#0E7490]">Number Of Units</div>
-          </div>
-        </div>
+
 
         {/* Pending Payments */}
         <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
@@ -179,6 +169,20 @@ const Home = () => {
               {homeStats.maintenance_providers}
             </div>
             <div className="">Maintenance Providers</div>
+          </div>
+        </div>
+      </div>
+      <div>
+      {/* Number Of Units */}
+        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex md:flex-col flex-row items-start border-r-4 border-bg-primary">
+          <div className="!p-4 flex md:flex-col items-center justify-center ">
+            <FaBuilding className="text-6xl text-[#0E7490] !mb-2" />
+            <div className="flex flex-col items-start justify-center !ps-3">
+              <span className="text-3xl font-bold">
+                {homeStats.units}
+                </span>
+            <div className="">Number Of Units</div>
+             </div>
           </div>
         </div>
       </div>

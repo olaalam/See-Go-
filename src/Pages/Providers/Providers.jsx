@@ -335,11 +335,8 @@ const Providers = () => {
     if (selectedRow.imageFile) {
       updatedProvider.append("image", selectedRow.imageFile);
     } else if (selectedRow.image_link) {
-      // إذا لم يتم رفع صورة جديدة ولكن هناك رابط صورة موجود، قد تحتاج Backend لمعرفة ذلك.
-      // لا يتم عادة إرسال image_link كـ "fallback" هنا، بل إما الصورة الجديدة أو لا شيء إذا لم تتغير.
-      // هذا الجزء يعتمد على كيفية توقع الـ Backend للصور الموجودة.
-      // For now, retaining original logic for existing image link handling.
-      // updatedProvider.append("image_link_fallback", selectedRow.image_link); // Example: send as a fallback
+      // Send the existing image as a fallback
+      updatedProvider.append("image", selectedRow.image_link);
     }
 
     try {
@@ -511,6 +508,20 @@ const Providers = () => {
         })),
       ],
     },
+    {
+  key: "adminName",
+  label: "Admin Name",
+  options: [
+    { value: "all", label: "All Admins" },
+    ...Array.from(
+      new Set(allProviders.map((p) => p.adminName).filter(Boolean))
+    ).map((name) => ({
+      value: name,
+      label: name,
+    })),
+  ],
+},
+
     {
       key: "status", // Matches the data key
       label: "Status",

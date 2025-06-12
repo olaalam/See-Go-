@@ -132,7 +132,7 @@ const Services = () => {
         toast.success("Service updated successfully!");
         const responseData = await response.json();
 
-        setServices((prev) =>
+{ /*       setServices((prev) =>
           prev.map((service) =>
             service.id === id
               ? {
@@ -160,7 +160,8 @@ const Services = () => {
                 }
               : service
           )
-        );
+        );*/}
+        await fetchservices(); // Refresh the list after update
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {

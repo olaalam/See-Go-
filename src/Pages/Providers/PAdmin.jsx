@@ -388,7 +388,7 @@ export default function PAdmin() {
       <ToastContainer />
       {isLoading ? (
         <Loading />
-      ) : adminData.length > 0 ? (
+      ) : (
         <>
           <DataTable
             data={adminData}
@@ -402,11 +402,9 @@ export default function PAdmin() {
             showFilter={true}
             filterKey={["status", "admin_position_name"]} // Now filtering by both status AND role
             filterOptions={filterOptionsForAdmins}
-            // Removed showAdditionalFilter, additionalFilterKey, additionalFilterOptions
-            // as we are combining them into one filter
           />
 
-          {selectedRow && (
+          {selectedRow &&( 
             <>
               <EditDialog
                 open={isEditOpen}
@@ -513,10 +511,6 @@ export default function PAdmin() {
           )}
           <Outlet />
         </>
-      ) : (
-        <div className="text-center text-gray-500 p-4">
-          No admin users found for this provider.
-        </div>
       )}
     </div>
   );

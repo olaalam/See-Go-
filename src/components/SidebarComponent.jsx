@@ -53,14 +53,15 @@ const navItems = [
         to: "/maintenance-provider",
         icon: <Wrench size={20} />,
       },
-    ],
-    dropdownIcon: <ChevronDown size={20} />,
-  },
-  {
+        {
   label: "Mall",
   to: "/mall",
   icon: <ShoppingBag size={20} />,
 },
+    ],
+    dropdownIcon: <ChevronDown size={20} />,
+  },
+
     {
     label: "Users",
     icon: <User size={20} />,
