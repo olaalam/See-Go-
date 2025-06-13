@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Add from "@/components/AddFieldSection";
 import { toast, ToastContainer } from "react-toastify";
@@ -14,6 +14,8 @@ export default function Addadmin() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  const [availableActions, setAvailableActions] = useState([]);
+
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -23,6 +25,7 @@ export default function Addadmin() {
     role: "",
     status: "active",
     image: null,
+    action: [], // for provider actions
   });
 
   const handleInputChange = (name, value) => {
@@ -31,6 +34,26 @@ export default function Addadmin() {
       [name]: value,
     }));
   };
+
+  // Fetch provider actions when role is 'provider'
+  useEffect(() => {
+    if (formData.role === "provider") {
+      fetch("https://bcknd.sea-go.org/admin/admins", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.actions)) {
+            setAvailableActions(data.actions);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching provider roles:", error);
+        });
+    }
+  }, [formData.role, token]);
 
   const handleSubmit = async () => {
     dispatch(showLoader());
@@ -46,6 +69,13 @@ export default function Addadmin() {
 
     if (formData.image) {
       formDataToSend.append("image", formData.image);
+    }
+
+    // Append actions for provider
+    if (formData.role === "provider" && Array.isArray(formData.action)) {
+      formData.action.forEach((act) => {
+        formDataToSend.append("action[]", act);
+      });
     }
 
     try {
@@ -74,6 +104,7 @@ export default function Addadmin() {
           role: "",
           status: "active",
           image: null,
+          action: [],
         });
 
         navigate("/admin");
@@ -124,11 +155,11 @@ export default function Addadmin() {
       placeholder: "Role",
       name: "role",
       options: [
-        { value: "all", label: "All" },
         { value: "admin", label: "Admin" },
         { value: "provider", label: "Provider" },
       ],
     },
+    
     {
       type: "switch",
       name: "status",
@@ -142,6 +173,17 @@ export default function Addadmin() {
       name: "image",
     },
   ];
+  if (formData.role === "provider") {
+  fieldsEn.push({
+    type: "multi-select",
+    placeholder: "Provider Actions",
+    name: "action",
+    options: availableActions.map((a) => ({
+      value: a,
+      label: a.charAt(0).toUpperCase() + a.slice(1),
+    })),
+  });
+}
 
   return (
     <div className="w-[90%] p-6 relative">

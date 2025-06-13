@@ -9,6 +9,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectTrigger,
@@ -16,16 +23,22 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Label } from "@radix-ui/react-label";
 
 const Admins = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [admins, setAdmins] = useState([]); // Changed to setAdmins for consistency
+  const [admins, setAdmins] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [isViewRolesOpen, setIsViewRolesOpen] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [allAvailableRoles, setAllAvailableRoles] = useState([]);
+  const [selectedEditRoles, setSelectedEditRoles] = useState([]);
+  const [isRolesDropdownOpen, setIsRolesDropdownOpen] = useState(false);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -36,7 +49,6 @@ const Admins = () => {
   };
 
   const fetchAdmins = async () => {
-    // Changed to fetchAdmins for consistency
     dispatch(showLoader());
     try {
       const response = await fetch("https://bcknd.sea-go.org/admin/admins", {
@@ -47,11 +59,21 @@ const Admins = () => {
         },
       });
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
+      const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      const formatted = result.admins.map((admin) => {
+      // معالجة الأدوار المتاحة - فلترة "all" إذا وجدت
+      const filteredActions = result.actions
+        ? result.actions.filter((action) => action !== "all")
+        : [];
+      setAllAvailableRoles(filteredActions);
+
+      // معالجة بيانات الأدمن
+      const formatted = (result.admins || []).map((admin) => {
         const translations = (admin.translations || []).reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
@@ -72,7 +94,7 @@ const Admins = () => {
             />
           ) : (
             <Avatar className="w-12 h-12">
-              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{name?.charAt(0) || "?"}</AvatarFallback>
             </Avatar>
           );
 
@@ -80,22 +102,38 @@ const Admins = () => {
           id: admin.id,
           name,
           email,
-          role: admin.provider_only, // This is the boolean or numeric value (0 or 1)
+          role: admin.provider_only,
           phone,
           img: image,
-          status: admin.status === 1 ? "active" : "inactive", // Ensure status is lowercase for consistent filtering
+          status: admin.status === 1 ? "active" : "inactive",
           image_link: admin.image_link,
           gender: admin.gender || "—",
+          super_roles: admin.super_roles || [],
         };
       });
 
       setAdmins(formatted);
     } catch (error) {
       console.error("Error fetching admins:", error);
+      toast.error("Failed to fetch admins!");
     } finally {
       dispatch(hideLoader());
     }
   };
+
+  // إغلاق الـ dropdown عند النقر خارجه
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isRolesDropdownOpen && !event.target.closest('.roles-dropdown')) {
+        setIsRolesDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isRolesDropdownOpen]);
 
   useEffect(() => {
     fetchAdmins();
@@ -103,6 +141,11 @@ const Admins = () => {
 
   const handleEdit = (admin) => {
     setSelectedRow(admin);
+    // تحديد الأدوار الحالية للـ admin
+    const currentRoles = admin.super_roles
+      ? admin.super_roles.map((super_role) => super_role.action || super_role)
+      : [];
+    setSelectedEditRoles(currentRoles);
     setIsEditOpen(true);
   };
 
@@ -113,33 +156,52 @@ const Admins = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    
     const {
       id,
       name,
       phone,
       email,
-      role, // This is the boolean/numeric role from selectedRow
+      role,
       status,
       gender,
       password,
       imageFile,
     } = selectedRow;
 
+    // التحقق من البيانات المطلوبة
+    if (!name || !email || !phone) {
+      toast.error("Please fill in all required fields!");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("name", name);
     formData.append("phone", phone);
     formData.append("email", email);
-    formData.append("password", password);
+    formData.append("provider_only", role ? 1 : 0);
+    formData.append("gender", gender || "");
+    formData.append("status", status === "active" ? 1 : 0);
+    
+    // إضافة كلمة المرور فقط إذا تم إدخالها
+    if (password && password.trim() !== "") {
+      formData.append("password", password);
+    }
 
-    // Correctly append the role based on its true/false or 0/1 value
-    formData.append("provider_only", role ? 1 : 0); // Convert boolean to 1 or 0 for the backend
-    formData.append("gender", gender);
-    formData.append("status", status === "active" ? 1 : 0); // Use lowercase "active"
+    // إضافة الأدوار المحددة للـ Provider
+    if (role === 1 && selectedEditRoles.length > 0) {
+      // جرب هذه الطرق بالترتيب حسب ما يتوقعه الـ API
+
+      selectedEditRoles.forEach(roleItem => {
+        formData.append("action[]", roleItem);
+       });
+    }
 
     if (imageFile) {
       formData.append("image", imageFile);
     }
 
+    dispatch(showLoader());
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/admins/update/${id}`,
@@ -152,56 +214,27 @@ const Admins = () => {
 
       if (response.ok) {
         toast.success("Admin updated successfully!");
-        const responseData = await response.json();
-
-        setAdmins((prev) =>
-          prev.map((admin) =>
-            admin.id === id
-              ? {
-                  ...admin,
-                  name: responseData?.admin?.name || name,
-                  phone: responseData?.admin?.phone || phone,
-                  password:responseData?.admin?.password || password,
-                  email: responseData?.admin?.email || email,
-                  role: responseData?.admin?.provider_only, // Keep as boolean/numeric
-                  gender: responseData?.admin?.gender || gender,
-                  status:
-                    responseData?.admin?.status === 1 ? "active" : "inactive", // Ensure lowercase
-                  image_link:
-                    responseData?.admin?.image_link || admin.image_link,
-                  img: responseData?.admin?.image_link ? (
-                    <img
-                      src={responseData.admin.image_link}
-                      alt={responseData?.admin?.name || name}
-                      className="w-12 h-12 rounded-md object-cover aspect-square"
-                      onError={() => handleImageError(id)}
-                    />
-                  ) : (
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback>
-                        {responseData?.admin?.name?.charAt(0) ||
-                          name?.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ),
-                }
-              : admin
-          )
-        );
+         await fetchAdmins();
         setIsEditOpen(false);
         setSelectedRow(null);
+        setSelectedEditRoles([]);
       } else {
         const errorData = await response.json();
         console.error("Update failed:", errorData);
-        toast.error("Failed to update admin!");
+        toast.error(errorData.message || "Failed to update admin!");
       }
     } catch (error) {
       console.error("Error updating admin:", error);
       toast.error("Error occurred while updating admin!");
+    } finally {
+      dispatch(hideLoader());
     }
   };
 
   const handleDeleteConfirm = async () => {
+    if (!selectedRow) return;
+
+    dispatch(showLoader());
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/admins/delete/${selectedRow.id}`,
@@ -215,18 +248,38 @@ const Admins = () => {
         toast.success("Admin deleted successfully!");
         setAdmins(admins.filter((admin) => admin.id !== selectedRow.id));
         setIsDeleteOpen(false);
+        setSelectedRow(null);
       } else {
-        toast.error("Failed to delete admin!");
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to delete admin!");
       }
     } catch (error) {
       console.error("Error deleting admin:", error);
       toast.error("Error occurred while deleting admin!");
+    } finally {
+      dispatch(hideLoader());
     }
+  };
+
+  const handleViewRoles = (row) => {
+    setSelectedRoles(row.super_roles || []);
+    setIsViewRolesOpen(true);
+  };
+
+  const handleEditRoleChange = (roleModule) => {
+    setSelectedEditRoles((prevSelectedRoles) => {
+      if (prevSelectedRoles.includes(roleModule)) {
+        return prevSelectedRoles.filter((module) => module !== roleModule);
+      } else {
+        return [...prevSelectedRoles, roleModule];
+      }
+    });
   };
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
 
+    dispatch(showLoader());
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/admins/status/${id}?status=${newStatus}`,
@@ -238,24 +291,23 @@ const Admins = () => {
 
       if (response.ok) {
         toast.success("Admin status updated successfully!");
-        setAdmins(
-          (
-            prevAdmins // Changed to prevAdmins for consistency
-          ) =>
-            prevAdmins.map((admin) =>
-              admin.id === id
-                ? { ...admin, status: newStatus === 1 ? "active" : "inactive" } // Ensure lowercase
-                : admin
-            )
+        setAdmins((prevAdmins) =>
+          prevAdmins.map((admin) =>
+            admin.id === id
+              ? { ...admin, status: newStatus === 1 ? "active" : "inactive" }
+              : admin
+          )
         );
       } else {
         const errorData = await response.json();
         console.error("Failed to update admin status:", errorData);
-        toast.error("Failed to update admin status!");
+        toast.error(errorData.message || "Failed to update admin status!");
       }
     } catch (error) {
       console.error("Error updating admin status:", error);
       toast.error("Error occurred while updating admin status!");
+    } finally {
+      dispatch(hideLoader());
     }
   };
 
@@ -266,7 +318,6 @@ const Admins = () => {
     }));
   };
 
-
   const columns = [
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },
@@ -274,36 +325,57 @@ const Admins = () => {
     {
       key: "role",
       label: "Role",
-      render: (row) => (row.role === 1 ? "Provider" : "Admin"), // Display "Provider" or "Admin"
+      render: (row) => (row.role === 1 ? "Provider" : "Admin"),
+    },
+    {
+      key: "assigned_roles",
+      label: "Provider Roles",
+      render: (row) => {
+        if (row.role === 1 && row.super_roles && row.super_roles.length > 0) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              className="!px-3 !py-2 text-bg-primary cursor-pointer hover:bg-gray-200 transition-all"
+              onClick={() => handleViewRoles(row)}
+            >
+              View Roles ({row.super_roles.length})
+            </Button>
+          );
+        } else if (row.role === 1) {
+          return (
+            <span className="text-gray-500 text-sm">No roles assigned</span>
+          );
+        } else {
+          return <span className="text-gray-400 text-sm">—</span>;
+        }
+      },
     },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
     { key: "gender", label: "Gender" },
   ];
 
-  // --- START OF FILTER FIX ---
-  // Define filter options for status and role
-const filterOptions = [
-  {
-    key: "status",
-    label: "Status",
-    options: [
-      { value: "all", label: "All Statuses" },
-      { value: "Active", label: "Active" },
-      { value: "Inactive", label: "Inactive" },
-    ],
-  },
-  {
-    key: "role",
-    label: "Role", // يمكنك تغيير الـ label حسب ما يناسبك، مثل "Role Type"
-    options: [
-      { value: "all", label: "All Roles" }, // إضافة خيار "All Roles"
-      { value: "0", label: "Admin" },
-      { value: "1", label: "Provider" },
-    ],
-  },
-];
-  // --- END OF FILTER FIX ---
+  const filterOptions = [
+    {
+      key: "status",
+      label: "Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "Active", label: "Active" },
+        { value: "Inactive", label: "Inactive" },
+      ],
+    },
+    {
+      key: "role",
+      label: "Role",
+      options: [
+        { value: "all", label: "All Roles" },
+        { value: "0", label: "Admin" },
+        { value: "1", label: "Provider" },
+      ],
+    },
+  ];
 
   return (
     <div className="p-4">
@@ -319,8 +391,8 @@ const filterOptions = [
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "phone", "email"]}
-        filterKey={["status", "role"]} // Specify that we want to filter by the 'status' and 'role' keys
-        filterOptions={filterOptions} // Pass the defined filter options
+        filterKey={["status", "role"]}
+        filterOptions={filterOptions}
       />
 
       {selectedRow && (
@@ -335,32 +407,40 @@ const filterOptions = [
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <label htmlFor="name" className="text-gray-400 !pb-3">
-                Name
+                Name 
               </label>
               <Input
                 id="name"
                 value={selectedRow?.name || ""}
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                required
               />
+              
               <label htmlFor="email" className="text-gray-400 !pb-3">
-                Email
+                Email 
               </label>
               <Input
                 id="email"
+                type="email"
                 value={selectedRow?.email || ""}
                 onChange={(e) => onChange("email", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                required
               />
+              
               <label htmlFor="role" className="text-gray-400 !pb-3">
-                Role
+                Role 
               </label>
-              {/* This logic for role in EditDialog assumes 'role' is a boolean/numeric (0 or 1) */}
               <Select
-                value={selectedRow?.role?.toString()} // Convert to string for Select component
-                onValueChange={
-                  (value) => onChange("role", parseInt(value)) // Convert back to number
-                }
+                value={selectedRow?.role?.toString()}
+                onValueChange={(value) => {
+                  onChange("role", parseInt(value));
+                  // مسح الأدوار المحددة عند تغيير النوع من Provider إلى Admin
+                  if (parseInt(value) === 0) {
+                    setSelectedEditRoles([]);
+                  }
+                }}
               >
                 <SelectTrigger
                   id="role"
@@ -377,32 +457,35 @@ const filterOptions = [
                   </SelectItem>
                 </SelectContent>
               </Select>
+              
               <label htmlFor="phone" className="text-gray-400 !pb-3">
-                Phone
+                Phone 
               </label>
-
               <Input
                 id="phone"
                 value={selectedRow?.phone || ""}
                 onChange={(e) => onChange("phone", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                required
               />
+              
               <label htmlFor="password" className="text-gray-400 !pb-3">
-                Password
+                Password 
               </label>
-
               <Input
                 id="password"
                 type="password"
                 value={selectedRow?.password || ""}
                 onChange={(e) => onChange("password", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                placeholder="password "
               />
+              
               <label htmlFor="gender" className="text-gray-400 !pb-3">
                 Gender
               </label>
               <Select
-                value={selectedRow?.gender}
+                value={selectedRow?.gender || ""}
                 onValueChange={(value) => onChange("gender", value)}
               >
                 <SelectTrigger
@@ -420,8 +503,55 @@ const filterOptions = [
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Provider Roles Section */}
+{/* Provider Roles Section - Updated Design */}
+              {selectedRow?.role === 1 && (
+                <div className="w-full mt-4">
+                  <label htmlFor="providerRoles" className="text-gray-400 mb-2 block">
+                    Assign Modules
+                  </label>
+
+                  {/* Role Selection Input */}
+                  <Select
+                    value=""
+                    onValueChange={handleEditRoleChange}
+                  >
+                    <SelectTrigger
+                      id="providerRoles"
+                      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]"
+                    >
+                      <SelectValue placeholder="Select modules" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {allAvailableRoles.map((roleModule) => (
+                        <SelectItem
+                          key={roleModule}
+                          value={roleModule}
+                          className={`${selectedEditRoles.includes(roleModule) ? 'bg-gray-100 font-semibold' : ''}`}
+                        >
+                          {roleModule}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Display Currently Selected Roles */}
+                  {selectedEditRoles.length > 0 && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      Currently assigned: {selectedEditRoles.join(", ")}
+                    </div>
+                  )}
+                  {selectedEditRoles.length === 0 && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      No modules assigned.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </EditDialog>
+          
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
@@ -430,6 +560,33 @@ const filterOptions = [
           />
         </>
       )}
+
+      {/* Roles View Modal */}
+      <Dialog open={isViewRolesOpen} onOpenChange={setIsViewRolesOpen}>
+        <DialogContent className="bg-white !mb-4 !p-6 rounded-lg shadow-lg max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-bg-primary">
+              Assigned Roles
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {selectedRoles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {selectedRoles.map((super_role, index) => (
+                  <div
+                    key={index}
+                    className="!p-3 !m-1 border rounded-md bg-gray-50 dark:bg-gray-300 text-center"
+                  >
+                    {super_role.action || super_role || "N/A"}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">No roles assigned to this provider.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
