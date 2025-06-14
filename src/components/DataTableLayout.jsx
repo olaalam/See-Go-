@@ -44,18 +44,18 @@ export default function DataTable({
   showDeleteButtonInHeader = false,
   onDeleteInHeader,
   showRowSelection = false,
-  showFilter = true, // Still determines if filters section is shown
+  showFilter = true,
   showActions = true,
   showEditButton = true,
   showDeleteButton = true,
-  searchKeys = [],
-  filterOptions = [], // This is now an array of filter groups (e.g., [{label: "Type", key: "user_type", options: [...]}, ...])
+  searchKeys = [], // Expects keys like ["searchableName", "description"]
+  filterOptions = [],
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [activeFilters, setActiveFilters] = useState(() => {
     const initialFilters = {};
     filterOptions.forEach((group) => {
-      initialFilters[group.key] = "all"; // Default to 'all' for each filter group
+      initialFilters[group.key] = "all";
     });
     return initialFilters;
   });
@@ -76,46 +76,70 @@ export default function DataTable({
     setCurrentPage(1); // Reset to first page on filter change
   }, [filterOptions]);
 
+  // Helper function to safely get nested values (e.g., "zone.name")
   const getNestedValue = (obj, path) => {
     return path
       .split(".")
       .reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
-  const filteredData = useMemo(() => {
-    let currentData = data;
+// في DataTable component، في الـ filteredData useMemo:
 
-    // Apply search filter
-    if (searchValue) {
-      const lowerCaseSearchValue = searchValue.toLowerCase();
-      currentData = currentData.filter((row) =>
-        searchKeys.some((key) => {
-          const value = getNestedValue(row, key);
-          const searchableValue = value?.toString() || "";
-          return searchableValue.toLowerCase().includes(lowerCaseSearchValue);
-        })
-      );
-    }
+const filteredData = useMemo(() => {
+  let currentData = data;
 
-    // Apply accordion filters
-    Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
-      if (filterValue !== "all") {
-        // If a specific filter is selected (not "all")
-        currentData = currentData.filter((row) => {
-          const rowValue = getNestedValue(row, filterKey);
-          const comparableRowValue =
-            rowValue !== null && rowValue !== undefined
-              ? String(rowValue).toLowerCase()
-              : "";
-          const comparableFilterValue = String(filterValue).toLowerCase();
-
-          return comparableRowValue === comparableFilterValue;
-        });
-      }
+  // Apply search filter
+  if (searchValue) {
+    const lowerCaseSearchValue = searchValue.toLowerCase();
+    console.log("Search value:", lowerCaseSearchValue); // Debug log
+    console.log("Search keys:", searchKeys); // Debug log
+    
+    currentData = currentData.filter((row) => {
+      const matches = searchKeys.some((key) => {
+        const value = getNestedValue(row, key);
+        console.log(`Row ${row.id}: ${key} =`, value, typeof value); // Debug log
+        
+        // تأكد إن الـ value مش null أو undefined أو JSX
+        if (value === null || value === undefined) {
+          return false;
+        }
+        
+        // تأكد إن الـ value مش object (JSX element)
+        if (typeof value === 'object') {
+          console.warn(`Warning: ${key} is an object, not searchable string:`, value);
+          return false;
+        }
+        
+        const searchableString = String(value).toLowerCase();
+        const isMatch = searchableString.includes(lowerCaseSearchValue);
+        console.log(`  - "${searchableString}" includes "${lowerCaseSearchValue}"?`, isMatch); // Debug log
+        
+        return isMatch;
+      });
+      
+      console.log(`Row ${row.id} matches:`, matches); // Debug log
+      return matches;
     });
+  }
 
-    return currentData;
-  }, [data, searchValue, activeFilters, searchKeys]);
+  // Apply accordion filters
+  Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
+    if (filterValue !== "all") {
+      currentData = currentData.filter((row) => {
+        const rowValue = getNestedValue(row, filterKey);
+        const comparableRowValue =
+          rowValue !== null && rowValue !== undefined
+            ? String(rowValue).toLowerCase()
+            : "";
+        const comparableFilterValue = String(filterValue).toLowerCase();
+
+        return comparableRowValue === comparableFilterValue;
+      });
+    }
+  });
+
+  return currentData;
+}, [data, searchValue, activeFilters, searchKeys]);
 
   // --- Pagination Logic ---
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -156,73 +180,73 @@ export default function DataTable({
 
   return (
     <div className="w-full !p-3 space-y-6">
-<div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-  {/* Search Input */}
-  <Input
-    placeholder="Search..."
-    className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
-    value={searchValue}
-    onChange={(e) => {
-      setSearchValue(e.target.value);
-      setCurrentPage(1); // Reset to first page on search
-    }}
-  />
+      <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
+        {/* Search Input */}
+        <Input
+          placeholder="Search..."
+          className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+          value={searchValue}
+          onChange={(e) => {
+            setSearchValue(e.target.value);
+            setCurrentPage(1); // Reset to first page on search
+          }}
+        />
 
-  <div className="flex items-center gap-3 flex-wrap">
-    {showFilter && filterOptions.length > 0 && (
-      <div className="flex gap-3 flex-wrap">
-        {filterOptions.map((group) => (
-          <div key={group.key} className="w-[150px]">
-            <Select
-              value={activeFilters[group.key]}
-              onValueChange={(val) =>
-                handleAccordionFilterChange(group.key, val)
-              }
-            >
-              <SelectTrigger className="text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                <SelectValue placeholder={group.label} />
-              </SelectTrigger>
-              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                {group.options.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    className="text-bg-primary"
-                    value={option.value}
+        <div className="flex items-center gap-3 flex-wrap">
+          {showFilter && filterOptions.length > 0 && (
+            <div className="flex gap-3 flex-wrap">
+              {filterOptions.map((group) => (
+                <div key={group.key} className="w-[150px]">
+                  <Select
+                    value={activeFilters[group.key]}
+                    onValueChange={(val) =>
+                      handleAccordionFilterChange(group.key, val)
+                    }
                   >
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
+                    <SelectTrigger className="text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                      <SelectValue placeholder={group.label} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {group.options.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          className="text-bg-primary"
+                          value={option.value}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add Button */}
+          {showAddButton && (
+            <Button
+              onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
+              className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
+            >
+              <Plus className="w-5 h-5 !mr-2" />
+              Add
+            </Button>
+          )}
+
+          {/* Delete Selected Button */}
+          {showDeleteButtonInHeader && (
+            <Button
+              onClick={() => onDeleteInHeader(selectedRows)}
+              className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
+              disabled={selectedRows.length === 0}
+            >
+              <Trash className="w-5 h-5 !mr-2" />
+              Delete Selected
+            </Button>
+          )}
+        </div>
       </div>
-    )}
-
-    {/* Add Button */}
-    {showAddButton && (
-      <Button
-        onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
-        className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
-      >
-        <Plus className="w-5 h-5 !mr-2" />
-        Add
-      </Button>
-    )}
-
-    {/* Delete Selected Button */}
-    {showDeleteButtonInHeader && (
-      <Button
-        onClick={() => onDeleteInHeader(selectedRows)}
-        className="bg-red-600 cursor-pointer text-white hover:bg-red-700 rounded-[10px] !p-3"
-        disabled={selectedRows.length === 0}
-      >
-        <Trash className="w-5 h-5 !mr-2" />
-        Delete Selected
-      </Button>
-    )}
-  </div>
-</div>
 
       <div className="max-h-[calc(100vh-300px)]">
         <Table className="!min-w-[600px]">
@@ -343,7 +367,7 @@ export default function DataTable({
                           return (
                             <div className="relative w-[120px] truncate group">
                               <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                href={`https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(
                                   url
                                 )}`}
                                 target="_blank"

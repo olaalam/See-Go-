@@ -77,66 +77,64 @@ const Villages = () => {
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      const formatted = result?.villages.map((village) => {
-        const translations = village.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {});
 
-        const name = translations[currentLang]?.name || village.name || "—";
-        const rawName = name; // Keep rawName for editing purposes if needed, but 'name' is for display and search
+const formatted = result?.villages.map((village) => {
+  const translations = village.translations.reduce((acc, t) => {
+    if (!acc[t.locale]) acc[t.locale] = {};
+    acc[t.locale][t.key] = t.value;
+    return acc;
+  }, {});
 
-        const nameClickable = (
-          <span
-            onClick={() => navigate(`/villages/single-page-v/${village.id}`)}
-            className="text-bg-primary hover:text-teal-800 cursor-pointer"
-          >
-            {name}
-          </span>
-        );
-        const description =
-          translations[currentLang]?.description || village.description || "—";
-        const zoneName =
-          village.zone?.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value ||
-          village.zone?.name ||
-          "—";
+  const name = translations[currentLang]?.name || village.name || "—";
+  const rawName = name; // Keep rawName for editing purposes
 
-        const image =
-          village?.image_link && !imageErrors[village.id] ? (
-            <img
-              src={village?.image_link}
-              alt={name}
-              className="w-12 h-12 rounded-md object-cover aspect-square"
-              onError={() => handleImageError(village.id)}
-            />
-          ) : (
-            <Avatar className="w-12 h-12">
-              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-          );
+  const nameClickable = (
+    <span
+      onClick={() => navigate(`/villages/single-page-v/${village.id}`)}
+      className="text-bg-primary hover:text-teal-800 cursor-pointer"
+    >
+      {name}
+    </span>
+  );
 
-        const map = village.location || "—";
-        const population = village.population_count || "—";
+  const description = translations[currentLang]?.description || village.description || "—";
+  const zoneName = village.zone?.translations?.find(
+    (t) => t.locale === currentLang && t.key === "name"
+  )?.value || village.zone?.name || "—";
 
-        return {
-          id: village.id,
-          name: nameClickable, // This is the JSX for display
-          rawName, // This is the plain text name for editing/search
-          description,
-          img: image,
-          numberOfUnits: village.units_count ?? "0",
-          status: village.status === 1 ? "active" : "inactive", // Ensure status is lowercase for consistent filtering
-          zone_id: village.zone_id,
-          zone: zoneName, // Use 'zone' key for both display and filtering consistency
-          map,
-          population,
-          image_link: village.image_link,
-        };
-      });
+  const image = village?.image_link && !imageErrors[village.id] ? (
+    <img
+      src={village?.image_link}
+      alt={name}
+      className="w-12 h-12 rounded-md object-cover aspect-square"
+      onError={() => handleImageError(village.id)}
+    />
+  ) : (
+    <Avatar className="w-12 h-12">
+      <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+    </Avatar>
+  );
 
+  const map = village.location || "—";
+  const population = village.population_count || "—";
+
+  return {
+    id: village.id,
+    name: nameClickable, // JSX for display
+    rawName, // Plain text for editing
+    searchableName: name, // تأكد إن دي موجودة دايماً وهي string
+    description,
+    img: image,
+    numberOfUnits: village.units_count ?? "0",
+    status: village.status === 1 ? "active" : "inactive",
+    zone_id: village.zone_id,
+    zone: zoneName,
+    searchableZone: zoneName, // للفلتر
+    map,
+    population,
+    image_link: village.image_link,
+  };
+});
       setVillages(formatted);
     } catch (error) {
       console.error("Error fetching villages:", error);
@@ -296,17 +294,14 @@ const Villages = () => {
     { key: "numberOfUnits", label: "Number of Units" },
     { key: "zone", label: "Zone" }, // Changed key to 'zone' for consistency
     { key: "map", label: "Location" },
-
     { key: "population", label: "Population" },
-
     { key: "status", label: "Status" },
   ];
 
-  // --- Start of the key change ---
   // Prepare filter options for zone and status in the grouped format expected by DataTable
   const filterOptionsForVillages = [
     {
-      key: "zone",
+      key: "searchableZone",
       label: "Filter by Zone",
       options: [
         { value: "all", label: "All Zones" },
@@ -323,7 +318,6 @@ const Villages = () => {
       ],
     },
   ];
-  // --- End of the key change ---
 
   return (
     <div className="p-4">
@@ -337,10 +331,8 @@ const Villages = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={["name", "description"]}
+        searchKeys={["searchableName", "description"]} // استخدام searchableName للبحث
         showFilter={true}
-        // No need for filterKey prop anymore as it's part of the filterOptions structure
-        // filterKey={["zone", "status"]}
         filterOptions={filterOptionsForVillages} // Pass the correctly structured options
       ></DataTable>
       {isInvoiceOpen && (

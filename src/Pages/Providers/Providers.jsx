@@ -175,6 +175,7 @@ const Providers = () => {
           id: provider.id,
           name: nameClickable,
           rawName,
+          searchableName: name,
           map,
           description,
           img: image,
@@ -547,7 +548,7 @@ const Providers = () => {
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         searchKeys={[
-          "name",
+          "searchableName", // This is used for searching
           "serviceName",
           "location",
           "villageName",
