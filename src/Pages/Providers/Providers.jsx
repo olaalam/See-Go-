@@ -38,8 +38,9 @@ const Providers = () => {
   const [allProviders, setAllProviders] = useState([]); // Store original fetched data
   // ستتم تعبئة هذه الحالات من استجابة الـ providers
   const [village, setVillage] = useState([]);
-  const [zones, setZones] = useState([]);
+  const [zones, setProvider] = useState([]);
   const [services, setServices] = useState([]);
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -54,6 +55,40 @@ const Providers = () => {
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+
+    // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Provider(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Zone:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -73,15 +108,15 @@ const Providers = () => {
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      // 1. Populate Zones state from result.zone
-      const formattedZones = (result.zones || []).map((zone) => {
+      // 1. Populate Provider state from result.zone
+      const formattedProvider = (result.zones || []).map((zone) => {
         const name =
           zone.translations?.find(
             (t) => t.locale === currentLang && t.key === "name"
           )?.value || zone.name;
         return { id: zone.id, name: name };
       });
-      setZones(formattedZones);
+      setProvider(formattedProvider);
 
       // 2. Populate Village state from result.village
       const formattedVillages = (result.villages || []).map((v) => {
@@ -162,7 +197,7 @@ const Providers = () => {
         let zoneName = "—";
         let zone_id = null;
         if (villageObj && villageObj.zone_id) {
-          const zoneObj = formattedZones.find(
+          const zoneObj = formattedProvider.find(
             (z) => z.id === villageObj.zone_id
           );
           if (zoneObj) {
@@ -200,7 +235,7 @@ const Providers = () => {
       setProviders(formatted); // Initialize displayed providers
     } catch (error) {
       console.error("Error fetching providers:", error);
-      toast.error("حدث خطأ أثناء جلب البيانات!");
+      toast.error("Error fetching providers");
     } finally {
       dispatch(hideLoader());
     }
@@ -298,6 +333,12 @@ const Providers = () => {
       map: location, // الحصول على الموقع من selectedRow
     } = selectedRow;
 
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ProviderEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
+
     // تحقق من الحقول المفتوحة
     if (!village_id || isNaN(parseInt(village_id, 10))) {
       toast.error("Village ID is missing or invalid");
@@ -370,6 +411,11 @@ const Providers = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ProviderDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
@@ -441,6 +487,11 @@ const Providers = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ProviderStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/status/${id}?status=${newStatus}`,
@@ -486,7 +537,7 @@ const Providers = () => {
       key: "zoneName", // Changed to match the data key
       label: "Zone",
       options: [
-        { value: "all", label: "All Zones" },
+        { value: "all", label: "All Provider" },
         ...zones.map((zone) => ({ value: zone.name, label: zone.name })),
       ],
     },
@@ -542,6 +593,8 @@ const Providers = () => {
       <DataTable
         data={providers} // Pass the filtered data here
         columns={columns}
+          showAddButton={hasPermission("ProviderAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute="/providers/add"
         className="table-compact"
         onEdit={handleEdit}
@@ -554,6 +607,12 @@ const Providers = () => {
           "villageName",
           "zoneName",
         ]}
+          showEditButton={hasPermission("ProviderEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showDeleteButton={hasPermission("ProviderDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showActions={
+    hasPermission("ProviderEdit") ||
+    hasPermission("ProviderDelete") 
+  }
         showFilter={true}
         filterOptions={filterOptionsForVillages} // Pass the enhanced filterOptions
       />

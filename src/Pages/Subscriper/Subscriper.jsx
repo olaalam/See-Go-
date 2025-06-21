@@ -15,6 +15,7 @@ import {
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 export default function SubscribersPage() {
   const [tab, setTab] = useState("provider");
@@ -28,8 +29,51 @@ export default function SubscribersPage() {
   const [providers, setProviders] = useState([]);
   const [providerPackages, setProviderPackages] = useState([]);
   const [villagePackages, setVillagePackages] = useState([]);
+  const [maintenanceProviders, setMaintenanceProviders] = useState([]);
+  const [maintenancePackages, setMaintenancePackages] = useState([]);
   const [services, setServices] = useState([]);
   const token = localStorage.getItem("token");
+  const [permissions, setPermissions] = useState([]);
+  const navigate = useNavigate();
+
+  // Get permissions from localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  const handleAddClick = () => {
+    // This is the correct function that passes the tab state
+    navigate("/subscribers/add", { state: { initialType: tab } });
+  };
+
+  // Check for specific permission
+  const hasPermission = (permission) => {
+    const match = permission.match(/^subcriber(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `subcriber:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -47,14 +91,24 @@ export default function SubscribersPage() {
 
       let result = [];
       switch (tab) {
-
         case "provider":
           result = response.data.subscribers_provider.map((sub) => ({
             ...sub,
+            type: "provider",
           }));
           break;
         case "village":
-          result = response.data.subscribers_village.map((sub) => ({ ...sub }));
+          result = response.data.subscribers_village.map((sub) => ({
+            ...sub,
+            type: "village",
+          }));
+          break;
+        case "maintenance_provider":
+          result =
+            response.data.subscribers_maintenance_provider?.map((sub) => ({
+              ...sub,
+              type: "maintenance_provider",
+            })) || [];
           break;
         default:
           result = [];
@@ -66,7 +120,15 @@ export default function SubscribersPage() {
       setProviders(response.data.providers || []);
       setProviderPackages(response.data.provider_packages || []);
       setVillagePackages(response.data.village_packages || []);
+      setMaintenanceProviders(response.data.maintenance_provider || []);
+      setMaintenancePackages(response.data.maintenance_provider_packages || []);
       setServices(response.data.services || []);
+
+      console.log(
+        "Maintenance Providers (from API data.maintenance_provider):",
+        response.data.maintenance_provider
+      );
+      console.log("Response data keys:", Object.keys(response.data));
     } catch (error) {
       toast.error("Failed to fetch subscribers.");
       console.error("Error fetching data:", error);
@@ -77,9 +139,11 @@ export default function SubscribersPage() {
 
   useEffect(() => {
     fetchData();
-  }, [tab]);
+  }, [tab]); // Dependency on tab to refetch data when tab changes
 
   const handleEdit = async (row) => {
+    console.log("handleEdit: Row data being sent to API:", row);
+
     const formData = new FormData();
     formData.append(
       "payment_method_id",
@@ -93,6 +157,11 @@ export default function SubscribersPage() {
       formData.append("service_id", row?.service_id?.toString() || "");
     } else if (row.type === "village") {
       formData.append("village_id", row?.village_id?.toString() || "");
+    } else if (row.type === "maintenance_provider") {
+      formData.append(
+        "maintenance_provider_id",
+        row?.maintenance_provider_id?.toString() || ""
+      );
     }
 
     try {
@@ -106,12 +175,20 @@ export default function SubscribersPage() {
       toast.success("Subscriber updated successfully.");
       fetchData();
     } catch (error) {
-      console.error("Error updating subscriber:", error);
-      toast.error("Failed to update subscriber.");
+      console.error(
+        "Error updating subscriber:",
+        error.response?.data || error.message
+      );
+      toast.error(
+        `Failed to update subscriber: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   };
 
   const handleDelete = async (row) => {
+    console.log("handleDelete: Row data being deleted:", row);
     try {
       await axios.delete(
         `https://bcknd.sea-go.org/admin/subscriper/delete/${row.id}`,
@@ -120,9 +197,46 @@ export default function SubscribersPage() {
       toast.success("Subscriber deleted successfully.");
       setData((prevData) => prevData.filter((item) => item.id !== row.id));
     } catch (error) {
-      console.error("Error deleting subscriber:", error);
-      toast.error("Failed to delete subscriber.");
+      console.error(
+        "Error deleting subscriber:",
+        error.response?.data || error.message
+      );
+      toast.error(
+        `Failed to delete subscriber: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
+  };
+
+  // Function to get Payment Method Name
+  const getPaymentMethodName = (row) => {
+    if (row.payment_method_item?.name) {
+      return row.payment_method_item.name;
+    }
+
+    if (row.payment_method?.name) {
+      return row.payment_method.name;
+    }
+
+    if (row.paymentMethod?.name) {
+      return row.paymentMethod.name;
+    }
+
+    if (row.payment_method_name) {
+      return row.payment_method_name;
+    }
+
+    if (row.payment_method_id) {
+      const method = paymentMethods.find((m) => m.id === row.payment_method_id);
+      if (method) return method.name;
+    }
+
+    if (typeof row.payment_method === "string") {
+      return row.payment_method;
+    }
+
+    return "N/A";
   };
 
   const handleEditClick = (row) => {
@@ -132,34 +246,56 @@ export default function SubscribersPage() {
       rowToEdit.type = tab;
     }
 
-    if (rowToEdit.payment_method_id === undefined && rowToEdit.payment_method?.id !== undefined) {
-      rowToEdit.payment_method_id = rowToEdit.payment_method.id;
+    // Fix payment_method_id
+    if (rowToEdit.payment_method_id === undefined) {
+      if (rowToEdit.payment_method_item?.id !== undefined) {
+        rowToEdit.payment_method_id = rowToEdit.payment_method_item.id;
+      } else if (rowToEdit.payment_method?.id !== undefined) {
+        rowToEdit.payment_method_id = rowToEdit.payment_method.id;
+      } else if (rowToEdit.paymentMethod?.id !== undefined) {
+        rowToEdit.payment_method_id = rowToEdit.paymentMethod.id;
+      }
     }
 
+    // Ensure package_id is set if available
     if (rowToEdit.package_id === undefined && rowToEdit.package?.id !== undefined) {
-        rowToEdit.package_id = rowToEdit.package.id;
+      rowToEdit.package_id = rowToEdit.package.id;
+    } else if (rowToEdit.package_id === null) {
+      rowToEdit.package_id = undefined;
     }
 
     if (rowToEdit.type === "provider") {
       if (rowToEdit.provider_id === undefined && rowToEdit.provider?.id !== undefined) {
         rowToEdit.provider_id = rowToEdit.provider.id;
       }
-      if (rowToEdit.service_id === undefined && rowToEdit.service?.id !== undefined) {
-         rowToEdit.service_id = rowToEdit.service.id;
-      } else if (rowToEdit.service_id === undefined && rowToEdit.service_name?.id !== undefined) {
-         rowToEdit.service_id = rowToEdit.service_name.id;
+      if (rowToEdit.service_id === undefined) {
+        if (rowToEdit.service?.id !== undefined) {
+          rowToEdit.service_id = rowToEdit.service.id;
+        } else if (rowToEdit.service_name?.id !== undefined) {
+          rowToEdit.service_id = rowToEdit.service_name.id;
+        }
       }
     } else if (rowToEdit.type === "village") {
       if (rowToEdit.village_id === undefined && rowToEdit.village?.id !== undefined) {
         rowToEdit.village_id = rowToEdit.village.id;
       }
+    } else if (rowToEdit.type === "maintenance_provider") {
+      if (rowToEdit.maintenance_provider_id === undefined) {
+        if (rowToEdit.maintenance_provider?.id !== undefined) {
+          rowToEdit.maintenance_provider_id = rowToEdit.maintenance_provider.id;
+        } else if (rowToEdit.maintenanceProvider?.id !== undefined) {
+          rowToEdit.maintenance_provider_id = rowToEdit.maintenanceProvider.id;
+        }
+      }
     }
 
+    console.log("Selected row for edit:", rowToEdit);
     setSelectedRow(rowToEdit);
     setEditDialogOpen(true);
   };
 
   const handleDeleteClick = (row) => {
+    console.log("handleDelete: Row data being deleted:", row);
     setSelectedRow({ ...row, name: row.subscriber });
     setDeleteDialogOpen(true);
   };
@@ -167,16 +303,17 @@ export default function SubscribersPage() {
   const getPackagesByType = (type) => {
     if (type === "provider") return providerPackages;
     if (type === "village") return villagePackages;
+    if (type === "maintenance_provider") return maintenancePackages;
     return [];
   };
 
   const filterOptionsForZones = [
     {
-      key: "status", 
-      label: "Status", 
+      key: "status",
+      label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
-        { value: "Active", label: "Active" }, 
+        { value: "Active", label: "Active" },
         { value: "Inactive", label: "Inactive" },
       ],
     },
@@ -186,7 +323,7 @@ export default function SubscribersPage() {
     {
       key: "subscriber",
       label: "Subscriber Name",
-      render: (row) => row.subscriber || "N/A",
+      render: (row) => row.subscriber || row.name || "N/A",
     },
     {
       key: "type",
@@ -196,35 +333,100 @@ export default function SubscribersPage() {
     {
       key: "date",
       label: "Date",
-      render: (row) => row.start_date || "N/A",
+      render: (row) => row.start_date || row.date || "N/A",
     },
     {
       key: "payment_method",
       label: "Payment Method",
-      render: (row) => row.payment_method?.name || "N/A",
+      render: (row) => getPaymentMethodName(row),
     },
     {
       key: "expiry_date",
       label: "Expiry Date",
-      render: (row) => row.expire_date || "N/A",
+      render: (row) => row.expire_date || row.expiry_date || "N/A",
     },
     {
       key: "package",
       label: "Package",
-      render: (row) => row.package?.name || "N/A",
+      render: (row) => {
+        if (row.package?.name) return row.package.name;
+        if (row.packageName) return row.packageName;
+        if (row.package_name) return row.package_name;
+
+        if (row.package_id) {
+          const packages = getPackagesByType(row.type);
+          const pkg = packages.find((p) => p.id === row.package_id);
+          if (pkg) return pkg.name;
+        }
+
+        return "N/A";
+      },
     },
-        {
+    {
       key: "price",
       label: "Price",
-      render: (row) => row.package?.price || "N/A",
+      render: (row) => {
+        if (row.package?.price) return row.package.price;
+        if (row.price) return row.price;
+
+        if (row.package_id) {
+          const packages = getPackagesByType(row.type);
+          const pkg = packages.find((p) => p.id === row.package_id);
+          if (pkg && pkg.price) return pkg.price;
+        }
+
+        return "N/A";
+      },
     },
-    ...(tab === "provider" 
+    ...(tab === "provider"
       ? [
           {
             key: "associated_services",
             label: "Services Type",
-            render: (row) =>
-              row.type === "village" ? "-" : row.service?.name || "N/A",
+            render: (row) => {
+              if (row.type === "village") return "-";
+
+              if (row.service?.name) return row.service.name;
+              if (row.service_name?.name) return row.service_name.name;
+              if (row.serviceName) return row.serviceName;
+
+              if (row.service_id) {
+                const service = services.find((s) => s.id === row.service_id);
+                if (service) return service.name;
+              }
+
+              return "N/A";
+            },
+          },
+        ]
+      : []),
+    ...(tab === "maintenance_provider"
+      ? [
+          {
+            key: "maintenance_provider",
+            label: "Maintenance Provider",
+            render: (row) => {
+              if (row.maintenance_provider?.name) {
+                return row.maintenance_provider.name;
+              }
+
+              if (row.maintenanceProvider?.name) {
+                return row.maintenanceProvider.name;
+              }
+
+              if (row.maintenance_provider_name) {
+                return row.maintenance_provider_name;
+              }
+
+              if (row.maintenance_provider_id) {
+                const provider = maintenanceProviders.find(
+                  (p) => p.id === row.maintenance_provider_id
+                );
+                if (provider) return provider.name;
+              }
+
+              return "N/A";
+            },
           },
         ]
       : []),
@@ -235,28 +437,27 @@ export default function SubscribersPage() {
       <ToastContainer />
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-4 bg-transparent !mb-6">
-
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                 hover:bg-teal-100 hover:text-teal-700"
+                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                  hover:bg-teal-100 hover:text-teal-700"
             value="provider"
           >
             Provider
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                 hover:bg-teal-100 hover:text-teal-700"
+                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                  hover:bg-teal-100 hover:text-teal-700"
             value="village"
           >
             Village
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                 hover:bg-teal-100 hover:text-teal-700"
-            value="maintenance"
+                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                  hover:bg-teal-100 hover:text-teal-700"
+            value="maintenance_provider"
           >
             Maintenance Type
           </TabsTrigger>
@@ -270,11 +471,23 @@ export default function SubscribersPage() {
               data={data}
               tab={tab}
               columns={columns}
-              addRoute="/subscribers/add"
+              showAddButton={hasPermission("subcriberAdd")}
+              // *** IMPORTANT CHANGE HERE ***
+              // Pass the handleAddClick function to the DataTable
+              // This tells DataTable to use your custom logic for the Add button
+              onAdd={handleAddClick} // Changed from addRoute to onAdd
+              // Removed addRoute prop as it's no longer directly used for navigation
+              // addRoute="/subscribers/add" // <--- REMOVE OR COMMENT THIS OUT
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
               searchKeys={["type", "subscriber", "payment_method"]}
               filterKey={["status"]}
+              showEditButton={hasPermission("subcriberEdit")}
+              showDeleteButton={hasPermission("subcriberDelete")}
+              showActions={
+                hasPermission("subcriberEdit") ||
+                hasPermission("subcriberDelete")
+              }
               showFilter={false}
               filterOptions={filterOptionsForZones}
             />
@@ -285,7 +498,11 @@ export default function SubscribersPage() {
             onOpenChange={setEditDialogOpen}
             selectedRow={selectedRow}
             onSave={() => {
-              handleEdit(selectedRow);
+              if (selectedRow) {
+                handleEdit(selectedRow);
+              } else {
+                toast.error("No row selected for edit.");
+              }
               setEditDialogOpen(false);
             }}
           >
@@ -304,9 +521,11 @@ export default function SubscribersPage() {
                   }
                 >
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                    {paymentMethods.find(
-                      (method) => method.id === selectedRow?.payment_method_id
-                    )?.name || "Select Payment Method"}
+                    {selectedRow?.payment_method_id
+                      ? paymentMethods.find(
+                          (method) => method.id === selectedRow?.payment_method_id
+                        )?.name || "Select Payment Method"
+                      : "Select Payment Method"}
                   </SelectTrigger>
                   <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                     {paymentMethods.map((method) => (
@@ -336,9 +555,11 @@ export default function SubscribersPage() {
                   }
                 >
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                    {getPackagesByType(selectedRow?.type).find(
-                      (pkg) => pkg.id === selectedRow?.package_id
-                    )?.name || "Select Package"}
+                    {selectedRow?.package_id
+                      ? getPackagesByType(selectedRow?.type).find(
+                          (pkg) => pkg.id === selectedRow?.package_id
+                        )?.name || "Select Package"
+                      : "Select Package"}
                   </SelectTrigger>
                   <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                     {getPackagesByType(selectedRow?.type).map((pkg) => (
@@ -370,9 +591,11 @@ export default function SubscribersPage() {
                       }
                     >
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                        {services.find(
-                          (service) => service.id === selectedRow?.service_id
-                        )?.name || "Select Service"}
+                        {selectedRow?.service_id
+                          ? services.find(
+                              (service) => service.id === selectedRow?.service_id
+                            )?.name || "Select Service"
+                          : "Select Service"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                         {services.map((service) => (
@@ -406,9 +629,11 @@ export default function SubscribersPage() {
                       }
                     >
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                        {villages.find(
-                          (village) => village.id === selectedRow?.village_id
-                        )?.name || "Select Village"}
+                        {selectedRow?.village_id
+                          ? villages.find(
+                              (village) => village.id === selectedRow?.village_id
+                            )?.name || "Select Village"
+                          : "Select Village"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
                         {villages.map((village) => (
@@ -425,6 +650,52 @@ export default function SubscribersPage() {
                   </div>
                 </>
               )}
+
+              {/* Improved Maintenance Provider field */}
+              {selectedRow?.type === "maintenance_provider" && (
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="maintenance_provider_id" className="text-gray-400">
+                      Maintenance Provider
+                    </label>
+                    <Select
+                      value={selectedRow?.maintenance_provider_id?.toString() || ""}
+                      onValueChange={(value) =>
+                        setSelectedRow({
+                          ...selectedRow,
+                          maintenance_provider_id: parseInt(value),
+                        })
+                      }
+                    >
+                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                        {selectedRow?.maintenance_provider_id
+                          ? maintenanceProviders.find(
+                              (provider) =>
+                                provider.id === selectedRow?.maintenance_provider_id
+                            )?.name || "Select Maintenance Provider"
+                          : "Select Maintenance Provider"}
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                        {maintenanceProviders.length > 0 ? (
+                          maintenanceProviders.map((provider) => (
+                            <SelectItem
+                              className="text-bg-primary !ps-3"
+                              key={provider.id}
+                              value={provider.id.toString()}
+                            >
+                              {provider.id} - {provider.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="text-gray-400 p-2">
+                            No maintenance providers available
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
           </EditDialog>
 
@@ -433,7 +704,11 @@ export default function SubscribersPage() {
             onOpenChange={setDeleteDialogOpen}
             selectedRow={selectedRow}
             onDelete={() => {
-              handleDelete(selectedRow);
+              if (selectedRow) {
+                handleDelete(selectedRow);
+              } else {
+                toast.error("No row selected for delete.");
+              }
               setDeleteDialogOpen(false);
             }}
           />

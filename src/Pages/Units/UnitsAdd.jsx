@@ -54,7 +54,7 @@ export default function AddApartment() {
           en: { name: "", description: "", status: "", image: null },
           ar: { name: "", description: "", status: "", image: null },
         });
-        navigate("/apartments");
+        navigate("/units");
       } else {
         toast.error("Failed to add apartment.", { position: "top-right", autoClose: 3000 });
       }

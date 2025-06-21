@@ -28,6 +28,7 @@ const Service_provider = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const token = localStorage.getItem("token");
 
@@ -35,7 +36,40 @@ const Service_provider = () => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Provider Maintenance(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Provider Maintenance:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+  
   const fetchVillages = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/village", {
@@ -169,7 +203,11 @@ const Service_provider = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider MaintenanceEdit")) {
+      toast.error("You don't have permission to edit Provider Maintenance");
+      return;
+    }
     const {
       id,
       rawName,
@@ -250,6 +288,11 @@ const Service_provider = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow?.id) return;
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider MaintenanceDelete")) {
+      toast.error("You don't have permission to delete Provider Maintenance");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_provider/delete/${selectedRow.id}`,
@@ -296,17 +339,24 @@ const Service_provider = () => {
         image_link: URL.createObjectURL(file), // Update the image_link for preview
       }));
     } else {
-        // If user clears the selected file, remove imageFile and reset image_link to original or null
-        setselectedRow((prev) => ({
-            ...prev,
-            imageFile: null,
-            image_link: prev.original_image_link || null // Assuming you store original_image_link
-        }));
+      // If user clears the selected file, remove imageFile and reset image_link to original or null
+      setselectedRow((prev) => ({
+        ...prev,
+        imageFile: null,
+        image_link: prev.original_image_link || null, // Assuming you store original_image_link
+      }));
     }
   };
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider MaintenanceStatus")) {
+      toast.error(
+        "You don't have permission to change Provider Maintenance status"
+      );
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/status/${id}?status=${newStatus}`,
@@ -332,40 +382,42 @@ const Service_provider = () => {
     }
   };
 
-  const uniqueVillageOptions = Array.from(new Set(villages.map(v => v.name)))
-    .filter(name => name && name !== "—")
-    .map(name => ({ value: name, label: name }));
+  const uniqueVillageOptions = Array.from(new Set(villages.map((v) => v.name)))
+    .filter((name) => name && name !== "—")
+    .map((name) => ({ value: name, label: name }));
 
-  const uniqueMaintenanceTypeOptions = Array.from(new Set(maintenanceTypes.map(mt => mt.name)))
-    .filter(name => name && name !== "—")
-    .map(name => ({ value: name, label: name }));
-const filterOptionsForServices = [
-  {
-    key: "villageName", // Changed from "village" to match data key
-    label: "Village",
-    options: [
-      { value: "all", label: "All Villages" },
-      ...uniqueVillageOptions,
-    ],
-  },
-  {
-    key: "maintenanceTypeName", // Changed from "maintenanceType" to match data key
-    label: "Maintenance Type",
-    options: [
-      { value: "all", label: "All Types" },
-      ...uniqueMaintenanceTypeOptions,
-    ],
-  },
-  {
-    key: "status", // Matches the data key
-    label: "Status",
-    options: [
-      { value: "all", label: "All Statuses" },
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
-];
+  const uniqueMaintenanceTypeOptions = Array.from(
+    new Set(maintenanceTypes.map((mt) => mt.name))
+  )
+    .filter((name) => name && name !== "—")
+    .map((name) => ({ value: name, label: name }));
+  const filterOptionsForServices = [
+    {
+      key: "villageName", // Changed from "village" to match data key
+      label: "Village",
+      options: [
+        { value: "all", label: "All Villages" },
+        ...uniqueVillageOptions,
+      ],
+    },
+    {
+      key: "maintenanceTypeName", // Changed from "maintenanceType" to match data key
+      label: "Maintenance Type",
+      options: [
+        { value: "all", label: "All Types" },
+        ...uniqueMaintenanceTypeOptions,
+      ],
+    },
+    {
+      key: "status", // Matches the data key
+      label: "Status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+  ];
 
   const columns = [
     { key: "name", label: "Provider" },
@@ -385,6 +437,7 @@ const filterOptionsForServices = [
       <DataTable
         data={service_provider}
         columns={columns}
+        showAddButton={hasPermission("Provider MaintenanceAdd")}
         addRoute="/maintenance-provider/add"
         className="table-compact"
         onEdit={handleEdit}
@@ -392,6 +445,9 @@ const filterOptionsForServices = [
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "location", "villageName", "maintenanceTypeName"]}
         showFilter={true}
+        showEditButton={hasPermission("Provider MaintenanceEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("Provider MaintenanceDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("Provider MaintenanceEdit") || hasPermission("Provider MaintenanceDelete")}
         filterKey={["villageName", "maintenanceTypeName", "status"]}
         filterOptions={filterOptionsForServices}
       />
@@ -417,15 +473,15 @@ const filterOptionsForServices = [
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-  <label htmlFor="location" className="text-gray-400 !pb-3">
-          Location
-        </label>
-        {/* هنا استبدال Input بـ MapLocationPicker */}
-        <MapLocationPicker
-          value={selectedRow?.map || ""} // القيمة الحالية للموقع
-          onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
-          placeholder="Search or select location on map"
-        />
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              {/* هنا استبدال Input بـ MapLocationPicker */}
+              <MapLocationPicker
+                value={selectedRow?.map || ""} // القيمة الحالية للموقع
+                onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
+                placeholder="Search or select location on map"
+              />
 
               <Label htmlFor="description" className="text-gray-400 !pb-3">
                 Description

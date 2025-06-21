@@ -37,6 +37,7 @@ const Village_roless = () => {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState([]); // New state for all selectable roles
   const [selectedEditRoles, setSelectedEditRoles] = useState([]); // State for roles in edit dialog
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   // Get parameters from the URL
   // Assuming your route is 'single-page-v/:id/admin/:adminId'
@@ -46,17 +47,53 @@ const Village_roless = () => {
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Village Admin Role(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Village Admin Role:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const fetchvillage_roless = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/village_roles", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/village_roles",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -78,11 +115,17 @@ const Village_roless = () => {
             }, {})
           : {};
 
-        const name = translations[currentLang]?.name || adminPosition.name || "—";
+        const name =
+          translations[currentLang]?.name || adminPosition.name || "—";
 
         let roleToDisplay = "";
-        if (Array.isArray(adminPosition.roles) && adminPosition.roles.length > 0) {
-          roleToDisplay = adminPosition.roles.map((roleObj) => roleObj.module).join(", ");
+        if (
+          Array.isArray(adminPosition.roles) &&
+          adminPosition.roles.length > 0
+        ) {
+          roleToDisplay = adminPosition.roles
+            .map((roleObj) => roleObj.module)
+            .join(", ");
         } else {
           roleToDisplay = adminPosition.name;
         }
@@ -111,7 +154,9 @@ const Village_roless = () => {
   const handleEdit = (village_roles) => {
     setSelectedRow(village_roles);
     // Initialize selectedEditRoles with the 'module' strings of the currently assigned roles
-    setSelectedEditRoles(village_roles.admin_roles_array?.map(r => r.module) || []);
+    setSelectedEditRoles(
+      village_roles.admin_roles_array?.map((r) => r.module) || []
+    );
     setIsEditOpen(true);
   };
 
@@ -127,7 +172,11 @@ const Village_roless = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Village Admin RoleEdit")) {
+      toast.error("You don't have permission to edit Village Admin Role");
+      return;
+    }
     const { id, name, status } = selectedRow;
     const formData = new FormData();
 
@@ -167,6 +216,12 @@ const Village_roless = () => {
   };
 
   const handleDeleteConfirm = async () => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Village Admin RoleDelete")) {
+      toast.error("You don't have permission to delete Village Admin Role");
+      return;
+    }
+
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_roles/delete/${selectedRow.id}`,
@@ -178,7 +233,11 @@ const Village_roless = () => {
 
       if (response.ok) {
         toast.success("Village role deleted successfully!");
-        setvillage_roless(village_roless.filter((village_roles) => village_roles.id !== selectedRow.id));
+        setvillage_roless(
+          village_roless.filter(
+            (village_roles) => village_roles.id !== selectedRow.id
+          )
+        );
         setIsDeleteOpen(false);
       } else {
         toast.error("Failed to delete village role!");
@@ -191,7 +250,11 @@ const Village_roless = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Village Admin RoleStatus")) {
+      toast.error("You don't have permission to change zone Village Admin Role");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_roles/status/${id}?status=${newStatus}`,
@@ -206,7 +269,10 @@ const Village_roless = () => {
         setvillage_roless((prevvillage_roless) =>
           prevvillage_roless.map((village_roles) =>
             village_roles.id === id
-              ? { ...village_roles, status: newStatus === 1 ? "active" : "inactive" }
+              ? {
+                  ...village_roles,
+                  status: newStatus === 1 ? "active" : "inactive",
+                }
               : village_roles
           )
         );
@@ -272,6 +338,10 @@ const Village_roless = () => {
     },
   ];
 
+  console.log("Has Village Admin RoleAdd permission:", hasPermission("Village Admin RoleAdd"));
+  console.log("Has Village Admin RoleEdit permission:", hasPermission("Village Admin RoleEdit"));
+  console.log("Has Village Admin RoleDelete permission:", hasPermission("Village Admin RoleDelete"));
+  console.log("Has Village Admin RoleStatus permission:", hasPermission("Village Admin RoleStatus"));
 
   return (
     <div className="p-4">
@@ -281,14 +351,18 @@ const Village_roless = () => {
       <DataTable
         data={village_roless}
         columns={columns}
+        showAddButton={hasPermission("Village Admin RoleAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute={`/village-roles/add`} // Use the dynamically constructed addRoute
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+        showEditButton={hasPermission("Village Admin RoleEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("Village Admin RoleDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("Village Admin RoleEdit") || hasPermission("Village Admin RoleDelete")}
         showFilter={true}
         filterKey={["status"]}
         filterOptions={filterOptionsForvillage_roless}
-        searchKeys={["name"]} 
+        searchKeys={["name"]}
       />
 
       {selectedRow && (
@@ -318,7 +392,7 @@ const Village_roless = () => {
               </label>
               <Select
                 value={selectedEditRoles.length > 0 ? selectedEditRoles[0] : ""}
-                onValueChange={handleEditRoleChange} 
+                onValueChange={handleEditRoleChange}
               >
                 <SelectTrigger
                   id="assignedRoles"
@@ -331,23 +405,27 @@ const Village_roless = () => {
                     <SelectItem
                       key={roleModule}
                       value={roleModule}
-                      className={`${selectedEditRoles.includes(roleModule) ? 'bg-gray-100 font-semibold' : ''}`}
+                      className={`${
+                        selectedEditRoles.includes(roleModule)
+                          ? "bg-gray-100 font-semibold"
+                          : ""
+                      }`}
                     >
                       {roleModule}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-               {selectedEditRoles.length > 0 && (
+              {selectedEditRoles.length > 0 && (
                 <div className="mt-2 text-sm text-gray-600">
-                    Currently assigned: {selectedEditRoles.join(", ")}
+                  Currently assigned: {selectedEditRoles.join(", ")}
                 </div>
-               )}
-               {selectedEditRoles.length === 0 && (
+              )}
+              {selectedEditRoles.length === 0 && (
                 <div className="mt-2 text-sm text-gray-600">
-                    No modules assigned.
+                  No modules assigned.
                 </div>
-               )}
+              )}
             </div>
             {/* End Role Selection Input */}
           </EditDialog>
@@ -365,7 +443,9 @@ const Village_roless = () => {
       <Dialog open={isViewRolesOpen} onOpenChange={setIsViewRolesOpen}>
         <DialogContent className="bg-white !mb-4 !p-6 rounded-lg shadow-lg max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-bg-primary">Assigned Roles</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-bg-primary">
+              Assigned Roles
+            </DialogTitle>
           </DialogHeader>
           <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {selectedRoles.length > 0 ? (

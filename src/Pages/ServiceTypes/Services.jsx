@@ -19,10 +19,44 @@ const Services = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
+    // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Service Type(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Zone:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
@@ -105,6 +139,12 @@ const Services = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Service TypeEdit")) {
+      toast.error("You don't have permission to edit Service Type");
+      return;
+    }
     const { id, name, status } = selectedRow;
 
     const formData = new FormData();
@@ -176,6 +216,11 @@ const Services = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Service TypeDelete")) {
+      toast.error("You don't have permission to delete Service Type");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_type/delete/${selectedRow.id}`,
@@ -202,7 +247,11 @@ const Services = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Service TypeStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_type/status/${id}?status=${newStatus}`,
@@ -268,6 +317,10 @@ const Services = () => {
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
+  console.log("Has Service TypeAdd permission:", hasPermission("Service TypeAdd"));
+  console.log("Has Service TypeEdit permission:", hasPermission("Service TypeEdit"));
+  console.log("Has Service TypeDelete permission:", hasPermission("Service TypeDelete"));
+  console.log("Has Service TypeStatus permission:", hasPermission("Service TypeStatus"));
 
   return (
     <div className="p-4">
@@ -277,6 +330,8 @@ const Services = () => {
       <DataTable
         data={services}
         columns={columns}
+          showAddButton={hasPermission("Service TypeAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute="/services/add"
         className="table-compact"
         onEdit={handleEdit}
@@ -284,6 +339,12 @@ const Services = () => {
         onToggleStatus={handleToggleStatus}
         searchKeys={["name"]}
         showFilter={true} 
+         showEditButton={hasPermission("Service TypeEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showDeleteButton={hasPermission("Service TypeDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showActions={
+    hasPermission("Service TypeEdit") ||
+    hasPermission("Service TypeDelete") 
+  }
         filterKey={["status"]}
         filterOptions={filterOptionsForServices} // Pass the correctly structured options
       />

@@ -19,10 +19,44 @@ const Apartment = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Appartment Type(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Appartment Type:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
@@ -107,6 +141,11 @@ const Apartment = () => {
   };
 
   const handleSave = async () => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Appartment TypeEdit")) {
+      toast.error("You don't have permission to edit Appartment Type");
+      return;
+    }
     if (!selectedRow) return;
     const { id, name, status } = selectedRow;
 
@@ -149,6 +188,11 @@ const Apartment = () => {
   };
 
   const handleDeleteConfirm = async () => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Appartment TypeDelete")) {
+      toast.error("You don't have permission to delete Appartment Type");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/appartment_type/delete/${selectedRow.id}`,
@@ -175,7 +219,13 @@ const Apartment = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Appartment TypeStatus")) {
+      toast.error(
+        "You don't have permission to change  Appartment Type"
+      );
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/appartment_type/status/${id}?status=${newStatus}`,
@@ -243,6 +293,22 @@ const Apartment = () => {
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
   ];
+  console.log(
+    "Has Appartment TypeAdd permission:",
+    hasPermission("Appartment TypeAdd")
+  );
+  console.log(
+    "Has Appartment TypeEdit permission:",
+    hasPermission("Appartment TypeEdit")
+  );
+  console.log(
+    "Has Appartment TypeDelete permission:",
+    hasPermission("Appartment TypeDelete")
+  );
+  console.log(
+    "Has Appartment TypeStatus permission:",
+    hasPermission("Appartment TypeStatus")
+  );
 
   return (
     <div className="p-4">
@@ -252,6 +318,7 @@ const Apartment = () => {
       <DataTable
         data={apartment}
         columns={columns}
+        showAddButton={hasPermission("Appartment TypeAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute="/units/add"
         className="table-compact"
         onEdit={handleEdit}
@@ -261,6 +328,9 @@ const Apartment = () => {
         showFilter={true} // Ensure the filter dropdown is shown
         // filterKey is still needed to tell DataTableLayout which property on the data to filter by
         filterKey={["status"]}
+         showEditButton={hasPermission("Appartment TypeEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("Appartment TypeDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("Appartment TypeEdit") || hasPermission("Appartment TypeDelete")}
         filterOptions={filterOptionsForApartment} // Pass the correctly structured options
       />
 
@@ -310,7 +380,7 @@ const Apartment = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            name={selectedRow.name} 
+            name={selectedRow.name}
           />
         </>
       )}

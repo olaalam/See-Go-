@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import {
   Home,
   Map,
@@ -33,95 +33,120 @@ import {
 import { useEffect, useState } from "react";
 
 const navItems = [
-  { label: "Home", to: "/", icon: <Home size={20} /> },
-    {
+  { label: "Home", to: "/", icon: <Home size={20} />, permissionKey: "Home" },
+  {
     label: "Businesses",
     icon: <Building2 size={20} />,
+    permissionKey: null,
     children: [
       {
         label: "Villages",
         to: "/villages",
         icon: <Building2 size={20} />,
+        permissionKey: "Village",
       },
       {
         label: "Service Providers",
         to: "/providers",
         icon: <Users size={20} />,
+        permissionKey: "Provider",
       },
       {
         label: "Maintenance Provider",
         to: "/maintenance-provider",
         icon: <Wrench size={20} />,
+        permissionKey: "Provider Maintenance",
       },
-        {
-  label: "Mall",
-  to: "/mall",
-  icon: <ShoppingBag size={20} />,
-},
+      {
+        label: "Mall",
+        to: "/mall",
+        icon: <ShoppingBag size={20} />,
+        permissionKey: "Mall",
+      },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-
-    {
+  {
     label: "Users",
     icon: <User size={20} />,
+    permissionKey: null,
     children: [
-      { label: "App Users", to: "/users", icon: <User size={20} /> },
+      {
+        label: "App Users",
+        to: "/users",
+        icon: <User size={20} />,
+        permissionKey: "User",
+      },
       {
         label: "Admin",
         to: "/admin",
         icon: <Shield size={20} />,
+        permissionKey: "Admin",
+      },
+      {
+        label: "Admin Roles",
+        to: "/admin-role",
+        icon: <Shield size={20} />,
+        permissionKey: "Admin Role",
       },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-    {
+  {
     label: "Subscribers",
     to: "/subscribers",
     icon: <Users size={20} />,
+    // تم تصحيح الخطأ الإملائي
+    permissionKey: "subcriber", // نستخدم نفس الاسم الموجود في البيانات
   },
-
-  
   {
     label: "Payments",
     to: "/payments",
     icon: <DollarSign size={20} />,
+    permissionKey: "Payment",
   },
-    {
+  {
     label: "Data",
     icon: <Database size={20} />,
+    permissionKey: null,
     children: [
       {
         label: "For Rent",
         to: "/for-rent",
         icon: <Building2 size={20} />,
+        permissionKey: "Village",
       },
       {
         label: "For Sale",
         to: "/for-sale",
         icon: <Building2 size={20} />,
+        permissionKey: "Village",
       },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-    {
+  {
     label: "Types",
     icon: <Grid size={20} />,
+    permissionKey: null,
     children: [
       {
         label: "Maintenance Types",
         to: "/maintenance",
         icon: <Wrench size={20} />,
+        permissionKey: "Maintenance Type",
       },
       {
         label: "Service Types",
         to: "/services",
         icon: <FileText size={20} />,
+        permissionKey: "Service Type",
       },
       {
         label: "Unit Types",
         to: "/units",
         icon: <Building size={20} />,
+        permissionKey: "Appartment Type",
       },
     ],
     dropdownIcon: <ChevronDown size={20} />,
@@ -129,33 +154,41 @@ const navItems = [
   {
     label: "Settings",
     icon: <Settings size={20} />,
+    permissionKey: null,
     children: [
       {
         label: "Packages",
         to: "/packages",
         icon: <Package size={20} />,
+        permissionKey: "Subscription",
       },
       {
-        label: "Admin Roles",
+        label: "Provider Admin Roles",
         to: "/provider-roles",
         icon: <Shield size={20} />,
+        permissionKey: "Provider Admin Role",
       },
       {
         label: "Payment Methods",
         to: "/payment-methods",
         icon: <CreditCard size={20} />,
+        permissionKey: "Payment Method",
       },
       {
         label: "Village Roles",
         to: "/village-roles",
         icon: <Users size={20} />,
+        permissionKey: "Village Admin Role",
       },
-        { label: "Zones", to: "/zones", icon: <Map size={20} /> },
+      {
+        label: "Zones",
+        to: "/zones",
+        icon: <Map size={20} />,
+        permissionKey: "Zone",
+      },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
-
-
 ];
 
 const allowedForProviderOnly = ["Service Providers"];
@@ -168,29 +201,128 @@ export function AppSidebar() {
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
+
     if (userData) {
       try {
         const user = JSON.parse(userData);
+        
+        console.log("Full user data:", user);
+        
+        // التحقق من البيانات المتاحة
+        const userRoles = user?.roles || [];
         const providerOnly = user?.admin?.provider_only === 1;
-        console.log("User data from localStorage:", user);
+        
+        console.log("User roles:", userRoles);
+        console.log("Provider only?", providerOnly);
 
-        const items = providerOnly
-          ? navItems.filter((item) =>
-              allowedForProviderOnly.includes(item.label)
-            )
-          : navItems;
-        setFilteredNavItems(items);
+        // تحويل البيانات من array إلى object مُفهرس حسب module
+        const rolesObject = convertRolesToObject(userRoles);
+        console.log("Converted roles object:", rolesObject);
+
+        let itemsToFilter = navItems;
+
+        // فلترة العناصر للمستخدمين الذين يُسمح لهم بـ provider only
+        if (providerOnly) {
+          itemsToFilter = navItems.filter((item) =>
+            allowedForProviderOnly.includes(item.label)
+          );
+          console.log("Filtered items for provider only:", itemsToFilter);
+        }
+
+        const allowedItems = filterItems(itemsToFilter, rolesObject);
+        console.log("Final filtered items:", allowedItems);
+
+        setFilteredNavItems(allowedItems);
+
+        // افتح الجروب الذي يحتوي على المسار الحالي
+        for (const item of allowedItems) {
+          if (item.children) {
+            if (item.children.some((child) => child.to === location.pathname)) {
+              setOpenGroup(item.label);
+              break;
+            }
+          }
+        }
       } catch (error) {
         console.error("Error parsing user data from localStorage:", error);
-        setFilteredNavItems(navItems);
+        setFilteredNavItems([]);
       }
     } else {
-      setFilteredNavItems(navItems);
+      console.log("No user data found");
+      setFilteredNavItems([]);
     }
-  }, []);
+  }, [location.pathname]);
 
   const handleGroupClick = (label) => {
     setOpenGroup(openGroup === label ? null : label);
+  };
+
+  // تحويل البيانات من array إلى object
+  const convertRolesToObject = (rolesArray) => {
+    const rolesObject = {};
+    
+    rolesArray.forEach(role => {
+      const module = role.module;
+      const action = role.action;
+      
+      if (!rolesObject[module]) {
+        rolesObject[module] = [];
+      }
+      
+      rolesObject[module].push(action);
+    });
+    
+    return rolesObject;
+  };
+
+  // التحقق من الصلاحيات
+  const hasPermission = (roles, moduleKey, permission = "view") => {
+    console.log(`Checking permission for module: ${moduleKey}, permission: ${permission}`);
+    console.log("Available roles:", Object.keys(roles));
+    
+    if (!roles || !moduleKey) {
+      console.log("No roles or moduleKey provided");
+      return false;
+    }
+    
+    const modulePermissions = roles[moduleKey];
+    if (!modulePermissions) {
+      console.log(`No permissions found for module: ${moduleKey}`);
+      return false;
+    }
+    
+    console.log(`Permissions for ${moduleKey}:`, modulePermissions);
+    
+    const hasAccess = modulePermissions.includes(permission) || modulePermissions.includes("all");
+    console.log(`Access granted: ${hasAccess}`);
+    
+    return hasAccess;
+  };
+
+  // فلترة العناصر حسب الصلاحيات
+  const filterItems = (items, roles) => {
+    return items
+      .map((item) => {
+        if (item.children) {
+          // فلتر الأطفال أولاً
+          const filteredChildren = filterItems(item.children, roles);
+          if (filteredChildren.length > 0) {
+            return { ...item, children: filteredChildren };
+          }
+          return null; // لا يظهر العنصر الأب إذا لم يكن له أطفال مسموح لهم
+        } else {
+          if (!item.permissionKey) {
+            console.log(`Item ${item.label} has no permission key, skipping`);
+            return null;
+          }
+          
+          const hasAccess = hasPermission(roles, item.permissionKey);
+          console.log(`Item ${item.label} (${item.permissionKey}): ${hasAccess ? 'ALLOWED' : 'DENIED'}`);
+          
+          return hasAccess ? item : null;
+        }
+      })
+      .filter(Boolean);
   };
 
   return (
@@ -243,10 +375,11 @@ export function AppSidebar() {
                         <SidebarGroupContent className="ps-6 pt-2 pb-2">
                           <SidebarMenu className="flex flex-col gap-2">
                             {item.children.map((childItem) => {
-                              const isActive = location.pathname === childItem.to;
+                              const isActive =
+                                location.pathname === childItem.to;
                               return (
                                 <SidebarMenuItem key={childItem.label}>
-                                  <a href={childItem.to} className="w-full">
+                                  <Link to={childItem.to} className="w-full">
                                     <SidebarMenuButton
                                       isActive={isActive}
                                       className={`flex justify-start items-center gap-3 !px-4 !py-2 text-white transition-all duration-200 text-sm font-medium
@@ -266,7 +399,7 @@ export function AppSidebar() {
                                         {childItem.label}
                                       </span>
                                     </SidebarMenuButton>
-                                  </a>
+                                  </Link>
                                 </SidebarMenuItem>
                               );
                             })}
@@ -279,7 +412,7 @@ export function AppSidebar() {
                   const isActive = location.pathname === item.to;
                   return (
                     <SidebarMenuItem key={item.label}>
-                      <a href={item.to} className="w-full">
+                      <Link to={item.to} className="w-full">
                         <SidebarMenuButton
                           isActive={isActive}
                           className={`flex justify-start items-center gap-3 !px-4 !py-2 text-white transition-all duration-200 text-sm font-medium
@@ -293,7 +426,7 @@ export function AppSidebar() {
                           {item.icon}
                           <span className="text-base">{item.label}</span>
                         </SidebarMenuButton>
-                      </a>
+                      </Link>
                     </SidebarMenuItem>
                   );
                 }

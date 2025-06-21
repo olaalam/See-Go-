@@ -26,10 +26,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FooterInvoiceImage from "@/assets/FooterInvoice.png";
-import { Plus, Trash } from "lucide-react"; // Import icons for Add and Delete buttons
-import { useNavigate } from "react-router-dom"; // Assuming you use react-router-dom for navigation
+import { Plus, Trash } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Subscription = () => {
   const dispatch = useDispatch();
@@ -39,13 +39,14 @@ const Subscription = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [tab, setTab] = useState("provider"); // State for active tab
+  const [tab, setTab] = useState("provider");
   const token = localStorage.getItem("token");
+  const [permissions, setPermissions] = useState([]);
 
   // State for search and filter
   const [searchValue, setSearchValue] = useState("");
-  const [filterValue, setFilterValue] = useState("all"); // Default filter value
-  const navigate = useNavigate(); // Initialize useNavigate hook
+  const [filterValue, setFilterValue] = useState("all");
+  const navigate = useNavigate();
 
   // Define filter options
   const filterOptions = [
@@ -53,6 +54,61 @@ const Subscription = () => {
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
   ];
+
+  // Get user permissions from localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // Check if user has specific permission
+  const hasPermission = (action) => {
+    // Map subscription actions to the correct permission format
+    const permissionMap = {
+      'add': 'Subscription:add',
+      'edit': 'Subscription:edit', 
+      'delete': 'Subscription:delete',
+      'status': 'Subscription:status',
+      'view': 'Subscription:view'
+    };
+
+    const requiredPermission = permissionMap[action.toLowerCase()];
+    const hasAccess = permissions.includes(requiredPermission);
+    
+    console.log(`Checking permission for ${action}:`, {
+      requiredPermission,
+      hasAccess,
+      allPermissions: permissions
+    });
+    
+    return hasAccess;
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+
+  // Check view permission early
+  useEffect(() => {
+    if (permissions.length > 0 && !hasPermission('view')) {
+      toast.error("You don't have permission to view subscriptions");
+      navigate('/dashboard'); // Redirect to dashboard or appropriate page
+      return;
+    }
+  }, [permissions, navigate]);
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -125,7 +181,7 @@ const Subscription = () => {
         const beach_pool_module = subscription.beach_pool_module;
         const average =
           subscription.feez && subscription.discount
-            ? (subscription.feez * (1 - subscription.discount / 100)):"-";
+            ? (subscription.feez * (1 - subscription.discount / 100)) : "-";
         return {
           id: subscription.id,
           name,
@@ -190,6 +246,11 @@ const Subscription = () => {
   });
 
   const handleEdit = async (subscription) => {
+    if (!hasPermission('edit')) {
+      toast.error("You don't have permission to edit subscriptions");
+      return;
+    }
+    
     if (services.length === 0) {
       await fetchServices();
     }
@@ -201,87 +262,101 @@ const Subscription = () => {
   };
 
   const handleDelete = (subscription) => {
+    if (!hasPermission('delete')) {
+      toast.error("You don't have permission to delete subscriptions");
+      return;
+    }
+    
     setSelectedRow(subscription);
     setIsDeleteOpen(true);
   };
 
-const handleSave = async () => {
-  const {
-    id,
-    name,
-    type,
-    description,
-    status,
-    discount,
-    service_id,
-    price,
-    feez,
-  } = selectedRow;
-
-  // ✅ فقط تحقق من service_id إذا كان type هو provider
-  if (type === "provider" && (!service_id || isNaN(service_id))) {
-    toast.error("Service ID is required for provider type");
-    return;
-  }
-
-  const updatedSubscription = new FormData();
-  updatedSubscription.append("id", id);
-  updatedSubscription.append("name", name || "");
-  updatedSubscription.append("feez", feez || "");
-  updatedSubscription.append("description", description || "");
-  updatedSubscription.append("status", status === "Active" ? "1" : "0");
-  updatedSubscription.append("price", price || "");
-  updatedSubscription.append("type", type || "");
-  updatedSubscription.append("discount", discount || "");
-
-  // ✅ أضف service_id فقط إذا كان type = provider
-  if (type === "provider") {
-    updatedSubscription.append("service_id", service_id);
-  }
-
-  if (type === "village") {
-    updatedSubscription.append("admin_num", selectedRow.admin_num || "0");
-    updatedSubscription.append(
-      "security_num",
-      selectedRow.security_num || "0"
-    );
-    updatedSubscription.append(
-      "maintenance_module",
-      selectedRow.maintenance_module ? "1" : "0"
-    );
-    updatedSubscription.append(
-      "beach_pool_module",
-      selectedRow.beach_pool_module ? "1" : "0"
-    );
-  }
-
-  try {
-    const response = await fetch(
-      `https://bcknd.sea-go.org/admin/subscription/update/${id}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: updatedSubscription,
-      }
-    );
-
-    if (response.ok) {
-      toast.success("Subscription updated successfully!");
-      await fetchSubscriptions();
-      setIsEditOpen(false);
-      setSelectedRow(null);
-    } else {
-      toast.error("Failed to update subscription!");
+  const handleSave = async () => {
+    if (!hasPermission('edit')) {
+      toast.error("You don't have permission to edit subscriptions");
+      return;
     }
-  } catch (error) {
-    toast.error("Error occurred while updating subscription!", error);
-  }
-};
 
+    const {
+      id,
+      name,
+      type,
+      description,
+      status,
+      discount,
+      service_id,
+      price,
+      feez,
+    } = selectedRow;
+
+    // Only check service_id if type is provider
+    if (type === "provider" && (!service_id || isNaN(service_id))) {
+      toast.error("Service ID is required for provider type");
+      return;
+    }
+
+    const updatedSubscription = new FormData();
+    updatedSubscription.append("id", id);
+    updatedSubscription.append("name", name || "");
+    updatedSubscription.append("feez", feez || "");
+    updatedSubscription.append("description", description || "");
+    updatedSubscription.append("status", status === "Active" ? "1" : "0");
+    updatedSubscription.append("price", price || "");
+    updatedSubscription.append("type", type || "");
+    updatedSubscription.append("discount", discount || "");
+
+    // Add service_id only if type = provider
+    if (type === "provider") {
+      updatedSubscription.append("service_id", service_id);
+    }
+
+    if (type === "village") {
+      updatedSubscription.append("admin_num", selectedRow.admin_num || "0");
+      updatedSubscription.append(
+        "security_num",
+        selectedRow.security_num || "0"
+      );
+      updatedSubscription.append(
+        "maintenance_module",
+        selectedRow.maintenance_module ? "1" : "0"
+      );
+      updatedSubscription.append(
+        "beach_pool_module",
+        selectedRow.beach_pool_module ? "1" : "0"
+      );
+    }
+
+    try {
+      const response = await fetch(
+        `https://bcknd.sea-go.org/admin/subscription/update/${id}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: updatedSubscription,
+        }
+      );
+
+      if (response.ok) {
+        toast.success("Subscription updated successfully!");
+        await fetchSubscriptions();
+        setIsEditOpen(false);
+        setSelectedRow(null);
+      } else {
+        toast.error("Failed to update subscription!");
+      }
+    } catch (error) {
+      toast.error("Error occurred while updating subscription!", error);
+    }
+  };
 
   const handleDeleteConfirm = async () => {
+    if (!hasPermission('delete')) {
+      toast.error("You don't have permission to delete subscriptions");
+      return;
+    }
+    
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/subscription/delete/${selectedRow.id}`,
@@ -307,21 +382,26 @@ const handleSave = async () => {
     }
   };
 
-const onChange = (key, value) => {
-  setSelectedRow((prev) => ({
-    ...prev,
-    [key]:
-      key === "service_id"
-        ? parseInt(value, 10)
-        : key === "type"
-        ? value.toLowerCase()
-        : value,
-  }));
-};
-
+  const onChange = (key, value) => {
+    setSelectedRow((prev) => ({
+      ...prev,
+      [key]:
+        key === "service_id"
+          ? parseInt(value, 10)
+          : key === "type"
+          ? value.toLowerCase()
+          : value,
+    }));
+  };
 
   const handleToggleStatus = async (row, newStatus) => {
+    if (!hasPermission('status')) {
+      toast.error("You don't have permission to change subscription status");
+      return;
+    }
+
     const { id } = row;
+    
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/subscription/status/${id}?status=${newStatus}`,
@@ -351,19 +431,42 @@ const onChange = (key, value) => {
     }
   };
 
-  // Dummy functions/variables for the new elements for now
   const onAdd = () => {
-    // You'll likely navigate to a new page or open a modal for adding a new subscription
-    navigate("/packages/add"); // Example navigation
+    if (!hasPermission('add')) {
+      toast.error("You don't have permission to add subscriptions");
+      return;
+    }
+    navigate("/packages/add");
   };
-  const showAddButton = true; // Set to true to show the add button
-  const showFilter = true; // Set to true to show the filter
-  const selectedRows = []; // Assuming this would be used for multi-delete
-  const showDeleteButtonInHeader = false; // Set to true if you want a delete selected button in the header
+
+  // Permission-based UI controls
+  const showAddButton = hasPermission('add');
+  const showFilter = true;
+  const selectedRows = [];
+  const showDeleteButtonInHeader = false;
   const onDeleteInHeader = (rows) => {
     console.log("Delete selected rows:", rows);
-    // Implement multi-delete logic here
   };
+
+  console.log("Permission checks:", {
+    add: hasPermission('add'),
+    edit: hasPermission('edit'),
+    delete: hasPermission('delete'),
+    status: hasPermission('status'),
+    view: hasPermission('view')
+  });
+
+  // Don't render component if user doesn't have view permission
+  if (permissions.length > 0 && !hasPermission('view')) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 text-lg">Access Denied</p>
+          <p className="text-gray-600">You don't have permission to view subscriptions</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="!p-4">
@@ -453,7 +556,7 @@ const onChange = (key, value) => {
               <CardHeader
                 className=" !p-4 flex justify-between items-center"
                 style={{
-                  backgroundImage: `url(${FooterInvoiceImage})`, // Use .src for image import
+                  backgroundImage: `url(${FooterInvoiceImage})`,
                   backgroundSize: "cover",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
@@ -531,6 +634,7 @@ const onChange = (key, value) => {
                       onCheckedChange={(checked) =>
                         handleToggleStatus(subscription, checked ? 1 : 0)
                       }
+                      disabled={!hasPermission('status')}
                       className={`${
                         subscription.status === "Active"
                           ? "data-[state=checked]:bg-bg-primary"
@@ -551,18 +655,25 @@ const onChange = (key, value) => {
               </CardContent>
 
               <CardFooter className="!p-4 border-t border-gray-200 flex justify-between">
-                <Button
-                  onClick={() => handleEdit(subscription)}
-                  className="bg-bg-primary hover:bg-teal-600 cursor-pointer text-white rounded-lg !px-4 !py-2"
-                >
-                  Edit
-                </Button>
-                <Button
-                  onClick={() => handleDelete(subscription)}
-                  className="bg-red-500 hover:bg-red-600 text-white rounded-lg !px-4 !py-2"
-                >
-                  Delete
-                </Button>
+                {hasPermission('edit') && (
+                  <Button
+                    onClick={() => handleEdit(subscription)}
+                    className="bg-bg-primary hover:bg-teal-600 cursor-pointer text-white rounded-lg !px-4 !py-2"
+                  >
+                    Edit
+                  </Button>
+                )}
+                {hasPermission('delete') && (
+                  <Button
+                    onClick={() => handleDelete(subscription)}
+                    className="bg-red-500 hover:bg-red-600 text-white rounded-lg !px-4 !py-2"
+                  >
+                    Delete
+                  </Button>
+                )}
+                {!hasPermission('edit') && !hasPermission('delete') && (
+                  <div className="text-gray-500 text-sm">No actions available</div>
+                )}
               </CardFooter>
             </Card>
           ))}
@@ -595,11 +706,10 @@ const onChange = (key, value) => {
               <label htmlFor="type" className="text-gray-400 !pb-3">
                 Type
               </label>
-<Select
-  value={selectedRow?.type?.toLowerCase() || ""}
-  onValueChange={(value) => onChange("type", value)}
->
-
+              <Select
+                value={selectedRow?.type?.toLowerCase() || ""}
+                onValueChange={(value) => onChange("type", value)}
+              >
                 <SelectTrigger
                   id="type"
                   className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"

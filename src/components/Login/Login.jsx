@@ -25,38 +25,53 @@ const Login = () => {
       navigate("/", { replace: true });
     }
   }, []);
-  
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (!emailOrUsername || !password) {
-      toast.error("Email/Username and password are required");
-      return;
+const handleLogin = async (e) => {
+  e.preventDefault();
+
+  if (!emailOrUsername || !password) {
+    toast.error("Email/Username and password are required");
+    return;
+  }
+
+  try {
+    const data = await loginAuth(emailOrUsername, password);
+
+    // ✅ تجهيز بيانات المستخدم بصلاحياته
+    const userWithRoles = {
+      ...data.admin, // بيانات اليوزر
+      token: data.token, // التوكن
+      roles: data?.roles || {}, // صلاحيات المستخدم
+    };
+
+    // ✅ تخزينها في Redux و localStorage
+    dispatch(setUser(userWithRoles));
+    localStorage.setItem("user", JSON.stringify(userWithRoles));
+    localStorage.setItem("token", data.token);
+
+    // ✅ تخزين صلاحيات المستخدم (userPermission) في localStorage
+    // Assuming 'data.roles' contains the user's permissions
+    localStorage.setItem("userPermission", JSON.stringify(data.roles || {}));
+
+    toast.success("Login successful");
+
+    const redirectTo = new URLSearchParams(location.search).get("redirect");
+    if (redirectTo) {
+      navigate(redirectTo);
+    } else {
+      navigate('/');
     }
 
-    try {
-      const data = await loginAuth(emailOrUsername, password);
-      dispatch(setUser(data));
-      localStorage.setItem("user", JSON.stringify(data));
-      localStorage.setItem("token", data.token);
-      
-      toast.success("Login successful");
+  } catch (error) {
+    const msg = error?.response?.data?.message || "Login failed. Please try again.";
+    toast.error(msg);
+  }
+};
 
-      const redirectTo = new URLSearchParams(location.search).get("redirect");
-      if (redirectTo) {
-        navigate(redirectTo);
-      } else {
-        navigate('/');
-      }
-    } catch (error) {
-      const msg = error?.response?.data?.message || "Login failed. Please try again.";
-      toast.error(msg);
-    }
-  };
 
   return (
     <div className="md:flex h-screen">
-     
+
       <div className="flex flex-col  !m-auto !px-4 sm:!px-8 md:!ps-10 w-full md:w-1/2 !py-8">
         <Card className="w-full  shadow-none border-none">
           <CardContent className="!p-6">

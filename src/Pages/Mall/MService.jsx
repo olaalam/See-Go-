@@ -28,9 +28,10 @@ const Providers = () => {
 
   // هذه الحالات سنستخدمها لتخزين **الخيارات الفريدة** للفلاتر
   // وسنستخدمها أيضاً لتعبئة قوائم الاختيار في EditDialog
-  const [availableZones, setAvailableZones] = useState([]);
+  const [availableProvider, setAvailableProvider] = useState([]);
   const [availablePackages, setAvailablePackages] = useState([]); // Packages (which are villages in your context)
   const [availableServices, setAvailableServices] = useState([]);
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -44,7 +45,39 @@ const Providers = () => {
   const [selectedServiceFilter, setSelectedServiceFilter] = useState("all");
 
   const token = localStorage.getItem("token");
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Provider(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Provider:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -160,7 +193,7 @@ const Providers = () => {
 
       // 2. Collect unique zones, packages, and services for filter options and EditDialog
            if (result.zones) {
-        setAvailableZones(result.zones.map(zone => ({
+        setAvailableProvider(result.zones.map(zone => ({
           id: zone.id.toString(),
           name: zone.name
         })));
@@ -240,7 +273,11 @@ const handleEdit = async (provider) => {
   const handleSave = async () => {
     // Validate required fields before sending
     if (!selectedRow) return;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ProviderEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
     const {
       id,
       name,
@@ -342,6 +379,11 @@ const handleEdit = async (provider) => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ProviderDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
@@ -442,8 +484,8 @@ const handleEdit = async (provider) => {
       key: "zoneName",
       label: "Zone",
       options: [
-        { value: "all", label: "All Zones" },
-        ...availableZones.map((zone) => ({ value: zone.name, label: zone.name })),
+        { value: "all", label: "All Provider" },
+        ...availableProvider.map((zone) => ({ value: zone.name, label: zone.name })),
       ],
       onChange: (value) => setSelectedZoneFilter(value),
       selectedValue: selectedZoneFilter,
@@ -458,7 +500,7 @@ const handleEdit = async (provider) => {
             (pkg) =>
               selectedZoneFilter === "all" ||
               pkg.zone_id ===
-                availableZones.find((z) => z.name === selectedZoneFilter)?.id
+                availableProvider.find((z) => z.name === selectedZoneFilter)?.id
           )
           .map((v) => ({ value: v.name, label: v.name })),
       ],
@@ -500,11 +542,18 @@ const handleEdit = async (provider) => {
       <DataTable
         data={providers}
         columns={columns}
+          showAddButton={hasPermission("ProviderAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute={`/mall/single-page-m/${id}/add`}
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
-
+  showEditButton={hasPermission("ProviderEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showDeleteButton={hasPermission("ProviderDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showActions={
+    hasPermission("ProviderEdit") ||
+    hasPermission("ProviderDelete") 
+  }
         searchKeys={[
           "name",
           "serviceName",
@@ -523,7 +572,7 @@ const handleEdit = async (provider) => {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
-            zones={availableZones}
+            zones={availableProvider}
             village={availablePackages} // Pass all available packages
             services={availableServices}
             onChange={onChange}
@@ -554,7 +603,7 @@ const handleEdit = async (provider) => {
               <Select
                 value={selectedRow?.zone_id?.toString() || ""}
                 onValueChange={(value) => onChange("zone_id", value)}
-                disabled={availableZones.length === 0}
+                disabled={availableProvider.length === 0}
               >
                 <SelectTrigger
                   id="zone"
@@ -563,8 +612,8 @@ const handleEdit = async (provider) => {
                   <SelectValue placeholder="Select Zone" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                  {availableZones.length > 0 ? (
-                    availableZones.map((zone) => (
+                  {availableProvider.length > 0 ? (
+                    availableProvider.map((zone) => (
                       <SelectItem
                         key={zone.id}
                         value={zone.id.toString()}

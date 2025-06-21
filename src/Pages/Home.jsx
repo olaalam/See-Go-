@@ -25,6 +25,7 @@ const Home = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   useEffect(() => {
     const fetchHomeStats = async () => {
@@ -82,7 +83,41 @@ const Home = () => {
 
     fetchHomeStats();
   }, []);
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+// التحقق من وجود صلاحية معينة للـ Home module
+const hasPermission = () => {
+  return (
+    permissions.includes(`Home:view`) ||
+    permissions.includes(`Home:all`)
+  );
+};
+
+
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+  const handleImageError = (id) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  };
   // ... (rest of your component rendering logic for loading, error, and actual dashboard) ...
   if (loading) {
     return <FullPageLoader />;
@@ -96,6 +131,13 @@ const Home = () => {
       </div>
     );
   }
+if (!hasPermission("Home")) {
+  return (
+    <div className="p-6 text-center text-red-600 font-bold">
+      You do not have permission to view this page.
+    </div>
+  );
+}
 
   return (
     <div className="!p-4 flex !gap-3 md:flex-row flex-col">

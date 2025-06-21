@@ -1,5 +1,6 @@
+"use client";
 import { useEffect, useState } from "react";
-import DataTable from "@/components/DataTableLayout"; // تأكد من المسار الصحيح
+import DataTable from "@/components/DataTableLayout"; // تأكدي أن هذا هو المسار الصحيح لملفك DataTable
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
@@ -14,11 +15,46 @@ const Zones = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [zones, setZones] = useState([]);
+  const [permissions, setPermissions] = useState([]); // State for permissions
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Zones(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Zone:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -88,7 +124,6 @@ const Zones = () => {
           img: image,
           created_at,
           image_link: zone.image_link,
-          // Ensure status is lowercase for consistent filtering in DataTable
           status: zone.status === 1 ? "active" : "inactive",
         };
       });
@@ -105,6 +140,7 @@ const Zones = () => {
     fetchZones();
   }, []);
 
+  // هذه الدوال يتم استدعاؤها فقط إذا كان الزر ظاهرًا وقابلاً للنقر
   const handleEdit = (zone) => {
     setSelectedRow(zone);
     setIsEditOpen(true);
@@ -118,17 +154,21 @@ const Zones = () => {
   const handleSave = async () => {
     if (!selectedRow) return;
 
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ZonesEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
+
     const { id, name, description, status } = selectedRow;
     const formData = new FormData();
 
     formData.append("name", name);
     formData.append("description", description);
-    // Convert status back to 1 or 0 for the API
     formData.append("status", status === "active" ? 1 : 0);
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
     } else if (selectedRow.image_link) {
-      // Send the existing image as a fallback
       formData.append("image", selectedRow.image_link);
     }
 
@@ -136,15 +176,15 @@ const Zones = () => {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/zone/update/${id}`,
         {
-          method: "POST", // Often PUT/PATCH for updates, but backend expects POST with FormData
-          headers: getAuthHeaders(), // Headers set here, ensure Content-Type is NOT manually set for FormData
+          method: "POST",
+          headers: getAuthHeaders(),
           body: formData,
         }
       );
 
       if (response.ok) {
         toast.success("Zone updated successfully!");
-        await fetchZones(); // Re-fetch data to reflect changes
+        await fetchZones();
         setIsEditOpen(false);
         setSelectedRow(null);
       } else {
@@ -159,6 +199,12 @@ const Zones = () => {
   };
 
   const handleDeleteConfirm = async () => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ZonesDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
+
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/zone/delete/${selectedRow.id}`,
@@ -182,6 +228,12 @@ const Zones = () => {
   };
 
   const handleToggleStatus = async (row, newStatus) => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("ZonesStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
+
     const { id } = row;
 
     try {
@@ -198,7 +250,7 @@ const Zones = () => {
         setZones((prevZones) =>
           prevZones.map((zone) =>
             zone.id === id
-              ? { ...zone, status: newStatus === 1 ? "active" : "inactive" } // Ensure status is lowercase
+              ? { ...zone, status: newStatus === 1 ? "active" : "inactive" }
               : zone
           )
         );
@@ -235,50 +287,53 @@ const Zones = () => {
     { key: "description", label: "Description" },
     { key: "created_at", label: "Added Date" },
     { key: "img", label: "Image" },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status" }, // Status column to render the switch
   ];
 
-  // Define filter options for status, now structured for Accordion
-  // كل فلتر هو عبارة عن كائن { label, key, options }
   const filterOptionsForZones = [
     {
-      label: "Status", // اسم الفلتر الذي سيظهر في الـ Accordion
-      key: "status", // الـ key الذي سيتم الفلترة بناءً عليه في البيانات
+      label: "Status",
+      key: "status",
       options: [
         { value: "all", label: "All" },
         { value: "active", label: "Active" },
         { value: "inactive", label: "Inactive" },
       ],
     },
-    // يمكنك إضافة المزيد من الفلاتر هنا إذا أردت، بنفس الهيكل
-    // {
-    //   label: "Another Filter",
-    //   key: "another_key",
-    //   options: [
-    //     { value: "option1", label: "Option 1" },
-    //     { value: "option2", label: "Option 2" },
-    //   ],
-    // },
   ];
+
+  console.log("Has ZonesAdd permission:", hasPermission("ZonesAdd"));
+  console.log("Has ZonesEdit permission:", hasPermission("ZonesEdit"));
+  console.log("Has ZonesDelete permission:", hasPermission("ZonesDelete"));
+  console.log("Has ZonesStatus permission:", hasPermission("ZonesStatus"));
 
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 
-      <DataTable
-        data={zones}
-        columns={columns}
-        addRoute="/zones/add"
-        className="table-compact"
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onToggleStatus={handleToggleStatus}
-        showFilter={true} // Ensure the filter dropdown is shown
-        // filterKey={["status"]} // هذا لم يعد مطلوبًا بهذا الشكل مع هيكل filterOptions الجديد
-        filterOptions={filterOptionsForZones} // Pass the defined filter options
-        searchKeys={["description", "name"]}
-      />
+<DataTable
+  data={zones}
+  columns={columns}
+  // ربط الـ props الخاصة بظهور الأزرار والصلاحيات
+  showAddButton={hasPermission("ZonesAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+  addRoute="/zones/add"
+
+  onEdit={handleEdit}
+  onDelete={handleDelete}
+  onToggleStatus={handleToggleStatus}
+
+  showEditButton={hasPermission("ZonesEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showDeleteButton={hasPermission("ZonesDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showActions={
+    hasPermission("ZonesEdit") ||
+    hasPermission("ZonesDelete") 
+  }
+  showFilter={true}
+  filterOptions={filterOptionsForZones}
+  searchKeys={["description", "name"]}
+  className="table-compact"
+/>
 
       {selectedRow && (
         <>
@@ -337,7 +392,7 @@ const Zones = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            name={selectedRow.name} // Pass the name for a more specific confirmation message
+            name={selectedRow.name}
           />
         </>
       )}

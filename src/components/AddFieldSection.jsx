@@ -1,15 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-// Remove Select imports if you're replacing all select types
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-
-// Import Combobox related components (adjust paths as per your project)
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -19,14 +9,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Check, ChevronsUpDown, MapPin } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Switch } from "@/components/ui/switch";
 import MapModal from "@/components/MapModel";
 import MapLocationPicker from "./MapLocationPicker";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
-import { cn } from "@/lib/utils"; // Assuming you have this utility
+import { cn } from "@/lib/utils";
 
 export default function Add({ fields, values, onChange }) {
   const [showMap, setShowMap] = useState(false);
@@ -35,6 +29,8 @@ export default function Add({ fields, values, onChange }) {
     "rounded-[15px] border border-gray-300 focus:border-bg-primary focus:ring-bg-primary";
 
   const handleChange = (lang, name, value) => {
+    const currentValue = lang ? values?.[lang]?.[name] : values?.[name];
+    if (currentValue === value) return; // prevent unnecessary state updates
     if (lang) {
       onChange(lang, name, value);
     } else {
@@ -73,23 +69,11 @@ export default function Add({ fields, values, onChange }) {
             {(() => {
               switch (field.type) {
                 case "input":
-                  return (
-                    <Input
-                      id={fieldId}
-                      type={field.inputType || "text"}
-                      placeholder={field.placeholder}
-                      value={value}
-                      onChange={(e) =>
-                        handleChange(field.lang, field.name, e.target.value)
-                      }
-                      className={`!ms-1 !px-5 !py-6 ${commonInputClass}`}
-                    />
-                  );
                 case "number":
                   return (
                     <Input
                       id={fieldId}
-                      type="number"
+                      type={field.inputType || field.type}
                       placeholder={field.placeholder}
                       value={value}
                       onChange={(e) =>
@@ -100,17 +84,15 @@ export default function Add({ fields, values, onChange }) {
                   );
                 case "time":
                   return (
-                    <div className="mb-4">
-                      <input
-                        id={fieldId}
-                        type="time"
-                        value={value}
-                        onChange={(e) =>
-                          handleChange(field.lang, field.name, e.target.value)
-                        }
-                        className={`!ms-1 !px-10 !py-4 ${commonInputClass}`}
-                      />
-                    </div>
+                    <input
+                      id={fieldId}
+                      type="time"
+                      value={value}
+                      onChange={(e) =>
+                        handleChange(field.lang, field.name, e.target.value)
+                      }
+                      className={`!ms-1 !px-10 !py-4 ${commonInputClass}`}
+                    />
                   );
                 case "textarea":
                   return (
@@ -136,7 +118,7 @@ export default function Add({ fields, values, onChange }) {
                           e.target.files?.[0]
                         )
                       }
-                      className={`h-[54px] !mt-4 flex items-center text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
+                      className={`h-[54px] !mt-4 text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
                     />
                   );
                 case "location":
@@ -167,7 +149,7 @@ export default function Add({ fields, values, onChange }) {
                       )}
                     </div>
                   );
-                case "select": // This will now render a Combobox
+                case "select":
                   return (
                     <ComboboxComponent
                       options={field.options}
@@ -177,12 +159,14 @@ export default function Add({ fields, values, onChange }) {
                       }
                       placeholder={field.placeholder}
                       fieldId={fieldId}
-                      
                       commonInputClass={commonInputClass}
                     />
                   );
                 case "switch":
-                  const isChecked = typeof value === "string" ? value === "active" || value === "1" : Boolean(value);
+                  const isChecked =
+                    typeof value === "string"
+                      ? value === "active" || value === "1"
+                      : Boolean(value);
                   return (
                     <div className="flex items-center space-x-4 mt-2">
                       <Switch
@@ -253,7 +237,6 @@ export default function Add({ fields, values, onChange }) {
   );
 }
 
-// Separate Combobox Component for reusability and clarity
 const ComboboxComponent = ({
   options,
   value,
@@ -263,8 +246,6 @@ const ComboboxComponent = ({
   commonInputClass,
 }) => {
   const [open, setOpen] = useState(false);
-
-  // Find the selected option's label to display in the trigger
   const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
@@ -292,7 +273,7 @@ const ComboboxComponent = ({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label} // Use label for searching
+                  value={option.label}
                   onSelect={() => {
                     onValueChange(option.value);
                     setOpen(false);

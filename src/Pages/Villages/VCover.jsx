@@ -25,6 +25,27 @@ const CoverPage = () => {
   const [openEditProfileDialog, setOpenEditProfileDialog] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState(null);
 
+  // 🔐 Permissions
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+      return parsed.map((perm) => `${perm.module}:${perm.action}`);
+    } catch (error) {
+      console.error("Error parsing permissions", error);
+      return [];
+    }
+  };
+
+  const hasPermission = (permissions, required) => permissions.includes(required);
+
+  const allPermissions = getUserPermissions();
+  const canView = hasPermission(allPermissions, "Village Cover:view");
+  const canAdd = hasPermission(allPermissions, "Village Cover:add");
+  const canDelete = hasPermission(allPermissions, "Village Cover:delete");
+  const canEdit = hasPermission(allPermissions, "Village Cover:edit");
+  const canToggleStatus = hasPermission(allPermissions, "Village Cover:status");
+
   const fetchImages = async () => {
     setLoading(true);
     try {
@@ -168,10 +189,17 @@ const CoverPage = () => {
     fetchImages();
   }, [id]);
 
+  if (!canView) {
+    return (
+      <p className="text-center mt-10 text-red-500">
+        You do not have permission to view this content.
+      </p>
+    );
+  }
+
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />
-
       {loading && <Loading />}
 
       <div className="relative !my-10 w-full h-64">
@@ -181,7 +209,7 @@ const CoverPage = () => {
           className="w-full h-full object-cover"
         />
 
-        {coverImage && (
+        {coverImage && canDelete && (
           <button
             type="button"
             onClick={handleDeleteImage}
@@ -198,60 +226,63 @@ const CoverPage = () => {
             alt="Profile"
             className="w-24 h-24 rounded-full object-cover border-4 border-white"
           />
-
-          <button
-            type="button"
-            onClick={() => setOpenEditProfileDialog(true)}
-            className="absolute top-0 right-2 bg-gray-800 text-white rounded-full w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-bg-primary transition-all"
-            title="Edit Profile Image"
-          >
-            <Pencil size={16} />
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setOpenEditProfileDialog(true)}
+              className="absolute top-0 right-2 bg-gray-800 text-white rounded-full w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-bg-primary transition-all"
+              title="Edit Profile Image"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
         </div>
 
         <div className="flex justify-end space-x-2 !p-4 !m-5">
-          <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                className="absolute top-2 left-2 z-10 bg-bg-primary text-white cursor-pointer !px-5 !py-2 rounded-[16px] hover:bg-teal-500 transition-all"
-              >
-                Add
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-white !p-6 border-none rounded-lg shadow-lg max-w-3xl">
-              <DialogHeader>
-                <DialogTitle className="text-lg font-semibold text-bg-primary">
-                  Add New Image
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files[0])}
-                  className="w-full !mb-3 cursor-pointer text-sm text-gray-500 file:!mr-4 file:!py-2 file:!px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bg-primary file:text-white hover:file:bg-teal-600"
-                />
-              </div>
-              <DialogFooter className="pt-6">
+          {canAdd && (
+            <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+              <DialogTrigger asChild>
                 <Button
                   type="button"
-                  onClick={() => setOpenAddDialog(false)}
-                  variant="outline"
-                  className="border !px-3 !py-2 cursor-pointer border-teal-500 hover:bg-bg-primary hover:text-white transition-all text-bg-primary"
+                  className="absolute top-2 left-2 z-10 bg-bg-primary text-white cursor-pointer !px-5 !py-2 rounded-[16px] hover:bg-teal-500 transition-all"
                 >
-                  Cancel
+                  Add
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleImageUpload}
-                  className="bg-bg-primary border border-teal-500 hover:bg-white hover:text-bg-primary transition-all !px-3 !py-2 cursor-pointer text-white"
-                >
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="bg-white !p-6 border-none rounded-lg shadow-lg max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-semibold text-bg-primary">
+                    Add New Image
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files[0])}
+                    className="w-full !mb-3 cursor-pointer text-sm text-gray-500 file:!mr-4 file:!py-2 file:!px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bg-primary file:text-white hover:file:bg-teal-600"
+                  />
+                </div>
+                <DialogFooter className="pt-6">
+                  <Button
+                    type="button"
+                    onClick={() => setOpenAddDialog(false)}
+                    variant="outline"
+                    className="border !px-3 !py-2 cursor-pointer border-teal-500 hover:bg-bg-primary hover:text-white transition-all text-bg-primary"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleImageUpload}
+                    className="bg-bg-primary border border-teal-500 hover:bg-white hover:text-bg-primary transition-all !px-3 !py-2 cursor-pointer text-white"
+                  >
+                    Save
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           <Dialog open={openEditProfileDialog} onOpenChange={setOpenEditProfileDialog}>
             <DialogTrigger asChild />

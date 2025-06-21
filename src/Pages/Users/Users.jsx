@@ -30,12 +30,45 @@ const Users = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const navigate = useNavigate();
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^User(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `User:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   const fetchVillages = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/village", {
@@ -152,7 +185,11 @@ const Users = () => {
       rent_from,
       rent_to,
     } = selectedRow;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("UserEdit")) {
+      toast.error("You don't have permission to edit User");
+      return;
+    }
     // You might want to remove password from this check if it's not always required for updates
     if (!rawName || !email || !phone || !gender || !birthDate || !user_type) {
       toast.error("Please fill in all required fields.");
@@ -197,6 +234,11 @@ const Users = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("UserDelete")) {
+      toast.error("You don't have permission to delete User");
+      return;
+    }
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/delete/${selectedRow.id}`,
@@ -222,6 +264,13 @@ const Users = () => {
   };
 
   const handleToggleStatus = async (row, newStatus) => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("UserStatus")) {
+      toast.error(
+        "You don't have permission to change  User"
+      );
+      return;
+    }
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/status/${row.id}?status=${newStatus}`,
@@ -284,7 +333,22 @@ const filterOptionsForUsers = [
     { key: "gender", label: "Gender" },
     { key: "status", label: "Status" },
   ];
-
+  console.log(
+    "Has UserAdd permission:",
+    hasPermission("UserAdd")
+  );
+  console.log(
+    "Has UserEdit permission:",
+    hasPermission("UserEdit")
+  );
+  console.log(
+    "Has UserDelete permission:",
+    hasPermission("UserDelete")
+  );
+  console.log(
+    "Has UserStatus permission:",
+    hasPermission("UserStatus")
+  );
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -292,10 +356,15 @@ const filterOptionsForUsers = [
       <DataTable
         data={users}
         columns={columns}
+                showAddButton={hasPermission("UserAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute="/users/add"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+         showEditButton={hasPermission("UserEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("UserDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("UserEdit") || hasPermission("UserDelete")}
         searchKeys={["name", "email", "phone"]}
         showFilter={true}
         // filterKey is no longer needed here, DataTable will manage it

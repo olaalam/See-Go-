@@ -19,14 +19,49 @@ const Maintenance_types = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
 
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Maintenance Type(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Maintenance Type:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
+
 
   const fetchmaintenance_types = async () => {
     dispatch(showLoader());
@@ -104,7 +139,11 @@ const Maintenance_types = () => {
   const handleSave = async () => {
     if (!selectedRow) return;
     const { id, name, status } = selectedRow;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Maintenance TypeEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
     const formData = new FormData();
     formData.append("name", name);
     formData.append("status", status === "Active" ? 1 : 0);
@@ -147,6 +186,11 @@ const Maintenance_types = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Maintenance TypeDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/maintenance_type/delete/${selectedRow.id}`,
@@ -175,7 +219,11 @@ const Maintenance_types = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Maintenance TypeStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/maintenance_type/status/${id}?status=${newStatus}`,
@@ -259,11 +307,16 @@ const Maintenance_types = () => {
       <DataTable
         data={maintenance_types}
         columns={columns}
+                showAddButton={hasPermission("Maintenance TypeAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute="/maintenance/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+                showEditButton={hasPermission("Maintenance TypeEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("Maintenance TypeDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("Maintenance TypeEdit") || hasPermission("Maintenance TypeDelete")}
         searchKeys={["name"]}
         filterKey={["status"]}
         filterOptions={filterOptionsForZones}

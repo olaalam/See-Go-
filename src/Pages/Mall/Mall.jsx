@@ -44,6 +44,7 @@ const Mall = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   // New state for filter selections
   const [selectedZoneFilter, setSelectedZoneFilter] = useState("all");
@@ -51,6 +52,42 @@ const Mall = () => {
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Mall(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Mall:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+
+
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -234,7 +271,11 @@ const Mall = () => {
       toast.error("Zone ID is missing or invalid");
       return;
     }
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("MallEdit")) {
+      toast.error("You don't have permission to edit Mall");
+      return;
+    }
     const updatedMall = new FormData();
     updatedMall.append("id", id);
     updatedMall.append("name", name || "");
@@ -294,6 +335,11 @@ const Mall = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("MallDelete")) {
+      toast.error("You don't have permission to delete Mall");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/mall/delete/${selectedRow.id}`,
@@ -346,6 +392,13 @@ const Mall = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("MallStatus")) {
+      toast.error(
+        "You don't have permission to change Mall status"
+      );
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/mall/status/${id}?status=${newStatus}`,
@@ -409,6 +462,8 @@ const Mall = () => {
       <DataTable
         data={malls} // Pass the filtered data here
         columns={columns}
+                showAddButton={hasPermission("MallAdd")}
+
         addRoute="/mall/add"
         className="table-compact"
         onEdit={handleEdit}
@@ -419,6 +474,9 @@ const Mall = () => {
           "location",
           "zoneName",
         ]}
+        showEditButton={hasPermission("MallEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("MallDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("MallEdit") || hasPermission("MallDelete")}
         showFilter={true}
         filterOptions={filterOptionsForVillages} // Pass the enhanced filterOptions
       />

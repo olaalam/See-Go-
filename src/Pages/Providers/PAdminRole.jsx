@@ -37,11 +37,41 @@ const Provider_roless = () => {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState([]); // New state for all selectable roles
   const [selectedEditRoles, setSelectedEditRoles] = useState([]); // State for roles in edit dialog
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
-  // Get parameters from the URL
-  // Assuming your route is 'single-page-v/:id/admin/:adminId'
-  // If your route is 'single-page-v/:id/admin/:id', you'll need to rename one of the IDs in the router config
-  // For clarity, I'm assuming the second :id in the route is meant to be an admin ID.
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Provider Admin Role(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Provider Admin Role:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -127,6 +157,12 @@ const Provider_roless = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider Admin RoleEdit")) {
+      toast.error("You don't have permission to edit Provider Admin Role");
+      return;
+    }
+
 
     const { id, name, status } = selectedRow;
     const formData = new FormData();
@@ -167,6 +203,11 @@ const Provider_roless = () => {
   };
 
   const handleDeleteConfirm = async () => {
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider Admin RoleDelete")) {
+      toast.error("You don't have permission to delete Provider Admin Role");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_roles/delete/${selectedRow.id}`,
@@ -191,6 +232,11 @@ const Provider_roless = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
+        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider Admin RoleStatus")) {
+      toast.error("You don't have permission to change Provider Admin Role status");
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -282,11 +328,19 @@ const Provider_roless = () => {
       <DataTable
         data={provider_roless}
         columns={columns}
+          showAddButton={hasPermission("Provider Admin RoleAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+
         addRoute={`/provider-roles/add`} // Use the dynamically constructed addRoute
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         showFilter={true}
+          showEditButton={hasPermission("Provider Admin RoleEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showDeleteButton={hasPermission("Provider Admin RoleDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+  showActions={
+    hasPermission("Provider Admin RoleEdit") ||
+    hasPermission("Provider Admin RoleDelete") 
+  }
         filterKey={["status"]}
         filterOptions={filterOptionsForprovider_roless}
         searchKeys={["name"]} 

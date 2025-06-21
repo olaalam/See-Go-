@@ -31,12 +31,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-
 export default function DataTable({
   data,
   columns,
   addRoute,
-  onAdd,
+  onAdd, // This might be a direct function call for adding (e.g., opening a modal)
   onEdit,
   onDelete,
   onToggleStatus,
@@ -48,8 +47,12 @@ export default function DataTable({
   showActions = true,
   showEditButton = true,
   showDeleteButton = true,
-  searchKeys = [], // Expects keys like ["searchableName", "description"]
+  searchKeys = [],
+  onAddClick, // This is potentially a more specific add handler
   filterOptions = [],
+  initialPage = 1,
+  // ***** هذا هو الـ prop الجديد الذي أضفته بشكل صحيح *****
+  defaultAddSubscriberType = null, // القيمة الافتراضية null أو أي شيء يدل على عدم التحديد
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [activeFilters, setActiveFilters] = useState(() => {
@@ -62,84 +65,74 @@ export default function DataTable({
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
-  // --- Pagination States ---
-  const [currentPage, setCurrentPage] = useState(1);
+  // Initialize currentPage with the initialPage prop, ensuring it's at least 1
+  const [currentPage, setCurrentPage] = useState(Math.max(1, initialPage));
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Effect to reset active filters if filterOptions change (e.g., parent component passes new filter options)
+  // Effect to update currentPage if initialPage prop changes from parent
+  // This will ensure that external changes to initialPage are reflected
+  useEffect(() => {
+    setCurrentPage(Math.max(1, initialPage));
+  }, [initialPage]);
+
+  // Effect to reset active filters if filterOptions change
   useEffect(() => {
     const newInitialFilters = {};
     filterOptions.forEach((group) => {
       newInitialFilters[group.key] = "all";
     });
     setActiveFilters(newInitialFilters);
-    setCurrentPage(1); // Reset to first page on filter change
-  }, [filterOptions]);
+    setCurrentPage(Math.max(1, initialPage)); // Reset to the provided initialPage on filter change
+  }, [filterOptions, initialPage]);
 
-  // Helper function to safely get nested values (e.g., "zone.name")
+  // Helper function to safely get nested values
   const getNestedValue = (obj, path) => {
     return path
       .split(".")
       .reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
-// في DataTable component، في الـ filteredData useMemo:
+  const filteredData = useMemo(() => {
+    let currentData = data;
 
-const filteredData = useMemo(() => {
-  let currentData = data;
-
-  // Apply search filter
-  if (searchValue) {
-    const lowerCaseSearchValue = searchValue.toLowerCase();
-    console.log("Search value:", lowerCaseSearchValue); // Debug log
-    console.log("Search keys:", searchKeys); // Debug log
-    
-    currentData = currentData.filter((row) => {
-      const matches = searchKeys.some((key) => {
-        const value = getNestedValue(row, key);
-        console.log(`Row ${row.id}: ${key} =`, value, typeof value); // Debug log
-        
-        // تأكد إن الـ value مش null أو undefined أو JSX
-        if (value === null || value === undefined) {
-          return false;
-        }
-        
-        // تأكد إن الـ value مش object (JSX element)
-        if (typeof value === 'object') {
-          console.warn(`Warning: ${key} is an object, not searchable string:`, value);
-          return false;
-        }
-        
-        const searchableString = String(value).toLowerCase();
-        const isMatch = searchableString.includes(lowerCaseSearchValue);
-        console.log(`  - "${searchableString}" includes "${lowerCaseSearchValue}"?`, isMatch); // Debug log
-        
-        return isMatch;
-      });
-      
-      console.log(`Row ${row.id} matches:`, matches); // Debug log
-      return matches;
-    });
-  }
-
-  // Apply accordion filters
-  Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
-    if (filterValue !== "all") {
+    // Apply search filter
+    if (searchValue) {
+      const lowerCaseSearchValue = searchValue.toLowerCase();
       currentData = currentData.filter((row) => {
-        const rowValue = getNestedValue(row, filterKey);
-        const comparableRowValue =
-          rowValue !== null && rowValue !== undefined
-            ? String(rowValue).toLowerCase()
-            : "";
-        const comparableFilterValue = String(filterValue).toLowerCase();
+        const matches = searchKeys.some((key) => {
+          const value = getNestedValue(row, key);
 
-        return comparableRowValue === comparableFilterValue;
+          if (value === null || value === undefined || typeof value === "object") {
+            return false;
+          }
+
+          const searchableString = String(value).toLowerCase();
+          const isMatch = searchableString.includes(lowerCaseSearchValue);
+
+          return isMatch;
+        });
+        return matches;
       });
     }
-  });
 
-  return currentData;
-}, [data, searchValue, activeFilters, searchKeys]);
+    // Apply accordion filters
+    Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
+      if (filterValue !== "all") {
+        currentData = currentData.filter((row) => {
+          const rowValue = getNestedValue(row, filterKey);
+          const comparableRowValue =
+            rowValue !== null && rowValue !== undefined
+              ? String(rowValue).toLowerCase()
+              : "";
+          const comparableFilterValue = String(filterValue).toLowerCase();
+
+          return comparableRowValue === comparableFilterValue;
+        });
+      }
+    });
+
+    return currentData;
+  }, [data, searchValue, activeFilters, searchKeys]);
 
   // --- Pagination Logic ---
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -147,7 +140,18 @@ const filteredData = useMemo(() => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
+  // Ensure currentPage doesn't exceed totalPages if data shrinks
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    } else if (totalPages === 0 && currentPage !== 1) { // If no data, go to page 1
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+
   const handlePageChange = (page) => {
+    // Only update if the new page is valid
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
@@ -175,7 +179,7 @@ const filteredData = useMemo(() => {
       ...prev,
       [filterKey]: value,
     }));
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(Math.max(1, initialPage)); // Reset to the provided initialPage when filter changes
   };
 
   return (
@@ -188,7 +192,7 @@ const filteredData = useMemo(() => {
           value={searchValue}
           onChange={(e) => {
             setSearchValue(e.target.value);
-            setCurrentPage(1); // Reset to first page on search
+            setCurrentPage(Math.max(1, initialPage)); // Reset to initialPage on search
           }}
         />
 
@@ -226,7 +230,21 @@ const filteredData = useMemo(() => {
           {/* Add Button */}
           {showAddButton && (
             <Button
-              onClick={() => (onAdd ? onAdd() : navigate(addRoute))}
+              onClick={() => {
+                // الأولوية لـ onAddClick إذا كان موجودًا (محددًا بشكل صريح لدالة فتح)
+                if (onAddClick) {
+                  onAddClick();
+                }
+                // ثم لـ onAdd إذا كان موجودًا (للتوافق مع استخدامات سابقة قديمة)
+                else if (onAdd) {
+                  onAdd();
+                }
+                // وأخيرًا، إذا كان addRoute موجودًا، قم بالتنقل باستخدام navigate
+                else if (addRoute) {
+                  console.log("Navigating via addRoute:", addRoute, "with type:", defaultAddSubscriberType);
+                  navigate(addRoute, { state: { initialType: defaultAddSubscriberType } });
+                }
+              }}
               className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
             >
               <Plus className="w-5 h-5 !mr-2" />
@@ -323,7 +341,7 @@ const filteredData = useMemo(() => {
                               String(
                                 getNestedValue(row, col.key)
                               )?.toLowerCase() === "active"
-                            } // Use getNestedValue for status
+                            }
                             onCheckedChange={(checked) =>
                               onToggleStatus?.(row, checked ? 1 : 0)
                             }
@@ -331,7 +349,7 @@ const filteredData = useMemo(() => {
                               "relative inline-flex h-6 w-11 rounded-full transition-colors focus:outline-none",
                               String(
                                 getNestedValue(row, col.key)
-                              )?.toLowerCase() === "active" // Use getNestedValue for status
+                              )?.toLowerCase() === "active"
                                 ? "bg-bg-primary"
                                 : "bg-gray-300"
                             )}
@@ -341,7 +359,7 @@ const filteredData = useMemo(() => {
                                 "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
                                 String(
                                   getNestedValue(row, col.key)
-                                )?.toLowerCase() === "active" // Use getNestedValue for status
+                                )?.toLowerCase() === "active"
                                   ? "translate-x-5"
                                   : "translate-x-1"
                               )}
@@ -354,7 +372,7 @@ const filteredData = useMemo(() => {
                         </div>
                       ) : col.key === "map" ? (
                         (() => {
-                          const url = getNestedValue(row, col.key); // Use getNestedValue for map URL
+                          const url = getNestedValue(row, col.key);
                           if (!url) return "N/A";
 
                           const displayText =
@@ -364,12 +382,17 @@ const filteredData = useMemo(() => {
                                 )}`
                               : url;
 
+                          // Corrected URL for Google Maps.
+                          // Assuming `url` might be a raw coordinate string or a direct map link.
+                          // If `url` is already a complete Google Maps URL, use it.
+                          // If it's coordinates, you might want to format it as a search query.
+                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`;
+
+
                           return (
                             <div className="relative w-[120px] truncate group">
                               <a
-                                href={`https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(
-                                  url
-                                )}`}
+                                href={mapLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -443,7 +466,7 @@ const filteredData = useMemo(() => {
                 <TableCell
                   colSpan={
                     columns.length +
-                    1 + // Added for the new row number column
+                    1 +
                     (showRowSelection ? 1 : 0) +
                     (showEditButton || showDeleteButton || showActions ? 1 : 0)
                   }
@@ -467,11 +490,15 @@ const filteredData = useMemo(() => {
                   })}
                 />
               </PaginationItem>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+              {/* Render pagination items only if totalPages > 0 */}
+              {totalPages > 0 && Array.from({ length: totalPages }, (_, i) => i + 1).map(
                 (page) => (
                   <PaginationItem key={page}>
                     <PaginationLink
                       onClick={() => handlePageChange(page)}
+                      // Use a direct `href` if you want it to be a real link, but for SPA, `onClick` is better.
+                      // Ensure `aria-current` is set for accessibility.
+                      aria-current={currentPage === page ? "page" : undefined}
                       className={clsx(
                         "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg",
                         {
@@ -489,9 +516,9 @@ const filteredData = useMemo(() => {
               <PaginationItem>
                 <PaginationNext
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                   className={clsx("text-bg-primary", {
-                    "opacity-50 cursor-not-allowed": currentPage === totalPages,
+                    "opacity-50 cursor-not-allowed": currentPage === totalPages || totalPages === 0,
                   })}
                 />
               </PaginationItem>

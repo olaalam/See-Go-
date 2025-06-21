@@ -6,22 +6,27 @@ import "react-toastify/dist/ReactToastify.css";
 import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Addsubscrier() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // State to determine if the type field should be disabled
+  const [isTypeFieldDisabled, setIsTypeFieldDisabled] = useState(false);
 
   const [optionsData, setOptionsData] = useState({
-    types: [],
     paymentMethods: [],
     providerPackages: [],
     villagePackages: [],
     services: [],
     villages: [],
     providers: [],
+    maintenanceProviders: [],
+    maintenancePackages: [],
   });
 
   const [formData, setFormData] = useState({
@@ -31,44 +36,84 @@ export default function Addsubscrier() {
     service_id: "",
     village_id: "",
     provider_id: "",
+    maintenance_provider_id: "",
   });
+
+  // Effect to set initial form data based on navigation state
+  useEffect(() => {
+    if (location.state?.initialType) {
+      setFormData((prev) => ({
+        ...prev,
+        type: location.state.initialType,
+      }));
+      // Disable the type field if it's set from navigation state
+      setIsTypeFieldDisabled(true);
+    } else {
+      // Set a default type if accessed directly without state
+      setFormData((prev) => ({
+        ...prev,
+        type: "provider", // Default to 'provider' if no initialType is provided
+      }));
+      // If no initialType, allow the user to select
+      setIsTypeFieldDisabled(false);
+    }
+  }, [location.state]); // Rerun when location state changes
 
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const response = await fetch("https://bcknd.sea-go.org/admin/subscriper", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          "https://bcknd.sea-go.org/admin/subscriper",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         const data = await response.json();
         console.log(data);
 
         setOptionsData({
-          paymentMethods: data.payment_methods?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
-          providerPackages: data.provider_packages?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
-          villagePackages: data.village_packages?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
-          services: data.services?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
-          villages: data.villages?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
-          providers: data.providers?.map((item) => ({
-            label: item.name,
-            value: item.id.toString(),
-          })) || [],
+          paymentMethods:
+            data.payment_methods?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          providerPackages:
+            data.provider_packages?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          villagePackages:
+            data.village_packages?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          services:
+            data.services?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          villages:
+            data.villages?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          maintenancePackages:
+            data.maintenance_provider_packages?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          providers:
+            data.providers?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
+          maintenanceProviders:
+            data.maintenance_provider?.map((item) => ({
+              label: item.name,
+              value: item.id.toString(),
+            })) || [],
         });
       } catch (error) {
         console.error("Error fetching options", error);
@@ -76,9 +121,14 @@ export default function Addsubscrier() {
     };
 
     fetchOptions();
-  }, []);
+  }, [token]);
 
   const handleInputChange = (name, value) => {
+    // Prevent changing the type if it's disabled
+    if (name === "type" && isTypeFieldDisabled) {
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -90,6 +140,8 @@ export default function Addsubscrier() {
       ? optionsData.providerPackages
       : formData.type === "village"
       ? optionsData.villagePackages
+      : formData.type === "maintenance_provider"
+      ? optionsData.maintenancePackages
       : [];
 
   const handleSubmit = async () => {
@@ -105,16 +157,21 @@ export default function Addsubscrier() {
       body.append("provider_id", formData.provider_id);
     } else if (formData.type === "village") {
       body.append("village_id", formData.village_id);
+    } else if (formData.type === "maintenance_provider") {
+      body.append("maintenance_provider_id", formData.maintenance_provider_id);
     }
 
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/subscriper/add", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body,
-      });
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/subscriper/add",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body,
+        }
+      );
 
       if (response.ok) {
         toast.success("Subscriber added successfully!", {
@@ -128,6 +185,7 @@ export default function Addsubscrier() {
           service_id: "",
           village_id: "",
           provider_id: "",
+          maintenance_provider_id: "",
         });
         navigate("/subscribers");
       } else {
@@ -136,9 +194,7 @@ export default function Addsubscrier() {
           const errorData = await response.json();
 
           if (errorData?.errors && typeof errorData.errors === "object") {
-            errorMessage = Object.values(errorData.errors)
-              .flat()
-              .join(", ");
+            errorMessage = Object.values(errorData.errors).flat().join(", ");
           } else if (errorData?.message) {
             errorMessage = errorData.message;
           } else if (typeof errorData === "string") {
@@ -172,19 +228,23 @@ export default function Addsubscrier() {
       options: [
         { value: "provider", label: "provider" },
         { value: "village", label: "village" },
+        { value: "maintenance_provider", label: "maintenance" },
       ],
+      value: formData.type,
+      // Add the disabled property based on the state
+      disabled: isTypeFieldDisabled, // <--- ADD THIS LINE
     },
     {
       type: "select",
       placeholder: "Payment Method",
       name: "payment_method_id",
-      options: optionsData.paymentMethods,
+      options: optionsData.paymentMethods || [],
     },
     {
       type: "select",
       placeholder: "Package",
       name: "package_id",
-      options: dynamicPackageOptions,
+      options: dynamicPackageOptions || [],
     },
   ];
 
@@ -196,13 +256,13 @@ export default function Addsubscrier() {
         type: "select",
         placeholder: "Service",
         name: "service_id",
-        options: optionsData.services,
+        options: optionsData.services || [],
       },
       {
         type: "select",
         placeholder: "Provider",
         name: "provider_id",
-        options: optionsData.providers,
+        options: optionsData.providers || [],
       },
     ];
   } else if (formData.type === "village") {
@@ -211,7 +271,16 @@ export default function Addsubscrier() {
         type: "select",
         placeholder: "Village",
         name: "village_id",
-        options: optionsData.villages,
+        options: optionsData.villages || [],
+      },
+    ];
+  } else if (formData.type === "maintenance_provider") {
+    dynamicFields = [
+      {
+        type: "select",
+        placeholder: "Maintenance Provider",
+        name: "maintenance_provider_id",
+        options: optionsData.maintenanceProviders || [],
       },
     ];
   }
@@ -227,11 +296,7 @@ export default function Addsubscrier() {
         Add Subscriber
       </h2>
 
-      <Add
-        fields={fields}
-        values={formData}
-        onChange={handleInputChange}
-      />
+      <Add fields={fields} values={formData} onChange={handleInputChange} />
 
       <div className="!my-6">
         <Button

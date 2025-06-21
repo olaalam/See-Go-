@@ -25,6 +25,7 @@ export default function PAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [providerOptions, setproviderOptions] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const [providerPositions, setproviderPositions] = useState([]);
   const { id } = useParams();
@@ -38,13 +39,43 @@ export default function PAdmin() {
     { label: "Role", key: "admin_position_name" }, // Changed key to match formatted data
     { key: "status", label: "Status" },
   ];
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Provider Admin(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Provider Admin:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
-  const getAuthHeaders = () => ({
-    // Content-Type will be set automatically for FormData
-    Authorization: `Bearer ${token}`,
-  });
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -163,6 +194,11 @@ export default function PAdmin() {
   }, [token]);
 
   const handleToggleStatus = async (row, newStatus) => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider AdminStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/status/${row.id}?status=${newStatus}`,
@@ -203,6 +239,11 @@ export default function PAdmin() {
   };
 
   const handleDeleteConfirm = async () => {
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider AdminDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/delete/${selectedRow.id}`,
@@ -247,6 +288,11 @@ export default function PAdmin() {
       imageFile, // This is the File object from state
     } = selectedRow;
 
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("Provider AdminEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
     const formData = new FormData();
     formData.append("name", name);
     formData.append("email", email);
@@ -287,7 +333,9 @@ export default function PAdmin() {
         setSelectedRow(null);
       } else {
         const errorData = await response.json(); // Get error details from backend
-        toast.error(`Failed to update admin: ${errorData.message || response.statusText}`);
+        toast.error(
+          `Failed to update admin: ${errorData.message || response.statusText}`
+        );
       }
     } catch (err) {
       toast.error(`Error updating admin: ${err.message || err}`);
@@ -306,7 +354,10 @@ export default function PAdmin() {
       label: "Filter by position",
       options: [
         { value: "all", label: "All positions" },
-        ...providerPositions.map((position) => ({ value: position.name, label: position.name })),
+        ...providerPositions.map((position) => ({
+          value: position.name,
+          label: position.name,
+        })),
       ],
     },
     {
@@ -319,7 +370,6 @@ export default function PAdmin() {
       ],
     },
   ];
-
 
   // Refetch data function
   const fetchData = async () => {
@@ -341,9 +391,7 @@ export default function PAdmin() {
       setproviderPositions(providerPositionsData);
 
       const formattedAdmins = (
-        Array.isArray(adminJson.admins)
-          ? adminJson.admins
-          : [adminJson.admins]
+        Array.isArray(adminJson.admins) ? adminJson.admins : [adminJson.admins]
       ).map((admin) => {
         const position = providerPositionsData.find(
           (pos) => pos.id === admin.admin_position_id
@@ -393,18 +441,25 @@ export default function PAdmin() {
           <DataTable
             data={adminData}
             columns={columns}
+            showAddButton={hasPermission("Provider AdminAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
             className="table-compact"
             addRoute={`/providers/single-page-p/${id}/add`}
             onEdit={handleEdit}
             onToggleStatus={handleToggleStatus}
             onDelete={handleDelete}
+            showEditButton={hasPermission("Provider AdminEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+            showDeleteButton={hasPermission("Provider AdminDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+            showActions={
+              hasPermission("Provider AdminEdit") ||
+              hasPermission("Provider AdminDelete")
+            }
             searchKeys={["name", "email"]}
             showFilter={true}
             filterKey={["status", "admin_position_name"]} // Now filtering by both status AND role
             filterOptions={filterOptionsForAdmins}
           />
 
-          {selectedRow &&( 
+          {selectedRow && (
             <>
               <EditDialog
                 open={isEditOpen}

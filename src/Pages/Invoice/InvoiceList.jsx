@@ -7,23 +7,53 @@ import FullPageLoader from "@/components/Loading";
 import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 
+// ✅ دالة الصلاحيات
+const getUserPermissions = () => {
+  try {
+    const permissions = localStorage.getItem("userPermission");
+    const parsed = permissions ? JSON.parse(permissions) : [];
+    return parsed.map((perm) =>
+      `${perm.module?.toLowerCase().replace(/\s+/g, "_")}:${perm.action?.toLowerCase()}`
+    );
+  } catch (error) {
+    console.error("Error parsing user permissions:", error);
+    return [];
+  }
+};
+
+const hasPermission = (permissions, permission) => {
+  const match = permission.match(/^Invoice(.*)$/i);
+  if (!match) return false;
+  const permKey = match[1].toLowerCase();
+  const fullPerm = `invoice:${permKey}`;
+  return permissions.includes(fullPerm) || permissions.includes("invoice:all");
+};
+
 const InvoiceList = ({ villageId, providerId, entityType }) => {
   const location = useLocation();
   const isLoadingFromRedux = useSelector((state) => state.loader.isLoading);
   const [invoiceData, setInvoiceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [permissions, setPermissions] = useState([]);
 
-  // Determine if we're on a provider page
-  const isProviderPage = location.pathname.includes("/providers/") || entityType === "provider";
-  
-  // Get the correct ID and entity type
+  const isProviderPage =
+    location.pathname.includes("/providers/") || entityType === "provider";
+
   const entityId = isProviderPage ? providerId : villageId;
   const currentEntityType = isProviderPage ? "provider" : "village";
 
+  // ✅ تحميل الصلاحيات عند بدء التحميل
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+
   const fetchInvoices = useCallback(async () => {
     if (!entityId) {
-      setError(`${currentEntityType === "provider" ? "Provider" : "Village"} ID is missing.`);
+      setError(
+        `${currentEntityType === "provider" ? "Provider" : "Village"} ID is missing.`
+      );
       setLoading(false);
       return;
     }
@@ -32,7 +62,6 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
     setError(null);
 
     const token = localStorage.getItem("token");
-
     if (!token) {
       setError("Authorization token not found. Please log in.");
       setLoading(false);
@@ -40,10 +69,10 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
     }
 
     try {
-      // Use different API endpoints based on entity type
-      const apiUrl = currentEntityType === "provider" 
-        ? `https://bcknd.sea-go.org/admin/invoice/provider/${entityId}`
-        : `https://bcknd.sea-go.org/admin/invoice/village/${entityId}`;
+      const apiUrl =
+        currentEntityType === "provider"
+          ? `https://bcknd.sea-go.org/admin/invoice/provider/${entityId}`
+          : `https://bcknd.sea-go.org/admin/invoice/village/${entityId}`;
 
       const response = await axios.get(apiUrl, {
         headers: {
@@ -53,44 +82,34 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
       });
 
       if (response.data && Array.isArray(response.data.invoices)) {
-        // Add index as id since invoices don't have unique IDs
         const formatted = response.data.invoices.map((u, index) => ({
-          id: index, // Use index as ID
-          name: u.name || `Invoice ${index + 1}`, // Fallback name
+          id: index,
+          name: u.name || `Invoice ${index + 1}`,
           total_before_discount: u.total_before_discount,
           discount: u.discount,
           amount: u.amount,
           status: u.status === "paid" ? "paid" : "unpaid",
           invoiceDetails: {
             ...u,
-            id: index, // Add id to invoice details
-            [currentEntityType]: response.data[currentEntityType], // Include village or provider data
-            package: response.data.package || {}, // Include package data if available
-            entityType: currentEntityType // Add entity type to invoice details
+            id: index,
+            [currentEntityType]: response.data[currentEntityType],
+            package: response.data.package || {},
+            entityType: currentEntityType,
           },
         }));
         setInvoiceData(formatted);
       } else {
-        console.warn(
-          "API response was missing 'invoices' array or malformed:",
-          response.data
-        );
-        setError(
-          "Received unexpected data format from the server. Check console for details."
-        );
+        setError("Unexpected response format. See console.");
+        console.warn("Bad API response:", response.data);
       }
     } catch (err) {
-      console.error("Failed to fetch invoices:", err);
-      if (axios.isAxiosError(err) && err.response) {
-        setError(
-          err.response.data.message ||
-            `Error: ${err.response.status} ${err.response.statusText}`
-        );
-      } else {
-        setError(
-          err.message || "Failed to load data. Please check your network."
-        );
-      }
+      console.error("Fetch error:", err);
+      setError(
+        axios.isAxiosError(err) && err.response
+          ? err.response.data.message ||
+              `Error: ${err.response.status} ${err.response.statusText}`
+          : err.message || "Failed to fetch data."
+      );
     } finally {
       setLoading(false);
     }
@@ -110,12 +129,12 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
       label: "View Invoice",
       render: (row) => (
         <Link
-          to={`invoice/${row.id}`} // Include the invoice ID in the URL
-          state={{ 
+          to={`invoice/${row.id}`}
+          state={{
             invoiceData: row.invoiceDetails,
             entityType: currentEntityType,
-            entityId: entityId
-          }} // Pass invoice data and entity info via state
+            entityId: entityId,
+          }}
           className="text-blue-600 hover:underline"
         >
           View
@@ -137,8 +156,14 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
     },
   ];
 
-  if (isLoadingFromRedux || loading) {
-    return <FullPageLoader />;
+  if (isLoadingFromRedux || loading) return <FullPageLoader />;
+
+  if (!hasPermission(permissions, "Invoice:view")) {
+    return (
+      <div className="p-4 text-center text-red-600 font-bold">
+        You do not have permission to view invoices.
+      </div>
+    );
   }
 
   if (error) {
@@ -157,7 +182,7 @@ const InvoiceList = ({ villageId, providerId, entityType }) => {
         columns={columns}
         showAddButton={false}
         showActions={false}
-         showEditButton={false}   
+        showEditButton={false}
         showDeleteButton={false}
         filterOptions={[
           {

@@ -29,6 +29,7 @@ const Admins = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [admins, setAdmins] = useState([]);
+  const [positions, setPositions] = useState([]); // Add positions state
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -39,11 +40,44 @@ const Admins = () => {
   const [allAvailableRoles, setAllAvailableRoles] = useState([]);
   const [selectedEditRoles, setSelectedEditRoles] = useState([]);
   const [isRolesDropdownOpen, setIsRolesDropdownOpen] = useState(false);
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Admin(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Admin:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
@@ -65,6 +99,11 @@ const Admins = () => {
 
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
+
+      // Store positions data
+      if (result.position && Array.isArray(result.position)) {
+        setPositions(result.position);
+      }
 
       // معالجة الأدوار المتاحة - فلترة "all" إذا وجدت
       const filteredActions = result.actions
@@ -98,6 +137,12 @@ const Admins = () => {
             </Avatar>
           );
 
+        // Find position name
+        const position = result.position?.find(
+          (pos) => pos.id === admin.admin_position_id
+        );
+        const positionName = position ? position.name : "—";
+
         return {
           id: admin.id,
           name,
@@ -109,6 +154,8 @@ const Admins = () => {
           image_link: admin.image_link,
           gender: admin.gender || "—",
           super_roles: admin.super_roles || [],
+          admin_position_id: admin.admin_position_id,
+          position_name: positionName,
         };
       });
 
@@ -124,14 +171,14 @@ const Admins = () => {
   // إغلاق الـ dropdown عند النقر خارجه
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isRolesDropdownOpen && !event.target.closest('.roles-dropdown')) {
+      if (isRolesDropdownOpen && !event.target.closest(".roles-dropdown")) {
         setIsRolesDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isRolesDropdownOpen]);
 
@@ -156,13 +203,17 @@ const Admins = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("AdminEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
     const {
       id,
       name,
       phone,
       email,
-      role,
+      admin_position_id,
       status,
       gender,
       password,
@@ -179,22 +230,23 @@ const Admins = () => {
     formData.append("name", name);
     formData.append("phone", phone);
     formData.append("email", email);
-    formData.append("provider_only", role ? 1 : 0);
     formData.append("gender", gender || "");
     formData.append("status", status === "active" ? 1 : 0);
-    
+    formData.append("admin_position_id", admin_position_id);
+
     // إضافة كلمة المرور فقط إذا تم إدخالها
     if (password && password.trim() !== "") {
       formData.append("password", password);
     }
 
-    // إضافة الأدوار المحددة للـ Provider
-    if (role === 1 && selectedEditRoles.length > 0) {
-      // جرب هذه الطرق بالترتيب حسب ما يتوقعه الـ API
-
-      selectedEditRoles.forEach(roleItem => {
+    // إضافة الأدوار المحددة للـ Provider (check if position type is provider)
+    const selectedPosition = positions.find(
+      (pos) => pos.id === admin_position_id
+    );
+    if (selectedPosition?.type === "provider" && selectedEditRoles.length > 0) {
+      selectedEditRoles.forEach((roleItem) => {
         formData.append("action[]", roleItem);
-       });
+      });
     }
 
     if (imageFile) {
@@ -214,7 +266,7 @@ const Admins = () => {
 
       if (response.ok) {
         toast.success("Admin updated successfully!");
-         await fetchAdmins();
+        await fetchAdmins();
         setIsEditOpen(false);
         setSelectedRow(null);
         setSelectedEditRoles([]);
@@ -233,7 +285,11 @@ const Admins = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow) return;
-
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("AdminDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     dispatch(showLoader());
     try {
       const response = await fetch(
@@ -261,11 +317,6 @@ const Admins = () => {
     }
   };
 
-  const handleViewRoles = (row) => {
-    setSelectedRoles(row.super_roles || []);
-    setIsViewRolesOpen(true);
-  };
-
   const handleEditRoleChange = (roleModule) => {
     setSelectedEditRoles((prevSelectedRoles) => {
       if (prevSelectedRoles.includes(roleModule)) {
@@ -278,6 +329,11 @@ const Admins = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!hasPermission("AdminStatus")) {
+      toast.error("You don't have permission to change zone status");
+      return;
+    }
 
     dispatch(showLoader());
     try {
@@ -323,39 +379,16 @@ const Admins = () => {
     { key: "phone", label: "Phone" },
     { key: "email", label: "Email" },
     {
-      key: "role",
-      label: "Role",
-      render: (row) => (row.role === 1 ? "Provider" : "Admin"),
-    },
-    {
-      key: "assigned_roles",
-      label: "Provider Roles",
-      render: (row) => {
-        if (row.role === 1 && row.super_roles && row.super_roles.length > 0) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              className="!px-3 !py-2 text-bg-primary cursor-pointer hover:bg-gray-200 transition-all"
-              onClick={() => handleViewRoles(row)}
-            >
-              View Roles ({row.super_roles.length})
-            </Button>
-          );
-        } else if (row.role === 1) {
-          return (
-            <span className="text-gray-500 text-sm">No roles assigned</span>
-          );
-        } else {
-          return <span className="text-gray-400 text-sm">—</span>;
-        }
-      },
+      key: "position_name",
+      label: "Position",
+      render: (row) => row?.position_name || "—",
     },
     { key: "img", label: "Image" },
     { key: "status", label: "Status" },
     { key: "gender", label: "Gender" },
   ];
 
+  // Update filter options to use positions
   const filterOptions = [
     {
       key: "status",
@@ -367,12 +400,14 @@ const Admins = () => {
       ],
     },
     {
-      key: "role",
-      label: "Role",
+      key: "position_name",
+      label: "Position",
       options: [
-        { value: "all", label: "All Roles" },
-        { value: "0", label: "Admin" },
-        { value: "1", label: "Provider" },
+        { value: "all", label: "All Positions" },
+        ...positions.map((position) => ({
+          value: position.name,
+          label: position.name,
+        })),
       ],
     },
   ];
@@ -385,13 +420,17 @@ const Admins = () => {
       <DataTable
         data={admins}
         columns={columns}
+        showAddButton={hasPermission("AdminAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute="/admin/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+        showEditButton={hasPermission("AdminEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("AdminDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={hasPermission("AdminEdit") || hasPermission("AdminDelete")}
         searchKeys={["name", "phone", "email"]}
-        filterKey={["status", "role"]}
+        filterKey={["status", "position_name"]}
         filterOptions={filterOptions}
       />
 
@@ -407,7 +446,7 @@ const Admins = () => {
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <label htmlFor="name" className="text-gray-400 !pb-3">
-                Name 
+                Name
               </label>
               <Input
                 id="name"
@@ -416,9 +455,9 @@ const Admins = () => {
                 className="!my-2 text-bg-primary !p-4"
                 required
               />
-              
+
               <label htmlFor="email" className="text-gray-400 !pb-3">
-                Email 
+                Email
               </label>
               <Input
                 id="email"
@@ -428,38 +467,46 @@ const Admins = () => {
                 className="!my-2 text-bg-primary !p-4"
                 required
               />
-              
-              <label htmlFor="role" className="text-gray-400 !pb-3">
-                Role 
+
+              <label htmlFor="position" className="text-gray-400 !pb-3">
+                Position
               </label>
               <Select
-                value={selectedRow?.role?.toString()}
+                value={selectedRow?.admin_position_id?.toString()}
                 onValueChange={(value) => {
-                  onChange("role", parseInt(value));
-                  // مسح الأدوار المحددة عند تغيير النوع من Provider إلى Admin
-                  if (parseInt(value) === 0) {
+                  const positionId = parseInt(value);
+                  onChange("admin_position_id", positionId);
+
+                  // Clear roles if switching away from provider position
+                  const selectedPosition = positions.find(
+                    (pos) => pos.id === positionId
+                  );
+                  if (selectedPosition?.type !== "provider") {
                     setSelectedEditRoles([]);
                   }
                 }}
               >
                 <SelectTrigger
-                  id="role"
+                  id="position"
                   className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
                 >
-                  <SelectValue placeholder="Select role" />
+                  <SelectValue placeholder="Select position" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                  <SelectItem value="0" className="text-bg-primary">
-                    Admin
-                  </SelectItem>
-                  <SelectItem value="1" className="text-bg-primary">
-                    Provider
-                  </SelectItem>
+                  {positions.map((position) => (
+                    <SelectItem
+                      key={position.id}
+                      value={position.id.toString()}
+                      className="text-bg-primary"
+                    >
+                      {position.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              
+
               <label htmlFor="phone" className="text-gray-400 !pb-3">
-                Phone 
+                Phone
               </label>
               <Input
                 id="phone"
@@ -468,9 +515,9 @@ const Admins = () => {
                 className="!my-2 text-bg-primary !p-4"
                 required
               />
-              
+
               <label htmlFor="password" className="text-gray-400 !pb-3">
-                Password 
+                Password
               </label>
               <Input
                 id="password"
@@ -480,7 +527,7 @@ const Admins = () => {
                 className="!my-2 text-bg-primary !p-4"
                 placeholder="password "
               />
-              
+
               <label htmlFor="gender" className="text-gray-400 !pb-3">
                 Gender
               </label>
@@ -504,54 +551,64 @@ const Admins = () => {
                 </SelectContent>
               </Select>
 
-              {/* Provider Roles Section */}
-{/* Provider Roles Section - Updated Design */}
-              {selectedRow?.role === 1 && (
-                <div className="w-full mt-4">
-                  <label htmlFor="providerRoles" className="text-gray-400 mb-2 block">
-                    Assign Modules
-                  </label>
+              {/* Provider Roles Section - Only show if position type is provider */}
+              {(() => {
+                const selectedPosition = positions.find(
+                  (pos) => pos.id === selectedRow?.admin_position_id
+                );
+                return (
+                  selectedPosition?.type === "provider" && (
+                    <div className="w-full mt-4">
+                      <label
+                        htmlFor="providerRoles"
+                        className="text-gray-400 mb-2 block"
+                      >
+                        Assign Modules
+                      </label>
 
-                  {/* Role Selection Input */}
-                  <Select
-                    value=""
-                    onValueChange={handleEditRoleChange}
-                  >
-                    <SelectTrigger
-                      id="providerRoles"
-                      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]"
-                    >
-                      <SelectValue placeholder="Select modules" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                      {allAvailableRoles.map((roleModule) => (
-                        <SelectItem
-                          key={roleModule}
-                          value={roleModule}
-                          className={`${selectedEditRoles.includes(roleModule) ? 'bg-gray-100 font-semibold' : ''}`}
+                      {/* Role Selection Input */}
+                      <Select value="" onValueChange={handleEditRoleChange}>
+                        <SelectTrigger
+                          id="providerRoles"
+                          className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary rounded-[10px]"
                         >
-                          {roleModule}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          <SelectValue placeholder="Select modules" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                          {allAvailableRoles.map((roleModule) => (
+                            <SelectItem
+                              key={roleModule}
+                              value={roleModule}
+                              className={`${
+                                selectedEditRoles.includes(roleModule)
+                                  ? "bg-gray-100 font-semibold"
+                                  : ""
+                              }`}
+                            >
+                              {roleModule}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                  {/* Display Currently Selected Roles */}
-                  {selectedEditRoles.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      Currently assigned: {selectedEditRoles.join(", ")}
+                      {/* Display Currently Selected Roles */}
+                      {selectedEditRoles.length > 0 && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          Currently assigned: {selectedEditRoles.join(", ")}
+                        </div>
+                      )}
+                      {selectedEditRoles.length === 0 && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          No modules assigned.
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {selectedEditRoles.length === 0 && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      No modules assigned.
-                    </div>
-                  )}
-                </div>
-              )}
+                  )
+                );
+              })()}
             </div>
           </EditDialog>
-          
+
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
@@ -582,7 +639,9 @@ const Admins = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-500">No roles assigned to this provider.</p>
+              <p className="text-center text-gray-500">
+                No roles assigned to this provider.
+              </p>
             )}
           </div>
         </DialogContent>

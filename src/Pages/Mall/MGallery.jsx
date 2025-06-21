@@ -20,6 +20,26 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+// 🔧 Helpers
+const getUserPermissions = () => {
+  try {
+    const permissions = localStorage.getItem("userPermission");
+    if (!permissions) return [];
+    const parsed = JSON.parse(permissions);
+    return Array.isArray(parsed)
+      ? parsed.map((p) => `${p.module}:${p.action}`)
+      : [];
+  } catch (error) {
+    console.error("Failed to parse permissions", error);
+    return [];
+  }
+};
+
+const hasPermission = (permissions, module, action) => {
+  return permissions.includes(`${module}:${action}`) || permissions.includes(`${module}:all`);
+};
+
+
 
 // ✅ مكون ImageCard
 function ImageCard({ imageUrl, onDelete }) {
@@ -30,18 +50,21 @@ function ImageCard({ imageUrl, onDelete }) {
         alt="Gallery"
         className="w-full h-auto aspect-square object-cover"
       />
-      <Button
-        onClick={onDelete}
-        className="absolute cursor-pointer top-2 right-2 rounded-full w-6 h-6 flex items-center justify-center bg-gray-800 text-white hover:bg-bg-primary"
-      >
-        <X className="w-4 h-4" />
-      </Button>
+      {/* زرار الحذف يظهر فقط لو onDelete موجود */}
+      {onDelete && (
+        <Button
+          onClick={onDelete}
+          className="absolute cursor-pointer top-2 right-2 rounded-full w-6 h-6 flex items-center justify-center bg-gray-800 text-white hover:bg-bg-primary"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      )}
     </div>
   );
 }
 
 // ✅ مكون Gallery
-function Gallery({ mallId, token }) {
+function Gallery({ mallId, token, permissions }) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const { id } = useParams();
@@ -62,12 +85,10 @@ function Gallery({ mallId, token }) {
       if (Array.isArray(data.mall_gallery)) {
         setImages(data.mall_gallery);
       } else {
-        console.error("Unexpected API response:", data);
         toast.error("Failed to load images.");
       }
     } catch (error) {
-      console.error("Failed to fetch gallery images:", error);
-      toast.error("Error loading gallery.");
+      toast.error("Error loading gallery.",error);
     } finally {
       setLoading(false);
     }
@@ -94,8 +115,7 @@ function Gallery({ mallId, token }) {
         toast.error("Failed to delete image.");
       }
     } catch (error) {
-      console.error("Error deleting image:", error);
-      toast.error("Error deleting image.");
+      toast.error("Error deleting image.",error);
     }
   };
 
@@ -105,14 +125,16 @@ function Gallery({ mallId, token }) {
 
   if (loading) return <Loading />;
 
+  const canDelete = hasPermission(permissions, "Mall Gallery", "delete");
+
   return (
-    <div className="grid !p-4 !m-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+    <div className="grid !p-4 !m-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 ">
       {images.length > 0 ? (
         images.map((img) => (
           <ImageCard
             key={img.id}
             imageUrl={img.image_link}
-            onDelete={() => handleDelete(img.id)}
+            onDelete={canDelete ? () => handleDelete(img.id) : null}
           />
         ))
       ) : (
@@ -121,6 +143,7 @@ function Gallery({ mallId, token }) {
     </div>
   );
 }
+
 
 // ✅ مكون Header
 function Header({ onUploadSuccess }) {
@@ -231,15 +254,21 @@ export default function VGalleryPage() {
   const { id } = useParams();
   const token = localStorage.getItem("token");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [permissions, setPermissions] = useState([]);
 
   const handleUploadSuccess = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
+  useEffect(() => {
+    const perms = getUserPermissions();
+    setPermissions(perms);
+  }, []);
+
   if (!id) {
     return (
       <p className="text-center text-red-600 font-medium py-8">
-       mall ID is missing in URL.
+        mall ID is missing in URL.
       </p>
     );
   }
@@ -247,8 +276,17 @@ export default function VGalleryPage() {
   return (
     <div>
       <ToastContainer position="top-right" autoClose={3000} />
-      <Header onUploadSuccess={handleUploadSuccess} />
-      <Gallery mallId={id} token={token} key={refreshKey} />
+      {hasPermission(permissions, "Mall Gallery", "add") && (
+        <Header onUploadSuccess={handleUploadSuccess} />
+      )}
+      {hasPermission(permissions, "Mall Gallery", "view") ? (
+        <Gallery mallId={id} token={token} key={refreshKey} permissions={permissions} />
+      ) : (
+        <p className="text-center text-red-600 font-medium py-8">
+          You do not have permission to view the gallery.
+        </p>
+      )}
     </div>
   );
 }
+

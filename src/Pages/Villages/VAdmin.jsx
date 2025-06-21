@@ -27,6 +27,7 @@ export default function VAdmin() {
   const [villageOptions, setVillageOptions] = useState([]);
   const [villagePositions, setVillagePositions] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
+  const [permissions, setPermissions] = useState([]); // State for permissions
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -35,7 +36,39 @@ export default function VAdmin() {
   const handleImageError = (id) => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
+  // الحصول على الصلاحيات من localStorage
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
 
+      const flatPermissions = parsed.map(
+        (perm) => `${perm.module}:${perm.action}`
+      );
+      console.log("Flattened permissions:", flatPermissions);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  // التحقق من وجود صلاحية معينة
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Village Admin(.*)$/i);
+    if (!match) return false;
+
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Village Admin:${permKey}`;
+
+    return permissions.includes(fullPerm);
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
   // Corrected columns array
   const columns = [
     { label: "Image", key: "image" },
@@ -224,6 +257,10 @@ export default function VAdmin() {
       setIsDeleteOpen(false);
       return;
     }
+    if (!hasPermission("ZonesDelete")) {
+      toast.error("You don't have permission to delete zones");
+      return;
+    }
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/delete/${selectedRow.id}`,
@@ -261,6 +298,10 @@ export default function VAdmin() {
   const handleSave = async () => {
     if (!selectedRow) return;
 
+    if (!hasPermission("ZonesEdit")) {
+      toast.error("You don't have permission to edit zones");
+      return;
+    }
     setIsSaving(true); // Start loading for save
     const {
       id,
@@ -334,13 +375,13 @@ export default function VAdmin() {
   };
 
   // Define filter options for status, including an "All" option
-   const filterOptionsForZones = [
+  const filterOptionsForZones = [
     {
-      key: "status", 
-      label: "Status", 
+      key: "status",
+      label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
-        { value: "Active", label: "Active" }, 
+        { value: "Active", label: "Active" },
         { value: "Inactive", label: "Inactive" },
       ],
     },
@@ -356,6 +397,7 @@ export default function VAdmin() {
           <DataTable
             data={adminData}
             columns={columns}
+            showAddButton={hasPermission("Village AdminAdd")}
             className="table-compact"
             addRoute={`/villages/single-page-v/${id}/add`}
             onEdit={handleEdit}
@@ -364,6 +406,11 @@ export default function VAdmin() {
             searchKeys={["name", "email", "phone", "role"]}
             showFilter={true}
             filterKey={["status"]}
+            showEditButton={hasPermission("Village AdminEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+            showDeleteButton={hasPermission("Village AdminDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+            showActions={
+              hasPermission("Village AdminEdit") || hasPermission("Village AdminDelete")
+            }
             filterOptions={filterOptionsForZones}
           />
 

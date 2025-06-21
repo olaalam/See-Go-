@@ -6,8 +6,8 @@ import Loading from "@/components/Loading";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import RejectDialog from "./RejectDialog";
-import { Button } from "@/components/ui/button"; // Import Button if not already there
-import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog"; // Assuming you have these UI components for a modal/dialog
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 
 export default function PaymentsPage() {
   const [tab, setTab] = useState("Pending Payments");
@@ -16,10 +16,40 @@ export default function PaymentsPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState(null);
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false); // New state for receipt modal
-  const [currentReceiptImage, setCurrentReceiptImage] = useState(""); // New state for receipt image URL
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [currentReceiptImage, setCurrentReceiptImage] = useState("");
+  const [permissions, setPermissions] = useState([]);
 
   const token = localStorage.getItem("token");
+
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+      const flatPermissions = parsed.map((perm) => `${perm.module}:${perm.action}`);
+      return flatPermissions;
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+const hasPermission = (permission) => {
+  if (!permission || !permissions.length) return false;
+
+  const [module, action] = permission.trim().split(/\s+/); // تقسم بالمسافة
+  if (!module || !action) return false;
+
+  const formatted = `${module}:${action}`;
+  return permissions.includes(formatted);
+};
+
+
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+      console.log("Parsed Permissions:", userPermissions);
+    setPermissions(userPermissions);
+  }, []);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -28,12 +58,9 @@ export default function PaymentsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        "https://bcknd.sea-go.org/admin/payments",
-        {
-          headers: getAuthHeaders(),
-        }
-      );
+      const response = await axios.get("https://bcknd.sea-go.org/admin/payments", {
+        headers: getAuthHeaders(),
+      });
 
       let result = [];
       if (tab === "History Payments") {
@@ -45,7 +72,6 @@ export default function PaymentsPage() {
       setData(result);
     } catch (error) {
       toast.error("Failed to fetch Payments.", error);
-      console.error("Error fetching payments:", error);
     } finally {
       setLoading(false);
     }
@@ -65,8 +91,7 @@ export default function PaymentsPage() {
       toast.success("Payment approved.");
       fetchData();
     } catch (error) {
-      toast.error("Failed to approve payment.");
-      console.error("Error approving payment:", error);
+      toast.error("Failed to approve payment.",error);
     }
   };
 
@@ -76,6 +101,10 @@ export default function PaymentsPage() {
   };
 
   const handleRejectConfirm = async () => {
+    if (!hasPermission("Payment reject")) {
+      toast.error("You don't have permission to reject Payment");
+      return;
+    }
     if (!rejectReason.trim()) {
       toast.warn("Please enter a rejection reason.");
       return;
@@ -94,12 +123,10 @@ export default function PaymentsPage() {
       setSelectedPaymentId(null);
       fetchData();
     } catch (error) {
-      toast.error("Failed to reject payment.");
-      console.error("Error rejecting payment:", error);
+      toast.error("Failed to reject payment.",error);
     }
   };
 
-  // Function to open receipt modal
   const handleViewReceipt = (receiptLink) => {
     setCurrentReceiptImage(receiptLink);
     setIsReceiptModalOpen(true);
@@ -129,8 +156,7 @@ export default function PaymentsPage() {
     {
       key: "receipt_link",
       label: "Receipt",
-      render: (row) => (
-        // Render a button for the receipt link
+      render: (row) =>
         row.receipt_link ? (
           <Button
             onClick={() => handleViewReceipt(row.receipt_link)}
@@ -140,8 +166,7 @@ export default function PaymentsPage() {
           </Button>
         ) : (
           "N/A"
-        )
-      ),
+        ),
     },
     {
       key: "amount",
@@ -175,6 +200,7 @@ export default function PaymentsPage() {
             </div>
           );
         } else {
+          if (!hasPermission("Payment status")) return <span>No permission</span>;
           return (
             <div className="flex items-center justify-center !mt-2 !pt-2 gap-4">
               <button
@@ -227,17 +253,18 @@ export default function PaymentsPage() {
     },
   ];
 
-    const statusFilterOptions = [
+  const statusFilterOptions = [
     {
-      key: "status", 
-      label: "Status", 
+      key: "status",
+      label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
-        { value: "approved", label: "Approved" }, 
+        { value: "approved", label: "Approved" },
         { value: "rejected", label: "Rejected" },
       ],
     },
   ];
+console.log("Check:", hasPermission("Payment view")); // لازم يطبع true
 
   return (
     <div>
@@ -261,7 +288,7 @@ export default function PaymentsPage() {
         <TabsContent value={tab} key={tab}>
           {loading ? (
             <Loading />
-          ) : (
+          ) : hasPermission("Payment view") ? (
             <>
               <DataTable
                 data={data}
@@ -292,32 +319,32 @@ export default function PaymentsPage() {
                 </RejectDialog>
               )}
 
-              {/* Receipt Image Modal */}
-
-<Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
-  <DialogOverlay className="bg-black border-none opacity-50" />
-  <DialogContent className="fixed border-none shadow-none flex items-center justify-center !p-4 [&>button]:hidden"> {/* Added [&>button]:hidden here */}
-    <div className="relative bg-white rounded-lg !p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
-      <h2 className="text-xl font-semibold !mb-4 text-bg-primary">Receipt Image</h2>
-      {currentReceiptImage ? (
-        <img
-          src={currentReceiptImage}
-          alt="Receipt"
-          className="max-w-full h-auto mx-auto rounded-md"
-        />
-      ) : (
-        <p>No receipt image available.</p>
-      )}
-      <Button
-        onClick={() => setIsReceiptModalOpen(false)}
-        className="!mt-4 bg-red-500 hover:bg-red-600 text-white !px-4 !py-2 rounded-md"
-      >
-        Close
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+              <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+                <DialogOverlay className="bg-black border-none opacity-50" />
+                <DialogContent className="fixed border-none shadow-none flex items-center justify-center !p-4 [&>button]:hidden">
+                  <div className="relative bg-white rounded-lg !p-6 max-w-2xl w-full max-h-[90vh] overflow-auto">
+                    <h2 className="text-xl font-semibold !mb-4 text-bg-primary">Receipt Image</h2>
+                    {currentReceiptImage ? (
+                      <img
+                        src={currentReceiptImage}
+                        alt="Receipt"
+                        className="max-w-full h-auto mx-auto rounded-md"
+                      />
+                    ) : (
+                      <p>No receipt image available.</p>
+                    )}
+                    <Button
+                      onClick={() => setIsReceiptModalOpen(false)}
+                      className="!mt-4 bg-red-500 hover:bg-red-600 text-white !px-4 !py-2 rounded-md"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
+          ) : (
+            <p className="text-center text-red-500 font-semibold">You don't have permission to view payments.</p>
           )}
         </TabsContent>
       </Tabs>

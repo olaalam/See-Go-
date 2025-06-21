@@ -16,13 +16,43 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Loading from "@/components/Loading";
 import HeaderInvoiceImage from "@/assets/HeaderInvoice.png";
 import FooterInvoiceImage from "@/assets/FooterInvoice.png";
+
+const getUserPermissions = () => {
+  try {
+    const userData = localStorage.getItem("user");
+    if (!userData) return [];
+    
+    const user = JSON.parse(userData);
+    const roles = user.roles || [];
+    
+    // تحويل الـ roles لـ permissions format
+    return roles.map((role) =>
+      `${role.module?.toLowerCase().replace(/\s+/g, "_")}:${role.action?.toLowerCase()}`
+    );
+  } catch (error) {
+    console.error("Error parsing user permissions:", error);
+    return [];
+  }
+};
+
+// Fixed permission checking function
+const hasPermission = (permissions, permission) => {
+  const requiredPermission = permission.toLowerCase();
+  
+  console.log("InvoiceCard - Checking permission:", requiredPermission);
+  console.log("InvoiceCard - Available permissions:", permissions);
+  
+  // Check for invoice:all or the specific required permission
+  const hasAccess = permissions.includes("invoice:all") || permissions.includes(requiredPermission);
+  
+  console.log("InvoiceCard - Permission granted:", hasAccess);
+  return hasAccess;
+};
 
 export default function InvoiceCard() {
   const { id: entityId, invoiceId } = useParams();
@@ -30,12 +60,18 @@ export default function InvoiceCard() {
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [permissions, setPermissions] = useState([]);
   const token = localStorage.getItem("token");
 
-  // Determine entity type from URL or state
   const isProviderPage = location.pathname.includes("/providers/");
   const entityType = location.state?.entityType || (isProviderPage ? "provider" : "village");
-  
+
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    console.log("InvoiceCard - User permissions loaded:", userPermissions);
+    setPermissions(userPermissions);
+  }, []);
+
   useEffect(() => {
     if (location.state?.invoiceData) {
       setInvoiceData(location.state.invoiceData);
@@ -52,7 +88,6 @@ export default function InvoiceCard() {
 
       setLoading(true);
       try {
-        // Use different API endpoints based on entity type
         const apiUrl = entityType === "provider"
           ? `https://bcknd.sea-go.org/admin/invoice/provider/${entityId}`
           : `https://bcknd.sea-go.org/admin/invoice/village/${entityId}`;
@@ -67,45 +102,25 @@ export default function InvoiceCard() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         const result = await response.json();
+        const invoices = result.invoices || [];
+        const invoiceIndex = invoiceId !== undefined ? parseInt(invoiceId) : 0;
+        const invoice = invoices[invoiceIndex];
 
-        if (invoiceId !== undefined) {
-          const invoiceIndex = parseInt(invoiceId);
-          const invoice = result.invoices?.[invoiceIndex];
-
-          if (invoice) {
-            setInvoiceData({
-              ...invoice,
-              id: invoiceIndex,
-              [entityType]: result[entityType], // village or provider data
-              package: result.package || {
-                name: "Standard Package",
-                price: invoice.total_before_discount || 0,
-                discount: invoice.discount || 0,
-                feez: (invoice.total_before_discount || 0) - (invoice.amount || 0) - (invoice.discount || 0),
-              },
-              entityType: entityType
-            });
-          } else {
-            setError("Invoice not found.");
-          }
+        if (invoice) {
+          setInvoiceData({
+            ...invoice,
+            id: invoiceIndex,
+            [entityType]: result[entityType],
+            package: result.package || {
+              name: "Standard Package",
+              price: invoice.total_before_discount || 0,
+              discount: invoice.discount || 0,
+              feez: (invoice.total_before_discount || 0) - (invoice.amount || 0) - (invoice.discount || 0),
+            },
+            entityType,
+          });
         } else {
-          const firstInvoice = result.invoices?.[0];
-          if (firstInvoice) {
-            setInvoiceData({
-              ...firstInvoice,
-              id: 0,
-              [entityType]: result[entityType], // village or provider data
-              package: result.package || {
-                name: "Standard Package",
-                price: firstInvoice.total_before_discount || 0,
-                discount: firstInvoice.discount || 0,
-                feez: (firstInvoice.total_before_discount || 0) - (firstInvoice.amount || 0) - (firstInvoice.discount || 0),
-              },
-              entityType: entityType
-            });
-          } else {
-            setError("No invoices found.");
-          }
+          setError("Invoice not found.");
         }
       } catch (err) {
         console.error("Error fetching invoice data:", err);
@@ -118,6 +133,17 @@ export default function InvoiceCard() {
 
     fetchInvoiceData();
   }, [entityId, invoiceId, location.state, token, entityType]);
+
+  // تحقق من الـ permissions - لكن لا نعرض loading للـ permissions لأن الـ ProtectedRoute هيتعامل معاها
+  if (permissions.length > 0 && !hasPermission(permissions, "invoice:view")) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-red-500 font-medium">
+          You do not have permission to view this invoice.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -135,20 +161,9 @@ export default function InvoiceCard() {
     );
   }
 
-  // Get the entity data (village or provider)
-  const entity = invoiceData[entityType] || invoiceData.village || invoiceData.provider;
+  const entity = invoiceData[entityType];
   const packageData = invoiceData.package;
   const invoice = invoiceData;
-
-  if (!entity) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p className="text-red-500 font-medium">
-          {entityType === "provider" ? "Provider" : "Village"} data not available.
-        </p>
-      </div>
-    );
-  }
 
   const invoiceDate = new Date().toLocaleDateString("en-US");
   const toDate = new Date(entity.to);
@@ -163,7 +178,7 @@ export default function InvoiceCard() {
   const total = invoice.amount || (subtotal - discount + tax);
 
   return (
-    <div className="!mt-5 !mb-15 ">
+    <div className="!mt-5 !mb-15">
       <ToastContainer />
       <Card className="max-w-lg max-h-[100vh] bg-white !m-auto border-none shadow-lg rounded-lg overflow-hidden">
         <CardHeader
@@ -187,12 +202,8 @@ export default function InvoiceCard() {
               <Badge className="!px-2 !mb-1 !py-0.5 border-none rounded-[10px] text-blue-400 bg-blue-100 text-sm">
                 Invoice to:
               </Badge>
-              <p className="font-medium text-sm">
-                {entity.name || "N/A"}
-              </p>
-              <p className="text-gray-500 text-xs">
-                {entity.location || "Location N/A"}
-              </p>
+              <p className="font-medium text-sm">{entity.name || "N/A"}</p>
+              <p className="text-gray-500 text-xs">{entity.location || "Location N/A"}</p>
             </div>
             <div className="text-right">
               <Badge className="!px-2 !me-10 !mb-1 !py-0.5 border-none rounded-[10px] text-blue-400 bg-blue-100 text-sm">
@@ -228,34 +239,27 @@ export default function InvoiceCard() {
                 <TableCell className="text-sm">
                   {entity.zone?.translations?.[0]?.value || entity.zone?.name || "N/A"}
                 </TableCell>
-                <TableCell className="text-sm">
-                  {packageData.name || "N/A"}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {packageData.feez?.toFixed(2) || "0.00"} EGP
-                </TableCell>
-                <TableCell className="text-sm">
-                  {invoice.amount?.toFixed(2) || "0.00"} EGP
-                </TableCell>
+                <TableCell className="text-sm">{packageData.name || "N/A"}</TableCell>
+                <TableCell className="text-sm">{packageData.feez?.toFixed(2) || "0.00"} EGP</TableCell>
+                <TableCell className="text-sm">{invoice.amount?.toFixed(2) || "0.00"} EGP</TableCell>
               </TableRow>
             </TableBody>
           </Table>
 
           <div className="flex mt-4 mb-2">
             <div className="!p-4 w-full max-w-md">
-              {/* Invoice Details */}
               <div className="text-right space-y-2">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-sm text-gray-600">
                   <strong>Subtotal:</strong> ${subtotal.toFixed(2)}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-sm text-gray-600">
                   <strong>Discount ({packageData.discount || 0}%):</strong> -${discount.toFixed(2)}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-sm text-gray-600">
                   <strong>TAX:</strong> ${tax.toFixed(2)}
                 </p>
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
-                  <p className="text-base font-bold text-gray-900 dark:text-white">
+                <div className="border-t border-gray-200 pt-2">
+                  <p className="text-base font-bold text-gray-900">
                     <strong>Invoice Total:</strong> ${total.toFixed(2)}
                   </p>
                 </div>
@@ -263,12 +267,11 @@ export default function InvoiceCard() {
             </div>
           </div>
 
-          {/* Next Renewal Period */}
           <div className="flex justify-center items-center !my-3">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <span className="text-sm font-medium text-gray-600">
               Next Renewal Period:
             </span>
-            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-2">
+            <span className="text-sm font-semibold text-gray-900 ml-2">
               {toDate.toLocaleDateString("en-US")}
             </span>
           </div>

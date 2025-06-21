@@ -32,6 +32,7 @@ export default function AddProvider() {
       zone_id: "", // Renamed to zone_id for clarity and consistency with backend
       village_id: "", // Added to store the selected village ID
       location: "",
+      location_map: "",
       status: "",
       image: null,
       open_from: "",
@@ -52,11 +53,14 @@ export default function AddProvider() {
         // It was previously hitting /admin/provider/add which is for POST, not GET for options.
         // Assuming /admin/mall/providers?mall_id=${id} provides the necessary dropdown data,
         // if not, you might need a different endpoint that returns all services, zones, and villages.
-        const response = await fetch(`https://bcknd.sea-go.org/admin/mall/providers?mall_id=${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `https://bcknd.sea-go.org/admin/mall/providers?mall_id=${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -115,7 +119,9 @@ export default function AddProvider() {
       setFilteredVillages(villagesInSelectedZone);
 
       // If the currently selected village_id is no longer in the filtered list, reset it
-      if (!villagesInSelectedZone.some((v) => v.value === formData.en.village_id)) {
+      if (
+        !villagesInSelectedZone.some((v) => v.value === formData.en.village_id)
+      ) {
         setFormData((prev) => ({
           ...prev,
           en: { ...prev.en, village_id: "" },
@@ -158,7 +164,7 @@ export default function AddProvider() {
     body.append("service_id", formData.en.service_id);
     body.append("location", formData.en.location);
     body.append("zone_id", formData.en.zone_id); // Using zone_id
-
+    body.append("location_map", formData.en.location_map);
     body.append("phone", formData.en.phone);
     body.append("status", formData.en.status === "active" ? "1" : "0");
     body.append("mall_id", id); // Appending mall_id from params for provider creation
@@ -215,6 +221,7 @@ export default function AddProvider() {
             location: "",
             status: "",
             zone_id: "",
+            location_map: "",
             image: null,
             open_from: "",
             open_to: "",
@@ -312,6 +319,8 @@ export default function AddProvider() {
       lang: "ar",
     },
     { type: "map", placeholder: "Location", name: "location", lang: "en" },
+
+
   ];
 
   return (

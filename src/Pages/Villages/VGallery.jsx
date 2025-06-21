@@ -13,18 +13,22 @@ import { useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Loading from "@/components/Loading";
-// Removed Select imports as they are no longer needed for status
-// import {
-//   Select,
-//   SelectTrigger,
-//   SelectValue,
-//   SelectContent,
-//   SelectItem,
-// } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
-// Import the Switch component (assuming it's from shadcn/ui)
-import { Switch } from "@/components/ui/switch"; // Adjust path if different
-import { Label } from "@/components/ui/label"; // Often used with Switch for accessibility
+// 🔧 Helpers
+const getUserPermissions = () => {
+  try {
+    const permissions = localStorage.getItem("userPermission");
+    const parsed = permissions ? JSON.parse(permissions) : [];
+    return parsed.map((perm) => `${perm.module}:${perm.action}`);
+  } catch (error) {
+    console.error("Error parsing permissions", error);
+    return [];
+  }
+};
+
+const hasPermission = (permissions, required) => permissions.includes(required);
 
 // ✅ مكون ImageCard
 function ImageCard({ imageUrl, onDelete }) {
@@ -35,12 +39,15 @@ function ImageCard({ imageUrl, onDelete }) {
         alt="Gallery"
         className="w-full h-auto aspect-square object-cover"
       />
-      <Button
-        onClick={onDelete}
-        className="absolute cursor-pointer top-2 right-2 rounded-full w-6 h-6 flex items-center justify-center bg-gray-800 text-white hover:bg-bg-primary"
-      >
-        <X className="w-4 h-4" />
-      </Button>
+      {/* زرار الحذف يظهر فقط لو onDelete موجود */}
+      {onDelete && (
+        <Button
+          onClick={onDelete}
+          className="absolute cursor-pointer top-2 right-2 rounded-full w-6 h-6 flex items-center justify-center bg-gray-800 text-white hover:bg-bg-primary"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -49,36 +56,44 @@ function ImageCard({ imageUrl, onDelete }) {
 function Gallery({ villageId, token }) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState([]);
   const { id } = useParams();
 
-  const fetchGalleryImages = async () => {
+  useEffect(() => {
+    const perms = getUserPermissions();
+    setPermissions(perms);
+    fetchGalleryImages(perms);
+  }, [villageId, token]);
+
+  const fetchGalleryImages = async (perms) => {
+    if (!hasPermission(perms, "Village Gallery:view")) return;
+
     try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/village_gallery/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`https://bcknd.sea-go.org/admin/village_gallery/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
-
       if (Array.isArray(data.village_gallary)) {
         setImages(data.village_gallary);
       } else {
-        console.error("Unexpected API response:", data);
         toast.error("Failed to load images.");
       }
     } catch (error) {
-      console.error("Failed to fetch gallery images:", error);
-      toast.error("Error loading gallery.");
+      toast.error("Error loading gallery.",error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (imageId) => {
+    if (!hasPermission(permissions, "Village Gallery:delete")) {
+      toast.error("You don't have permission to delete.");
+      return;
+    }
+
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_gallery/delete/${imageId}`,
@@ -91,33 +106,34 @@ function Gallery({ villageId, token }) {
       );
 
       if (response.ok) {
-        setImages((prevImages) =>
-          prevImages.filter((img) => img.id !== imageId)
-        );
+        setImages((prevImages) => prevImages.filter((img) => img.id !== imageId));
         toast.success("Image deleted successfully.");
       } else {
         toast.error("Failed to delete image.");
       }
     } catch (error) {
-      console.error("Error deleting image:", error);
-      toast.error("Error deleting image.");
+      toast.error("Error deleting image.",error);
     }
   };
 
-  useEffect(() => {
-    fetchGalleryImages();
-  }, [villageId, token]); // Added token to dependency array for completeness
+  const canView = hasPermission(permissions, "Village Gallery:view");
+  const canDelete = hasPermission(permissions, "Village Gallery:delete");
+
+  if (!canView) {
+    return <p className="text-center text-red-600 font-medium py-8">You do not have permission to view this gallery.</p>;
+  }
 
   if (loading) return <Loading />;
 
   return (
-    <div className="grid !p-4 !m-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+    <div className="grid !p-4 !m-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {images.length > 0 ? (
         images.map((img) => (
           <ImageCard
             key={img.id}
             imageUrl={img.image_link}
-            onDelete={() => handleDelete(img.id)}
+            // زر الحذف يظهر فقط لو عند صلاحية الحذف
+            onDelete={canDelete ? () => handleDelete(img.id) : null}
           />
         ))
       ) : (
@@ -133,8 +149,15 @@ function Header({ onUploadSuccess }) {
   const { id } = useParams();
   const token = localStorage.getItem("token");
   const [imageFile, setImageFile] = useState(null);
-  // Changed status state to boolean for the switch, default to true (active)
   const [statusActive, setStatusActive] = useState(true);
+  const [permissions, setPermissions] = useState([]);
+
+  useEffect(() => {
+    setPermissions(getUserPermissions());
+  }, []);
+
+  const canAdd = hasPermission(permissions, "Village Gallery:add");
+  const canToggleStatus = hasPermission(permissions, "Village Gallery:status");
 
   const handleImageUpload = async () => {
     if (!imageFile) {
@@ -144,7 +167,6 @@ function Header({ onUploadSuccess }) {
 
     const formData = new FormData();
     formData.append("image", imageFile);
-    // Convert boolean status to "1" or "0" string for the API
     formData.append("status", statusActive ? "1" : "0");
     formData.append("village_id", id);
 
@@ -154,9 +176,6 @@ function Header({ onUploadSuccess }) {
         {
           method: "POST",
           headers: {
-            // FormData automatically sets Content-Type to multipart/form-data
-            // when not explicitly set, which is correct for file uploads.
-            // Do NOT set 'Content-Type': 'application/json' when sending FormData.
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -166,25 +185,27 @@ function Header({ onUploadSuccess }) {
       if (response.ok) {
         setOpenAddDialog(false);
         setImageFile(null);
-        setStatusActive(true); // Reset to active after successful upload
+        setStatusActive(true);
         onUploadSuccess();
         toast.success("Image uploaded successfully.");
       } else {
-        const errorData = await response.json(); // Try to get error message from response
+        const errorData = await response.json();
         toast.error(errorData.message || "Failed to upload image.");
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Error uploading image.");
+      toast.error("Error uploading image.",error);
     }
   };
+
+  // لو ما عندش صلاحية الإضافة، ما نعرضش زر Add نهائيًا
+  if (!canAdd) return null;
 
   return (
     <div className="flex justify-end space-x-2 p-4">
       <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
         <DialogTrigger asChild>
-          <Button className="bg-bg-primary text-white cursor-pointer !px-4 !py-2 rounded-[16px] hover:bg-teal-500 transition-all ">
-            Add{" "}
+          <Button className="bg-bg-primary text-white cursor-pointer !px-4 !py-2 rounded-[16px] hover:bg-teal-500 transition-all">
+            Add
           </Button>
         </DialogTrigger>
         <DialogContent className="bg-white !p-6 border-none rounded-lg shadow-lg max-w-3xl">
@@ -200,13 +221,15 @@ function Header({ onUploadSuccess }) {
               onChange={(e) => setImageFile(e.target.files[0])}
               className="w-full !mb-3 cursor-pointer text-sm text-gray-500 file:!mr-4 file:!py-2 file:!px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-bg-primary file:text-white hover:file:bg-teal-600"
             />
-            {/* Replaced Select with Switch */}
             <div className="flex items-center space-x-2">
               <Switch
                 id="status-switch"
-                checked={statusActive} // Use the boolean state
-                onCheckedChange={setStatusActive} // Update the boolean state
-                className="data-[state=checked]:bg-bg-primary" // Apply primary color when checked
+                checked={statusActive}
+                onCheckedChange={(val) => canToggleStatus && setStatusActive(val)}
+                disabled={!canToggleStatus}
+                className={`data-[state=checked]:bg-bg-primary ${
+                  !canToggleStatus ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               />
               <Label htmlFor="status-switch" className="text-bg-primary">
                 {statusActive ? "Active" : "Inactive"}
@@ -223,7 +246,7 @@ function Header({ onUploadSuccess }) {
             </Button>
             <Button
               onClick={handleImageUpload}
-              className="bg-bg-primary border border-teal-500 hover:bg-white  hover:text-bg-primary transition-all  !px-3 !py-2 cursor-pointer text-white"
+              className="bg-bg-primary border border-teal-500 hover:bg-white hover:text-bg-primary transition-all !px-3 !py-2 cursor-pointer text-white"
             >
               Save
             </Button>

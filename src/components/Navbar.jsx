@@ -17,7 +17,7 @@ export default function Navbar() {
   const userData = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
   const location = useLocation();
-  const userName = userData?.admin?.name;
+  const userName = userData?.name;
 
   const userInitials = userName
     ? userName
