@@ -257,7 +257,7 @@ export default function VAdmin() {
       setIsDeleteOpen(false);
       return;
     }
-    if (!hasPermission("ZonesDelete")) {
+    if (!hasPermission("Village AdminDelete")) {
       toast.error("You don't have permission to delete zones");
       return;
     }
@@ -298,7 +298,7 @@ export default function VAdmin() {
   const handleSave = async () => {
     if (!selectedRow) return;
 
-    if (!hasPermission("ZonesEdit")) {
+    if (!hasPermission("Village AdminEdit")) {
       toast.error("You don't have permission to edit zones");
       return;
     }
@@ -375,7 +375,7 @@ export default function VAdmin() {
   };
 
   // Define filter options for status, including an "All" option
-  const filterOptionsForZones = [
+  const filterOptionsForVillageAdmin = [
     {
       key: "status",
       label: "Status",
@@ -411,7 +411,7 @@ export default function VAdmin() {
             showActions={
               hasPermission("Village AdminEdit") || hasPermission("Village AdminDelete")
             }
-            filterOptions={filterOptionsForZones}
+            filterOptions={filterOptionsForVillageAdmin}
           />
 
           {selectedRow && (
