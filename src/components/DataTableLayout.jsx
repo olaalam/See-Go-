@@ -24,7 +24,6 @@ import clsx from "clsx";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -67,23 +66,13 @@ export default function DataTable({
 
   // Initialize currentPage with the initialPage prop, ensuring it's at least 1
   const [currentPage, setCurrentPage] = useState(Math.max(1, initialPage));
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10); // Items per page is fixed at 10
 
   // Effect to update currentPage if initialPage prop changes from parent
   // This will ensure that external changes to initialPage are reflected
   useEffect(() => {
     setCurrentPage(Math.max(1, initialPage));
   }, [initialPage]);
-
-  // Effect to reset active filters if filterOptions change
-  useEffect(() => {
-    const newInitialFilters = {};
-    filterOptions.forEach((group) => {
-      newInitialFilters[group.key] = "all";
-    });
-    setActiveFilters(newInitialFilters);
-    setCurrentPage(Math.max(1, initialPage)); // Reset to the provided initialPage on filter change
-  }, [filterOptions, initialPage]);
 
   // Helper function to safely get nested values
   const getNestedValue = (obj, path) => {
@@ -137,8 +126,7 @@ export default function DataTable({
   // --- Pagination Logic ---
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, endIndex);
+  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage); // Corrected to use startIndex + itemsPerPage
 
   // Ensure currentPage doesn't exceed totalPages if data shrinks
   useEffect(() => {
@@ -147,8 +135,7 @@ export default function DataTable({
     } else if (totalPages === 0 && currentPage !== 1) { // If no data, go to page 1
       setCurrentPage(1);
     }
-  }, [currentPage, totalPages]);
-
+  }, [currentPage, totalPages, filteredData.length]); // Added filteredData.length to dependencies
 
   const handlePageChange = (page) => {
     // Only update if the new page is valid
@@ -179,7 +166,7 @@ export default function DataTable({
       ...prev,
       [filterKey]: value,
     }));
-    setCurrentPage(Math.max(1, initialPage)); // Reset to the provided initialPage when filter changes
+    setCurrentPage(1); // Reset to page 1 when filter changes
   };
 
   return (
@@ -192,7 +179,7 @@ export default function DataTable({
           value={searchValue}
           onChange={(e) => {
             setSearchValue(e.target.value);
-            setCurrentPage(Math.max(1, initialPage)); // Reset to initialPage on search
+            setCurrentPage(1); // Reset to page 1 on search
           }}
         />
 
@@ -331,7 +318,7 @@ export default function DataTable({
                       className={clsx(
                         "!px-2 !py-1 text-sm whitespace-normal break-words",
                         col.key === "img" &&
-                          "h-full min-h-[60px] flex justify-center items-center"
+                        "h-full min-h-[60px] flex justify-center items-center"
                       )}
                     >
                       {col.key === "status" ? (
@@ -386,7 +373,7 @@ export default function DataTable({
                           // Assuming `url` might be a raw coordinate string or a direct map link.
                           // If `url` is already a complete Google Maps URL, use it.
                           // If it's coordinates, you might want to format it as a search query.
-                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`;
+                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(url)}`;
 
 
                           return (

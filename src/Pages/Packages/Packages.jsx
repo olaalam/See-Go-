@@ -1,3 +1,4 @@
+// ملف Subscription.js - الكود الكامل معدل
 "use client";
 
 import { useEffect, useState } from "react";
@@ -29,7 +30,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FooterInvoiceImage from "@/assets/FooterInvoice.png";
 import { Plus, Trash } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const Subscription = () => {
   const dispatch = useDispatch();
@@ -39,7 +40,12 @@ const Subscription = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [tab, setTab] = useState("provider");
+  
+  // إضافة useSearchParams لقراءة tab من URL
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') || 'provider';
+  const [tab, setTab] = useState(currentTab);
+  
   const token = localStorage.getItem("token");
   const [permissions, setPermissions] = useState([]);
 
@@ -47,6 +53,11 @@ const Subscription = () => {
   const [searchValue, setSearchValue] = useState("");
   const [filterValue, setFilterValue] = useState("all");
   const navigate = useNavigate();
+
+  // تحديث URL عند تغيير التاب
+  useEffect(() => {
+    setSearchParams({ tab });
+  }, [tab, setSearchParams]);
 
   // Define filter options
   const filterOptions = [
@@ -431,12 +442,25 @@ const Subscription = () => {
     }
   };
 
+  // التعديل الجديد - تمرير نوع التاب مع الرابط مع التاب الحالي
   const onAdd = () => {
     if (!hasPermission('add')) {
       toast.error("You don't have permission to add subscriptions");
       return;
     }
-    navigate("/packages/add");
+    
+    // تحديد نوع الاشتراك بناءً على التاب المختار
+    let subscriptionType = '';
+    if (tab === 'provider') {
+      subscriptionType = 'provider';
+    } else if (tab === 'village') {
+      subscriptionType = 'village';
+    } else if (tab === 'maintenance') {
+      subscriptionType = 'maintenance_provider';
+    }
+    
+    // تمرير النوع والتاب الحالي كمعاملات في الرابط
+    navigate(`/packages/add?type=${subscriptionType}&returnTab=${tab}`);
   };
 
   // Permission-based UI controls

@@ -405,13 +405,13 @@ const filterOptionsForUsers = [
                 value={selectedRow.password}
                 onChange={(val) => onChange("password", val)}
               />
-              <InputField
+{/**              <InputField
                 label="Birth Date"
                 id="birthDate"
                 type="date"
                 value={selectedRow.birthDate}
                 onChange={(val) => onChange("birthDate", val)}
-              />
+              /> */}
               <Label htmlFor="gender" className="text-gray-400 !pb-1">
                 Gender
               </Label>

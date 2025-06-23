@@ -31,7 +31,7 @@ export default function SubscribersPage() {
   const [villagePackages, setVillagePackages] = useState([]);
   const [maintenanceProviders, setMaintenanceProviders] = useState([]);
   const [maintenancePackages, setMaintenancePackages] = useState([]);
-  const [services, setServices] = useState([]);
+  const [serviceTypes, setServiceTypes] = useState([]); // Changed from 'services' to 'serviceTypes'
   const token = localStorage.getItem("token");
   const [permissions, setPermissions] = useState([]);
   const navigate = useNavigate();
@@ -54,7 +54,6 @@ export default function SubscribersPage() {
   };
 
   const handleAddClick = () => {
-    // This is the correct function that passes the tab state
     navigate("/subscribers/add", { state: { initialType: tab } });
   };
 
@@ -122,7 +121,10 @@ export default function SubscribersPage() {
       setVillagePackages(response.data.village_packages || []);
       setMaintenanceProviders(response.data.maintenance_provider || []);
       setMaintenancePackages(response.data.maintenance_provider_packages || []);
-      setServices(response.data.services || []);
+      // *** IMPORTANT FIX HERE ***
+      // setServiceTypes to the full array of service_type objects
+      setServiceTypes(response.data.service_type || []);
+      console.log("Fetched Service Types:", response.data.subscribers_provider.service); // For debugging
 
       console.log(
         "Maintenance Providers (from API data.maintenance_provider):",
@@ -154,6 +156,7 @@ export default function SubscribersPage() {
 
     if (row.type === "provider") {
       formData.append("provider_id", row?.provider_id?.toString() || "");
+      // Use service_id, not service_type_id if the backend expects service_id
       formData.append("service_id", row?.service_id?.toString() || "");
     } else if (row.type === "village") {
       formData.append("village_id", row?.village_id?.toString() || "");
@@ -268,13 +271,18 @@ export default function SubscribersPage() {
       if (rowToEdit.provider_id === undefined && rowToEdit.provider?.id !== undefined) {
         rowToEdit.provider_id = rowToEdit.provider.id;
       }
+      // *** IMPORTANT: Correctly extract service_id for provider type ***
+      // Check for service_id directly on the row, or nested within 'service' or 'service_name' objects
       if (rowToEdit.service_id === undefined) {
-        if (rowToEdit.service?.id !== undefined) {
-          rowToEdit.service_id = rowToEdit.service.id;
-        } else if (rowToEdit.service_name?.id !== undefined) {
-          rowToEdit.service_id = rowToEdit.service_name.id;
-        }
+          if (row.service_id !== undefined && row.service_id !== null) { // Check top-level service_id
+              rowToEdit.service_id = row.service_id;
+          } else if (rowToEdit.service?.id !== undefined) {
+              rowToEdit.service_id = rowToEdit.service.id;
+          } else if (rowToEdit.service_name?.id !== undefined) {
+              rowToEdit.service_id = rowToEdit.service_name.id;
+          }
       }
+      console.log("handleEditClick - provider service_id:", rowToEdit.service_id); // Debugging
     } else if (rowToEdit.type === "village") {
       if (rowToEdit.village_id === undefined && rowToEdit.village?.id !== undefined) {
         rowToEdit.village_id = rowToEdit.village.id;
@@ -289,7 +297,7 @@ export default function SubscribersPage() {
       }
     }
 
-    console.log("Selected row for edit:", rowToEdit);
+    console.log("Selected row for edit (final):", rowToEdit);
     setSelectedRow(rowToEdit);
     setEditDialogOpen(true);
   };
@@ -379,27 +387,39 @@ export default function SubscribersPage() {
       },
     },
     ...(tab === "provider"
-      ? [
-          {
-            key: "associated_services",
-            label: "Services Type",
-            render: (row) => {
-              if (row.type === "village") return "-";
+ ? [
+  {
+  key: "service_type", // Changed key for clarity
+  label: "Services Type",
+  render: (row) => {
+ if (row.type === "village") return "-"; // Villages don't have service types
 
-              if (row.service?.name) return row.service.name;
-              if (row.service_name?.name) return row.service_name.name;
-              if (row.serviceName) return row.serviceName;
+ // 1. Check if 'service_item' object exists with a name (most detailed from your JSON)
+ if (row.service_item?.name) {
+ return row.service_item.name;
+ }
 
-              if (row.service_id) {
-                const service = services.find((s) => s.id === row.service_id);
-                if (service) return service.name;
-              }
+ // 2. Check if 'service' is directly a string (as seen in your JSON example)
+ if (typeof row.service === "string") {
+ return row.service;
+ }
 
-              return "N/A";
-            },
-          },
-        ]
-      : []),
+ // 3. Fallback to other nested objects if they contain a name
+ if (row.service?.name) return row.service.name;
+ if (row.service_name?.name) return row.service_name.name;
+ if (row.serviceName) return row.serviceName;
+
+ // 4. Finally, use serviceTypes array to find the name by ID if available
+ if (row.service_id) {
+ const service = serviceTypes.find((s) => s.id === row.service_id);
+ if (service) return service.name;
+ }
+
+ return "N/A";
+  },
+  },
+ ]
+ : []),
     ...(tab === "maintenance_provider"
       ? [
           {
@@ -472,12 +492,7 @@ export default function SubscribersPage() {
               tab={tab}
               columns={columns}
               showAddButton={hasPermission("subcriberAdd")}
-              // *** IMPORTANT CHANGE HERE ***
-              // Pass the handleAddClick function to the DataTable
-              // This tells DataTable to use your custom logic for the Add button
-              onAdd={handleAddClick} // Changed from addRoute to onAdd
-              // Removed addRoute prop as it's no longer directly used for navigation
-              // addRoute="/subscribers/add" // <--- REMOVE OR COMMENT THIS OUT
+              onAdd={handleAddClick}
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
               searchKeys={["type", "subscriber", "payment_method"]}
@@ -579,7 +594,7 @@ export default function SubscribersPage() {
                 <>
                   <div className="space-y-2">
                     <label htmlFor="service_id" className="text-gray-400">
-                      Service
+                      Service Type {/* Updated label text */}
                     </label>
                     <Select
                       value={selectedRow?.service_id?.toString() || ""}
@@ -592,19 +607,19 @@ export default function SubscribersPage() {
                     >
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {selectedRow?.service_id
-                          ? services.find(
-                              (service) => service.id === selectedRow?.service_id
-                            )?.name || "Select Service"
-                          : "Select Service"}
+                          ? serviceTypes.find( // Used 'serviceTypes'
+                              (serviceType) => serviceType.id === selectedRow?.service_id // 'serviceType' for clarity
+                            )?.name || "Select Service Type"
+                          : "Select Service Type"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {services.map((service) => (
+                        {serviceTypes.map((serviceType) => ( // Used 'serviceTypes'
                           <SelectItem
                             className="text-bg-primary !ps-3"
-                            key={service.id}
-                            value={service.id.toString()}
+                            key={serviceType.id}
+                            value={serviceType.id.toString()}
                           >
-                            {service.id} - {service.name}
+                            {serviceType.id} - {serviceType.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

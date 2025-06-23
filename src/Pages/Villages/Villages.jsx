@@ -29,17 +29,12 @@ const Villages = () => {
   const [zones, setZones] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDelete] = useState(false); // Renamed to avoid conflict
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false); // ✅ Fixed: Changed from setIsDelete to setIsDeleteOpen
   const token = localStorage.getItem("token");
   const [imageErrors, setImageErrors] = useState({});
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [invoiceVillageId, setInvoiceVillageId] = useState(null);
   const [permissions, setPermissions] = useState([]); // State for permissions
-
-  // Removed initialPageToSet and totalPages calculation here,
-  // as DataTableLayout now handles currentPage internally.
-  // The DataTable will default to page 1 unless specific logic is added to it
-  // to start on the last page.
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -115,15 +110,27 @@ const Villages = () => {
       const response = await fetch("https://bcknd.sea-go.org/admin/village", {
         headers: getAuthHeaders(),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      const formatted = result?.villages.map((village) => {
-        const translations = village.translations.reduce((acc, t) => {
+      // ✅ Added validation for result structure
+      if (!result || !result.villages || !Array.isArray(result.villages)) {
+        console.error("Invalid API response structure:", result);
+        setVillages([]);
+        return;
+      }
+
+      const formatted = result.villages.map((village) => {
+        const translations = village.translations?.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
-        }, {});
+        }, {}) || {};
 
         const name = translations[currentLang]?.name || village.name || "—";
         const rawName = name; // Keep rawName for editing purposes
@@ -170,7 +177,6 @@ const Villages = () => {
           searchableName: name, // تأكد إن دي موجودة دايماً وهي string
           description,
           img: image,
-          // Ensure numberOfUnits is a number or can be converted to one for the input type="number"
           numberOfUnits: village.units_count ?? 0, // Default to 0 instead of "0" for number type
           status: village.status === 1 ? "active" : "inactive",
           zone_id: village.zone_id,
@@ -184,6 +190,8 @@ const Villages = () => {
       setVillages(formatted);
     } catch (error) {
       console.error("Error fetching villages:", error);
+      toast.error("Failed to fetch villages data");
+      setVillages([]); // ✅ Set empty array on error
     } finally {
       dispatch(hideLoader());
     }
@@ -197,17 +205,29 @@ const Villages = () => {
   }, []);
 
   const handleEdit = (village) => {
+    // ✅ Added validation for village object
+    if (!village) {
+      console.error("No village data provided for editing");
+      return;
+    }
+    
     // Ensure that numberOfUnits is passed as a number for the input type="number"
     const editableVillage = {
       ...village,
-      name: village.rawName, // Use the raw name for the input field
-      numberOfUnits: Number(village.numberOfUnits), // Convert to number explicitly
+      name: village.rawName || village.name, // Use the raw name for the input field
+      numberOfUnits: Number(village.numberOfUnits) || 0, // Convert to number explicitly with fallback
     };
     setSelectedRow(editableVillage);
     setIsEditOpen(true);
   };
 
   const handleDelete = (village) => {
+    // ✅ Added validation for village object
+    if (!village) {
+      console.error("No village data provided for deletion");
+      return;
+    }
+    
     setSelectedRow(village);
     setIsDeleteOpen(true);
   };
@@ -224,29 +244,40 @@ const Villages = () => {
     const { id, name, description, status, zone_id, map, numberOfUnits } =
       selectedRow;
 
+    // ✅ Enhanced validation
+    if (!id) {
+      toast.error("Village ID is missing");
+      return;
+    }
+
     if (!zone_id || isNaN(zone_id)) {
       toast.error("Zone ID is missing or invalid");
       return;
     }
+
+    if (!name || name.trim() === "") {
+      toast.error("Village name is required");
+      return;
+    }
+
     // Ensure numberOfUnits is a valid number before sending
     const parsedNumberOfUnits = parseInt(numberOfUnits, 10);
-    if (isNaN(parsedNumberOfUnits)) {
-      toast.error("Number of Units is invalid.");
+    if (isNaN(parsedNumberOfUnits) || parsedNumberOfUnits < 0) {
+      toast.error("Number of Units must be a valid positive number");
       return;
     }
 
     const formData = new FormData();
-    formData.append("name", name);
-    formData.append("description", description);
+    formData.append("name", name.trim());
+    formData.append("description", description || "");
     formData.append("status", status === "active" ? "1" : "0");
     formData.append("zone_id", zone_id.toString());
-    formData.append("location", map);
-    formData.append("units_count", parsedNumberOfUnits); // Use parsed value
+    formData.append("location", map || "");
+    formData.append("units_count", parsedNumberOfUnits.toString());
 
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
     } else if (selectedRow.image_link) {
-      // If there's an existing image link but no new file, send the link back
       formData.append("image", selectedRow.image_link);
     }
 
@@ -254,10 +285,9 @@ const Villages = () => {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village/update/${id}`,
         {
-          method: "POST", // Note: Usually PUT for updates, but your backend uses POST
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            // 'Content-Type': 'multipart/form-data' is NOT needed with FormData, browser sets it.
           },
           body: formData,
         }
@@ -302,13 +332,14 @@ const Villages = () => {
         setVillages(
           villages.filter((village) => village.id !== selectedRow.id)
         );
-        setIsDeleteOpen(false); // Correct state setter
+        setIsDeleteOpen(false); // ✅ Fixed: Using correct state setter
         setSelectedRow(null);
       } else {
         toast.error("Failed to delete village!");
       }
     } catch (error) {
-      toast.error("Error occurred while deleting village!", error);
+      console.error("Error occurred while deleting village!", error);
+      toast.error("Error occurred while deleting village!");
     }
   };
 
@@ -318,7 +349,7 @@ const Villages = () => {
       // Convert to number for 'zone_id' and 'numberOfUnits' keys
       [key]:
         key === "zone_id" || key === "numberOfUnits"
-          ? parseInt(value, 10)
+          ? parseInt(value, 10) || 0 // ✅ Added fallback for invalid numbers
           : value,
     }));
   };
@@ -326,6 +357,20 @@ const Villages = () => {
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // ✅ Added file validation
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please select a valid image file (JPEG, PNG, GIF)");
+        return;
+      }
+
+      if (file.size > maxSize) {
+        toast.error("Image file size must be less than 5MB");
+        return;
+      }
+
       setSelectedRow((prev) => ({
         ...prev,
         imageFile: file,
@@ -334,6 +379,13 @@ const Villages = () => {
   };
 
   const handleToggleStatus = async (row, newStatus) => {
+    // ✅ Added validation for row object
+    if (!row || !row.id) {
+      console.error("Invalid row data for status toggle");
+      toast.error("Invalid village data");
+      return;
+    }
+
     // طبقة حماية إضافية: التحقق من الصلاحية قبل محاولة تغيير الحالة
     if (!hasPermission("VillagesStatus")) {
       toast.error("You don't have permission to change village status");
@@ -364,7 +416,8 @@ const Villages = () => {
         toast.error("Failed to update village status!");
       }
     } catch (error) {
-      toast.error("Error occurred while updating village status!", error);
+      console.error("Error occurred while updating village status!", error);
+      toast.error("Error occurred while updating village status!");
     }
   };
 
@@ -372,11 +425,11 @@ const Villages = () => {
     { key: "name", label: "Village Name" },
     { key: "img", label: "Image" },
     { key: "description", label: "Description" },
-    { key: "numberOfUnits", label: "Number of Units" }, // Keep this here for display
-    { key: "zone", label: "Zone" }, // Changed key to 'zone' for consistency
+    { key: "numberOfUnits", label: "Number of Units" },
+    { key: "zone", label: "Zone" },
     { key: "map", label: "Location" },
     { key: "population", label: "Population" },
-    { key: "status", label: "Status" }, // Status column to render the switch
+    { key: "status", label: "Status" },
   ];
 
   // Prepare filter options for zone and status in the grouped format expected by DataTable
@@ -403,14 +456,8 @@ const Villages = () => {
   // Debugging permissions (يمكنك إزالة هذه الأسطر في الإنتاج)
   console.log("Has VillagesAdd permission:", hasPermission("VillagesAdd"));
   console.log("Has VillagesEdit permission:", hasPermission("VillagesEdit"));
-  console.log(
-    "Has VillagesDelete permission:",
-    hasPermission("VillagesDelete")
-  );
-  console.log(
-    "Has VillagesStatus permission:",
-    hasPermission("VillagesStatus")
-  );
+  console.log("Has VillagesDelete permission:", hasPermission("VillagesDelete"));
+  console.log("Has VillagesStatus permission:", hasPermission("VillagesStatus"));
 
   return (
     <div className="p-4">
@@ -421,7 +468,6 @@ const Villages = () => {
         columns={columns}
         showAddButton={hasPermission("VillagesAdd")}
         addRoute="/Villages/add"
-        // Removed initialPage prop. Let DataTableLayout manage its own page state (defaults to 1).
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
@@ -461,6 +507,7 @@ const Villages = () => {
                 value={selectedRow?.name || ""}
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                required
               />
 
               <label htmlFor="description" className="text-gray-400 !pb-3">
@@ -477,7 +524,7 @@ const Villages = () => {
                 Zone
               </label>
               <Select
-                value={selectedRow?.zone_id?.toString()}
+                value={selectedRow?.zone_id?.toString() || ""}
                 onValueChange={(value) => onChange("zone_id", value)}
               >
                 <SelectTrigger
@@ -498,6 +545,7 @@ const Villages = () => {
                   ))}
                 </SelectContent>
               </Select>
+              
               <label htmlFor="location" className="text-bg-primary !pb-3">
                 Location
               </label>
@@ -507,14 +555,14 @@ const Villages = () => {
                 placeholder="Search or select location on map"
               />
 
-              {/* Uncommented: Number of Units field in EditDialog */}
               <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
                 Number of Units
               </label>
               <Input
                 id="numberOfUnits"
-                type="number" // Ensure type is number
-                value={selectedRow?.numberOfUnits || ""} // Use 0 or empty string as default
+                type="number"
+                min="0"
+                value={selectedRow?.numberOfUnits || ""}
                 onChange={(e) => onChange("numberOfUnits", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
@@ -543,9 +591,9 @@ const Villages = () => {
 
           <DeleteDialog
             open={isDeleteOpen}
-            onOpenChange={setIsDeleteOpen} // Corrected this to setIsDeleteOpen
+            onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            name={selectedRow.name}
+            name={selectedRow.rawName || selectedRow.name}
           />
         </>
       )}
