@@ -28,14 +28,41 @@ const Service_provider = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
-  const [permissions, setPermissions] = useState([]); // State for permissions
+  const [permissions, setPermissions] = useState([]);
 
   const token = localStorage.getItem("token");
 
   const getAuthHeaders = () => ({
-    "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+  // Edit location state
+  const [editLocationData, setEditLocationData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
+  })
+  // Helper to convert URL to Base64
+  const imageUrlToBase64 = async (url) => {
+    if (!url) return null;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn(`Failed to fetch image from URL: ${url}, status: ${response.status}`);
+        return null;
+      }
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error converting image URL to Base64:", error);
+      return null;
+    }
+  };
+
   // الحصول على الصلاحيات من localStorage
   const getUserPermissions = () => {
     try {
@@ -69,14 +96,14 @@ const Service_provider = () => {
     const userPermissions = getUserPermissions();
     setPermissions(userPermissions);
   }, []);
-  
+
   const fetchVillages = async () => {
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/village", {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
-      const currentLang = localStorage.getItem("lang") || "en";
+      
       const formattedVillages = (result.villages || []).map((village) => {
         const translations = village.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
@@ -85,7 +112,7 @@ const Service_provider = () => {
         }, {});
         return {
           id: village.id,
-          name: translations[currentLang]?.name || village.name,
+          name: translations?.en?.name || village.name,
         };
       });
       setVillages(formattedVillages);
@@ -105,8 +132,6 @@ const Service_provider = () => {
       );
       const result = await response.json();
 
-      const currentLang = localStorage.getItem("lang") || "en";
-
       const formattedMaintenanceTypes = (result.maintenance_types || []).map(
         (type) => {
           const translations = type.translations.reduce((acc, t) => {
@@ -116,65 +141,93 @@ const Service_provider = () => {
           }, {});
           return {
             id: type.id,
-            name: translations[currentLang]?.name || type.name,
+            name: translations?.en?.name || type.name,
           };
         }
       );
       setMaintenanceTypes(formattedMaintenanceTypes);
 
-      const formattedProviders = (result.providers || []).map((provider) => {
-        const translations = provider.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {});
+      // Map providers and convert existing images to Base64
+      const formattedProviders = await Promise.all(
+        (result.providers || []).map(async (provider) => {
+          console.log("Processing provider:", provider.id, provider.translations);
+          
+          // فصل الترجمات حسب اللغة والنوع - same as villages
+          const translations = provider.translations.reduce((acc, t) => {
+            if (!acc[t.locale]) acc[t.locale] = {};
+            acc[t.locale][t.key] = t.value;
+            return acc;
+          }, {});
 
-        const name = translations[currentLang]?.name || provider.name || "—";
-        const map = provider.location || "—";
-        const description =
-          translations[currentLang]?.description || provider.description || "—";
-        const image = provider?.image_link ? (
-          <img
-            src={provider.image_link}
-            alt={name}
-            className="w-12 h-12 rounded-md object-cover aspect-square"
-          />
-        ) : (
-          <Avatar className="w-12 h-12">
-            <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        );
+          console.log("Parsed translations:", translations);
 
-        const villageData = villages.find((v) => v.id === provider.village_id);
-        const villageName = villageData?.name || "—";
+          // استخراج البيانات بالإنجليزي (للعرض في الجدول)
+          const nameEn = translations?.en?.name || provider.name || "—";
+          const descriptionEn = translations?.en?.description || provider.description || "—";
 
-        const maintenanceTypeData = formattedMaintenanceTypes.find(
-          (t) => t.id === provider.maintenance_type_id
-        );
-        const maintenanceTypeName = maintenanceTypeData?.name || "—";
+          // استخراج البيانات بالعربي (للـ EditDialog)
+          const nameAr = translations?.ar?.name || null;
+          const descriptionAr = translations?.ar?.description || null;
 
-        return {
-          id: provider.id,
-          name,
-          rawName: name,
-          map,
-          description,
-          img: image,
-          image_link: provider.image_link, // Keep the original image link
-          phone: provider.phone || "—",
-          status: provider.status === 1 ? "active" : "inactive",
-          village_id: provider.village_id,
-          villageName,
-          maintenance_type_id: provider.maintenance_type_id,
-          maintenanceTypeName,
-          open_from: provider.open_from || "",
-          open_to: provider.open_to || "",
-        };
-      });
+          const map = provider.location || "—";
+          
+          let originalImageBase64 = null;
+          if (provider.image_link) {
+            originalImageBase64 = await imageUrlToBase64(provider.image_link);
+          }
+
+          const image = provider?.image_link ? (
+            <img
+              src={provider.image_link}
+              alt={nameEn}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          );
+
+          const villageData = villages.find((v) => v.id === provider.village_id);
+          const villageName = villageData?.name || "—";
+
+          const maintenanceTypeData = formattedMaintenanceTypes.find(
+            (t) => t.id === provider.maintenance_type_id
+          );
+          const maintenanceTypeName = maintenanceTypeData?.name || "—";
+
+          return {
+            id: provider.id,
+            name: nameEn,
+            rawName: nameEn,
+            // إضافة الحقول العربية
+            nameAr: nameAr,
+            descriptionAr: descriptionAr,
+            map,
+            description: descriptionEn,
+            img: image,
+            image_link: provider.image_link,
+            original_image_link: provider.image_link,
+            originalImageBase64: originalImageBase64,
+            phone: provider.phone || "—",
+            status: provider.status === 1 ? "active" : "inactive",
+            village_id: provider.village_id,
+            villageName,
+            maintenance_type_id: provider.maintenance_type_id,
+            maintenanceTypeName,
+            open_from: provider.open_from || "",
+            open_to: provider.open_to || "",
+                      location_map: provider.location_map || "",
+          lat: provider.lat || 31.2001,
+          lng: provider.lng || 29.9187,
+          };
+        })
+      );
 
       setservice_provider(formattedProviders);
     } catch (error) {
       console.error("Error fetching service providers:", error);
+      toast.error("Failed to load service providers.");
     } finally {
       dispatch(hideLoader());
     }
@@ -194,6 +247,14 @@ const Service_provider = () => {
     if (!provider) return;
     setselectedRow({ ...provider, name: provider.rawName });
     setIsEditOpen(true);
+        // التأكد من وجود البيانات وإعطاء قيم افتراضية
+    const locationData = {
+      location_map: provider.location_map || provider.map || "",
+      lat: provider.lat || 31.2001,
+      lng: provider.lng || 29.9187,
+    };
+        console.log("Setting location data:", locationData);
+    setEditLocationData(locationData);
   };
 
   const handleDelete = (provider) => {
@@ -203,14 +264,16 @@ const Service_provider = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider MaintenanceEdit")) {
       toast.error("You don't have permission to edit Provider Maintenance");
       return;
     }
+    
     const {
       id,
       rawName,
+      nameAr,
+      descriptionAr,
       map,
       description,
       status,
@@ -219,6 +282,10 @@ const Service_provider = () => {
       open_from,
       open_to,
       maintenance_type_id,
+      imageFileBase64,
+      originalImageBase64,
+      image_link,
+      original_image_link,
     } = selectedRow;
 
     if (!village_id || isNaN(village_id)) {
@@ -230,43 +297,50 @@ const Service_provider = () => {
       return;
     }
 
-    const updatedProvider = new FormData();
-    updatedProvider.append("id", id);
-    updatedProvider.append("name", rawName || "");
-    updatedProvider.append("location", map);
-    updatedProvider.append("description", description || "");
-    updatedProvider.append("status", status === "active" ? "1" : "0");
-    updatedProvider.append("phone", phone || "");
-    updatedProvider.append("village_id", village_id);
-    updatedProvider.append("maintenance_type_id", maintenance_type_id);
-
-    const formatTimeWithSeconds = (time) => {
-      if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time;
+    const updatedProvider = {
+      id,
+      name: rawName || "",
+      description: description || "",
+      location: map,
+      status: status === "active" ? 1 : 0,
+      phone: phone || "",
+      village_id: village_id,
+      maintenance_type_id: maintenance_type_id,
+      open_from: formatTimeWithSeconds(open_from),
+      open_to: formatTimeWithSeconds(open_to),
+            lat: editLocationData.lat.toString(),
+      lng: editLocationData.lng.toString(),
+      location_map: editLocationData.location_map,
     };
 
-    updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
-    updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
-
-    // **MODIFIED LOGIC HERE:**
-    if (selectedRow.imageFile) {
-      // If a new file is selected, append the new file
-      updatedProvider.append("image", selectedRow.imageFile);
-    } else if (selectedRow.image_link) {
-      // If no new file is selected, but an old image link exists, append the old link as a string
-      updatedProvider.append("image", selectedRow.image_link);
+    // إضافة الحقول العربية بس لو موجودة أصلاً في الداتا
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      updatedProvider.ar_name = nameAr || "";
     }
-    // If neither exists, don't append an image (or handle as a case where image is removed if that's a feature)
+    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+      updatedProvider.ar_description = descriptionAr || "";
+    }
+
+    // Image handling logic
+    if (imageFileBase64) {
+      updatedProvider.image = imageFileBase64;
+    } else if (image_link && image_link === original_image_link && originalImageBase64) {
+      updatedProvider.image = originalImageBase64;
+    } else if (!image_link && original_image_link) {
+      updatedProvider.image = null;
+    }
 
     try {
+      dispatch(showLoader());
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_provider/update/${id}`,
         {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: updatedProvider,
+          body: JSON.stringify(updatedProvider),
         }
       );
 
@@ -283,17 +357,19 @@ const Service_provider = () => {
     } catch (error) {
       console.error("Error updating provider:", error);
       toast.error("Error occurred while updating provider!");
+    } finally {
+      dispatch(hideLoader());
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow?.id) return;
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider MaintenanceDelete")) {
       toast.error("You don't have permission to delete Provider Maintenance");
       return;
     }
     try {
+      dispatch(showLoader());
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_provider/delete/${selectedRow.id}`,
         {
@@ -312,6 +388,8 @@ const Service_provider = () => {
       }
     } catch (error) {
       toast.error("Error occurred while deleting provider!", error);
+    } finally {
+      dispatch(hideLoader());
     }
   };
 
@@ -333,24 +411,31 @@ const Service_provider = () => {
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setselectedRow((prev) => ({
-        ...prev,
-        imageFile: file, // Store the new file object
-        image_link: URL.createObjectURL(file), // Update the image_link for preview
-      }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setselectedRow((prev) => ({
+          ...prev,
+          imageFileBase64: reader.result,
+          image_link: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
     } else {
-      // If user clears the selected file, remove imageFile and reset image_link to original or null
       setselectedRow((prev) => ({
         ...prev,
-        imageFile: null,
-        image_link: prev.original_image_link || null, // Assuming you store original_image_link
+        imageFileBase64: null,
+        image_link: prev.original_image_link || null,
       }));
     }
   };
 
+  const formatTimeWithSeconds = (time) => {
+    if (!time) return "";
+    return time.length === 5 ? `${time}:00` : time;
+  };
+
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider MaintenanceStatus")) {
       toast.error(
         "You don't have permission to change Provider Maintenance status"
@@ -358,6 +443,7 @@ const Service_provider = () => {
       return;
     }
     try {
+      dispatch(showLoader());
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/status/${id}?status=${newStatus}`,
         {
@@ -379,6 +465,8 @@ const Service_provider = () => {
       }
     } catch (error) {
       toast.error("Error occurred while updating provider status!", error);
+    } finally {
+      dispatch(hideLoader());
     }
   };
 
@@ -391,9 +479,10 @@ const Service_provider = () => {
   )
     .filter((name) => name && name !== "—")
     .map((name) => ({ value: name, label: name }));
+
   const filterOptionsForServices = [
     {
-      key: "villageName", // Changed from "village" to match data key
+      key: "villageName",
       label: "Village",
       options: [
         { value: "all", label: "All Villages" },
@@ -401,7 +490,7 @@ const Service_provider = () => {
       ],
     },
     {
-      key: "maintenanceTypeName", // Changed from "maintenanceType" to match data key
+      key: "maintenanceTypeName",
       label: "Maintenance Type",
       options: [
         { value: "all", label: "All Types" },
@@ -409,7 +498,7 @@ const Service_provider = () => {
       ],
     },
     {
-      key: "status", // Matches the data key
+      key: "status",
       label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
@@ -429,6 +518,19 @@ const Service_provider = () => {
     { key: "phone", label: "Phone" },
     { key: "status", label: "Status" },
   ];
+  
+  useEffect(() => {
+    if (selectedRow && isEditOpen) {
+      const locationData = {
+        location_map: selectedRow.location_map || selectedRow.map || "",
+        lat: selectedRow.lat || 31.2001,
+        lng: selectedRow.lng || 29.9187,
+      };
+      
+      console.log("Syncing location data from selectedRow:", locationData);
+      setEditLocationData(locationData);
+    }
+  }, [selectedRow, isEditOpen]);
 
   return (
     <div>
@@ -445,8 +547,8 @@ const Service_provider = () => {
         onToggleStatus={handleToggleStatus}
         searchKeys={["name", "location", "villageName", "maintenanceTypeName"]}
         showFilter={true}
-        showEditButton={hasPermission("Provider MaintenanceEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showDeleteButton={hasPermission("Provider MaintenanceDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showEditButton={hasPermission("Provider MaintenanceEdit")}
+        showDeleteButton={hasPermission("Provider MaintenanceDelete")}
         showActions={hasPermission("Provider MaintenanceEdit") || hasPermission("Provider MaintenanceDelete")}
         filterKey={["villageName", "maintenanceTypeName", "status"]}
         filterOptions={filterOptionsForServices}
@@ -463,8 +565,10 @@ const Service_provider = () => {
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              
+              {/* الحقول الإنجليزية */}
               <Label htmlFor="name" className="text-gray-400 !pb-3">
-                Provider Name
+                Provider Name (English)
               </Label>
               <Input
                 label="Provider Name"
@@ -473,18 +577,9 @@ const Service_provider = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
-              <label htmlFor="location" className="text-gray-400 !pb-3">
-                Location
-              </label>
-              {/* هنا استبدال Input بـ MapLocationPicker */}
-              <MapLocationPicker
-                value={selectedRow?.map || ""} // القيمة الحالية للموقع
-                onChange={(newValue) => onChange("map", newValue)} // تحديث قيمة 'map'
-                placeholder="Search or select location on map"
-              />
 
               <Label htmlFor="description" className="text-gray-400 !pb-3">
-                Description
+                Description (English)
               </Label>
               <Input
                 label="Description"
@@ -493,6 +588,49 @@ const Service_provider = () => {
                 onChange={(e) => onChange("description", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
+
+              {/* الحقول العربية - بس لو الـ provider أصلاً له ترجمة عربية */}
+              {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+                <>
+                  <Label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                    اسم المزود (عربي)
+                  </Label>
+                  <Input
+                    id="nameAr"
+                    value={selectedRow?.nameAr || ""}
+                    onChange={(e) => onChange("nameAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="اسم المزود بالعربي"
+                  />
+                </>
+              )}
+
+              {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
+                <>
+                  <Label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
+                    الوصف (عربي)
+                  </Label>
+                  <Input
+                    id="descriptionAr"
+                    value={selectedRow?.descriptionAr || ""}
+                    onChange={(e) => onChange("descriptionAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="وصف المزود بالعربي"
+                  />
+                </>
+              )}
+
+              <label htmlFor="location" className="text-gray-400 !pb-3">
+                Location
+              </label>
+              <MapLocationPicker
+                value={selectedRow?.map || ""}
+                onChange={(newValue) => onChange("map", newValue)}
+                placeholder="Search or select location on map"
+              />
+
               <Label htmlFor="maintenance_type" className="text-gray-400 !pb-3">
                 Maintenance Type
               </Label>
@@ -538,6 +676,7 @@ const Service_provider = () => {
                 onChange={(e) => onChange("phone", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
+
               <Label htmlFor="open_from" className="text-gray-400 !pb-3">
                 Open From
               </Label>
@@ -601,7 +740,6 @@ const Service_provider = () => {
                 Image
               </label>
 
-              {/* Display current image if exists */}
               {selectedRow?.image_link && (
                 <div className="flex items-center gap-4 mb-2">
                   <img
@@ -621,6 +759,7 @@ const Service_provider = () => {
               />
             </div>
           </EditDialog>
+          
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}

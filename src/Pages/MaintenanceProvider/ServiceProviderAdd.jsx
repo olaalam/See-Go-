@@ -12,8 +12,9 @@ export default function AddServiceProvider() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
-  const [village, setVillage] = useState([]);
   const navigate = useNavigate();
+
+  const [village, setVillage] = useState([]);
   const [maintenances, setMaintenances] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -35,28 +36,31 @@ export default function AddServiceProvider() {
     },
   });
 
+  const [pickUpData, setPickUpData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
+  });
+
   useEffect(() => {
     const fetchServiceProvider = async () => {
       try {
-        const response = await fetch(
-          "https://bcknd.sea-go.org/admin/service_provider",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await fetch("https://bcknd.sea-go.org/admin/service_provider", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await response.json();
+
         if (data.maintenance_types) {
           setMaintenances(
-            data.maintenance_types.map((maintenance) => ({
-              label: maintenance.name,
-              value: maintenance.id.toString(),
+            data.maintenance_types.map((m) => ({
+              label: m.name,
+              value: m.id.toString(),
             }))
           );
         }
       } catch (error) {
-        console.error("Error fetching maintenances", error);
+        console.error("Error fetching maintenance types", error);
+        toast.error("Failed to fetch maintenance types.");
       }
     };
 
@@ -67,22 +71,21 @@ export default function AddServiceProvider() {
     const fetchVillage = async () => {
       try {
         const response = await fetch("https://bcknd.sea-go.org/admin/village", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
 
         if (data.villages) {
           setVillage(
-            data.villages.map((village) => ({
-              label: village.name,
-              value: village.id.toString(),
+            data.villages.map((v) => ({
+              label: v.name,
+              value: v.id.toString(),
             }))
           );
         }
       } catch (error) {
-        console.error("Error fetching Village", error);
+        console.error("Error fetching villages", error);
+        toast.error("Failed to fetch villages.");
       }
     };
 
@@ -90,61 +93,93 @@ export default function AddServiceProvider() {
   }, []);
 
   const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
-    }));
+    if (name === "image" && value instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [lang]: {
+            ...prev[lang],
+            [name]: reader.result, // Store Base64 string
+          },
+        }));
+      };
+      reader.onerror = (error) => {
+        console.error("Error converting image to Base64:", error);
+        toast.error("Failed to process image.");
+      };
+      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+    } else if (name === "location") {
+      // Handle map location changes
+      if (typeof value === "object" && value.lat && value.lng) {
+        setPickUpData({
+          location_map: value.location_map || `${value.lat},${value.lng}`,
+          lat: value.lat,
+          lng: value.lng,
+        });
+      }
+      setFormData((prev) => ({
+        ...prev,
+        [lang]: {
+          ...prev[lang],
+          [name]: `${value.lat || pickUpData.lat},${value.lng || pickUpData.lng}`,
+        },
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [lang]: {
+          ...prev[lang],
+          [name]: value,
+        },
+      }));
+    }
   };
 
   const handleSubmit = async () => {
     dispatch(showLoader());
 
-    const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
-    body.append("maintenance_type_id", formData.en.maintenance_type_id);
-    body.append("village_id", formData.en.village);
-    body.append("location", formData.en.location);
-    body.append("phone", formData.en.phone);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
     const formatTimeWithSeconds = (time) => {
-      if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time; // لو HH:mm زود :00
+      return time?.length === 5 ? `${time}:00` : time || "";
     };
 
-    body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
-    body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
+    const payload = {
+      name: formData.en.name,
+      description: formData.en.description,
+      maintenance_type_id: formData.en.maintenance_type_id,
+      village_id: formData.en.village,
+      lat: pickUpData.lat,
+      lng: pickUpData.lng,
+      location_map: pickUpData.location_map || `${pickUpData.lat},${pickUpData.lng}`,
+      location: `${pickUpData.lat},${pickUpData.lng}`,
+      phone: formData.en.phone,
+      status: formData.en.status === "active" ? "1" : "0",
+      open_from: formatTimeWithSeconds(formData.en.open_from),
+      open_to: formatTimeWithSeconds(formData.en.open_to),
+      image: formData.en.image, // base64 string
+      ar_name: formData.ar.name,
+      ar_description: formData.ar.description,
+    };
 
-    if (formData.en.image) {
-      body.append("image", formData.en.image);
-    }
-    if (formData.ar.name) {
-      body.append("ar_name", formData.ar.name);
-    }
-    if (formData.ar.description) {
-      body.append("ar_description", formData.ar.description);
-    }
+    console.log("Submitting form with data:", payload);
+    console.log("PickUp Data:", pickUpData);
 
-    console.log(
-      "Submitting form with data:",
-      Object.fromEntries(body.entries())
-    );
-    navigate("/service-provider");
+    // Validation check
+    if (!pickUpData.location_map && (!pickUpData.lat || !pickUpData.lng)) {
+      toast.error("Please select a location on the map.");
+      dispatch(hideLoader());
+      return;
+    }
 
     try {
-      const response = await fetch(
-        "https://bcknd.sea-go.org/admin/service_provider/add",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body,
-        }
-      );
+      const response = await fetch("https://bcknd.sea-go.org/admin/service_provider/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
       if (response.ok) {
         toast.success("Service provider added successfully!", {
@@ -169,7 +204,11 @@ export default function AddServiceProvider() {
             description: "",
           },
         });
-         navigate("/maintenance-provider");
+        setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
+
+        setTimeout(() => {
+          navigate("/maintenance-provider");
+        }, 2000);
       } else {
         const errorData = await response.json();
         console.error("Error response:", errorData);
@@ -189,64 +228,31 @@ export default function AddServiceProvider() {
     }
   };
 
-  // Combine English and Arabic fields into a single array
   const fields = [
-    {
-      type: "input",
-      placeholder: "Service Provider Name",
-      name: "name",
-      lang: "en",
-    },
-    {
-      type: "input",
-      placeholder: "Description",
-      name: "description",
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Maintenance Name",
-      name: "maintenance_type_id",
-      options: maintenances,
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Village",
-      name: "village",
-      options: village,
-      lang: "en",
-    },
+    { type: "input", placeholder: "Service Provider Name", name: "name", lang: "en" },
+    { type: "input", placeholder: "Description", name: "description", lang: "en" },
+    { type: "select", placeholder: "Maintenance Name", name: "maintenance_type_id", options: maintenances, lang: "en" },
+    { type: "select", placeholder: "Village", name: "village", options: village, lang: "en" },
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
-{
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-                 lang: "en", 
-            },
-    {
-      type: "input",
-      placeholder: "  (اختياري) اسم مزود الخدمة",
-      name: "name",
-      lang: "ar",
-    },
-    {
-      type: "input",
-      placeholder: " (اختياري) الوصف",
-      name: "description",
-      lang: "ar",
-    },
     { type: "map", placeholder: "Location", name: "location", lang: "en" },
+    { type: "input", placeholder: "(اختياري) اسم مزود الخدمة", name: "name", lang: "ar" },
+    { type: "input", placeholder: "(اختياري) الوصف", name: "description", lang: "ar" },
+    {
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+      lang: "en",
+    },
   ];
 
   return (
-    <div className="w-[90%] p-6 relative">
+    <div className="w-full p-6 relative">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 
@@ -255,12 +261,7 @@ export default function AddServiceProvider() {
       </h2>
 
       <div className="w-[90%] mx-auto">
-        {/* Pass all fields to a single Add component */}
-        <Add
-          fields={fields}
-          values={{ en: formData.en, ar: formData.ar }}
-          onChange={handleFieldChange}
-        />
+        <Add fields={fields} values={{ en: formData.en, ar: formData.ar }} onChange={handleFieldChange} />
       </div>
 
       <div className="!my-6">

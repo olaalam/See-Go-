@@ -72,7 +72,7 @@ export default function MallAdd() {
 
       } catch (error) {
         console.error("Error fetching data for dropdowns:", error);
-        toast.error("Failed to load dropdown options.");
+        toast.error("Failed to load dropdown options.",error);
       }
     };
 
@@ -99,25 +99,33 @@ export default function MallAdd() {
   }, [formData.en.zone, allVillages]);
 
 
-  const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => {
-      const newFormData = {
+ const handleFieldChange = (lang, name, value) => {
+    if (name === "image" && value instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [lang]: {
+            ...prev[lang],
+            [name]: reader.result, // Store Base64 string
+          },
+        }));
+      };
+      reader.onerror = (error) => {
+        console.error("Error converting image to Base64:", error);
+        toast.error("Failed to process image.", error);
+      };
+      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+    } else {
+      setFormData((prev) => ({
         ...prev,
         [lang]: {
           ...prev[lang],
           [name]: value,
         },
-      };
-
-      // If the changed field is 'zone', reset 'village' and filter villages
-      if (lang === 'en' && name === 'zone') {
-        newFormData.en.village = ""; // Reset village when zone changes
-        // The useEffect above will handle filtering villages based on new zone
-      }
-      return newFormData;
-    });
+      }));
+    }
   };
-
 
   const handleSubmit = async () => {
     dispatch(showLoader());
@@ -214,7 +222,7 @@ export default function MallAdd() {
       }
     } catch (error) {
       console.error("Error submitting subscriber:", error);
-      toast.error("An error occurred!", {
+      toast.error("An error occurred!",error, {
         position: "top-right",
         autoClose: 3000,
       });

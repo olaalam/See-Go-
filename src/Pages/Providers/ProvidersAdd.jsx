@@ -30,7 +30,7 @@ export default function AddProvider() {
       village: "",
       zone: "",
       status: "",
-      image: null,
+      image: null, // This will now store the Base64 string or null
       open_from: "",
       open_to: "",
     },
@@ -88,7 +88,7 @@ export default function AddProvider() {
         }
       } catch (error) {
         console.error("Error fetching data for dropdowns:", error);
-        toast.error("Failed to load dropdown options.");
+        toast.error("Failed to load dropdown options.", error);
       }
     };
 
@@ -113,13 +113,31 @@ export default function AddProvider() {
   }, [formData.en.zone, allVillages]);
 
   const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
-    }));
+    if (name === "image" && value instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [lang]: {
+            ...prev[lang],
+            [name]: reader.result, // Store Base64 string
+          },
+        }));
+      };
+      reader.onerror = (error) => {
+        console.error("Error converting image to Base64:", error);
+        toast.error("Failed to process image.", error);
+      };
+      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [lang]: {
+          ...prev[lang],
+          [name]: value,
+        },
+      }));
+    }
   };
 
   const handleSubmit = async () => {
@@ -136,12 +154,13 @@ export default function AddProvider() {
     body.append("lat", pickUpData.lat.toString());
     body.append("lng", pickUpData.lng.toString());
     body.append("location_map", pickUpData.location_map);
-    body.append("location", `${pickUpData.lat},${pickUpData.lng}`); // هذا السطر الذي أضفناه
+    body.append("location", `${pickUpData.lat},${pickUpData.lng}`);
 
     const formatTime = (time) => (time?.length === 5 ? `${time}:00` : time);
     body.append("open_from", formatTime(formData.en.open_from));
     body.append("open_to", formatTime(formData.en.open_to));
 
+    // Append the Base64 string directly
     if (formData.en.image) body.append("image", formData.en.image);
     if (formData.ar.name) body.append("ar_name", formData.ar.name);
     if (formData.ar.description)
@@ -152,6 +171,7 @@ export default function AddProvider() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          // No 'Content-Type' header needed for FormData, browser sets it automatically
         },
         body,
       });
@@ -172,7 +192,9 @@ export default function AddProvider() {
               open_from: "",
               open_to: "",
             },
-            ar: { name: "", description: "" },
+            ar: { name: "", description: "" 
+
+            },
           });
           setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
           navigate("/providers");
@@ -186,7 +208,7 @@ export default function AddProvider() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("An error occurred.", { autoClose: 3000 });
+      toast.error("An error occurred.",err, { autoClose: 3000 });
     } finally {
       dispatch(hideLoader());
     }
@@ -249,11 +271,11 @@ export default function AddProvider() {
         Add Service Provider
       </h2>
 
-      <div className="w-[90%] mx-auto">
+      <div className="w-[90%] !ms-4">
         <Add fields={fields} values={formData} onChange={handleFieldChange} />
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="!mt-6">
+          <label className="block text-sm font-medium text-gray-700  !mb-2">
             Pick-up Location (Google Maps link or address)
           </label>
           <Input
@@ -266,7 +288,7 @@ export default function AddProvider() {
                 location_map: e.target.value,
               }))
             }
-            className="mb-4"
+            className="!mb-4 !ps-2"
           />
           <PickUpMap tourPickUp={pickUpData} setTourPickUp={setPickUpData} />
         </div>

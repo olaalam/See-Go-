@@ -41,17 +41,23 @@ const Payment_methods = () => {
             });
 
             const result = await response.json();
-            const currentLang = localStorage.getItem("lang") || "en";
 
             const formatted = result.payment_methods.map((payment_method) => {
-                const translations = payment_method.translations.reduce((acc, t) => {
-                    if (!acc[t.locale]) acc[t.locale] = {};
-                    acc[t.locale][t.key] = t.value;
-                    return acc;
-                }, {});
+        // فصل الترجمات حسب اللغة والنوع
+        const translations = payment_method.translations.reduce((acc, t) => {
+          if (!acc[t.locale]) acc[t.locale] = {};
+          acc[t.locale][t.key] = t.value;
+          return acc;
+        }, {});
 
-                const name = translations[currentLang]?.name || payment_method.name || "—";
-                const description = translations[currentLang]?.description || payment_method.description || "—";
+                 const nameEn = translations?.en?.name || payment_method.name || "—";
+        const descriptionEn = translations?.en?.description || payment_method.description || "—";
+
+        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
+        const nameAr = translations?.ar?.name || null;
+        const descriptionAr = translations?.ar?.description || null;
+
                 const createdDate = new Date(payment_method.created_at);
                 const created_at = `${createdDate.getFullYear()}/${(createdDate.getMonth() + 1)
                     .toString()
@@ -73,8 +79,11 @@ const Payment_methods = () => {
 
                 return {
                     id: payment_method.id,
-                    name,
-                    description,
+          name: nameEn,
+          description: descriptionEn,
+          // إضافة الحقول العربية (null لو مش موجودة)
+          nameAr: nameAr,
+          descriptionAr: descriptionAr,
                     img: image,
                     created_at,
                     status: payment_method.status === 1 ? "Active" : "Inactive",
@@ -107,11 +116,22 @@ const Payment_methods = () => {
 
     const handleSave = async () => {
         if (!selectedRow) return;
-        const { id, name, description, status, imageFile } = selectedRow;
+        const { id, name, description, nameAr, descriptionAr, status, imageFile } = selectedRow;
     
         const formData = new FormData();
-        formData.append("name", name);
-        formData.append("description", description);
+
+    // بعت الإنجليزي دايماً
+    formData.append("name", name || "");
+    formData.append("description", description || "");
+    
+    // بعت العربي بس لو موجود أصلاً في الداتا (يعني الـ zone له ترجمة عربية)
+    // مش مهم لو فاضي أو مليان، المهم إنه موجود في الـ structure
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      formData.append("ar_name", nameAr || "");
+    }
+    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+      formData.append("ar_description", descriptionAr || "");
+    }
         formData.append("status", status === "Active" ? 1 : 0);
     
         if (imageFile) {
@@ -260,25 +280,58 @@ const Payment_methods = () => {
                         columns={columns}
                         onChange={onChange}
                     >
-                        <label htmlFor="name" className="text-gray-400 !pb-3">
-                            Payment Method
-                        </label>
-                        <Input
-                            id="name"
-                            value={selectedRow?.name || ""}
-                            onChange={(e) => onChange("name", e.target.value)}
-                            className="!my-2 text-bg-primary !p-4"
-                        />
+            {/* الحقول الإنجليزية */}
+            <label htmlFor="name" className="text-gray-400 !pb-3">
+              Payment Method (English)
+            </label>
+            <Input
+              id="name"
+              value={selectedRow?.name || ""}
+              onChange={(e) => onChange("name", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
 
-                        <label htmlFor="description" className="text-gray-400 !pb-3">
-                            Description
-                        </label>
-                        <Input
-                            id="description"
-                            value={selectedRow?.description || ""}
-                            onChange={(e) => onChange("description", e.target.value)}
-                            className="!my-2 text-bg-primary !p-4"
-                        />
+            <label htmlFor="description" className="text-gray-400 !pb-3">
+              Description (English)
+            </label>
+            <Input
+              id="description"
+              value={selectedRow?.description || ""}
+              onChange={(e) => onChange("description", e.target.value)}
+              className="!my-2 text-bg-primary !p-4"
+            />
+
+            {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
+            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
+                        {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
+              <>
+                <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
+                  الوصف (عربي)
+                </label>
+                <Input
+                  id="descriptionAr"
+                  value={selectedRow?.descriptionAr || ""}
+                  onChange={(e) => onChange("descriptionAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="وصف المنطقة بالعربي"
+                />
+              </>
+            )}
 
 
 

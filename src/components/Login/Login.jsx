@@ -48,6 +48,7 @@ const handleLogin = async (e) => {
     dispatch(setUser(userWithRoles));
     localStorage.setItem("user", JSON.stringify(userWithRoles));
     localStorage.setItem("token", data.token);
+    
 
     // ✅ تخزين صلاحيات المستخدم (userPermission) في localStorage
     // Assuming 'data.roles' contains the user's permissions

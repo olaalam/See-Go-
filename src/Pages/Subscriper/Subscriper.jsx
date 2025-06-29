@@ -124,7 +124,10 @@ export default function SubscribersPage() {
       // *** IMPORTANT FIX HERE ***
       // setServiceTypes to the full array of service_type objects
       setServiceTypes(response.data.service_type || []);
-      console.log("Fetched Service Types:", response.data.subscribers_provider.service); // For debugging
+      console.log(
+        "Fetched Service Types:",
+        response.data.subscribers_provider.service_type
+      ); // For debugging
 
       console.log(
         "Maintenance Providers (from API data.maintenance_provider):",
@@ -261,30 +264,47 @@ export default function SubscribersPage() {
     }
 
     // Ensure package_id is set if available
-    if (rowToEdit.package_id === undefined && rowToEdit.package?.id !== undefined) {
+    if (
+      rowToEdit.package_id === undefined &&
+      rowToEdit.package?.id !== undefined
+    ) {
       rowToEdit.package_id = rowToEdit.package.id;
     } else if (rowToEdit.package_id === null) {
       rowToEdit.package_id = undefined;
     }
 
     if (rowToEdit.type === "provider") {
-      if (rowToEdit.provider_id === undefined && rowToEdit.provider?.id !== undefined) {
+      if (
+        rowToEdit.provider_id === undefined &&
+        rowToEdit.provider?.id !== undefined
+      ) {
         rowToEdit.provider_id = rowToEdit.provider.id;
       }
       // *** IMPORTANT: Correctly extract service_id for provider type ***
       // Check for service_id directly on the row, or nested within 'service' or 'service_name' objects
-      if (rowToEdit.service_id === undefined) {
-          if (row.service_id !== undefined && row.service_id !== null) { // Check top-level service_id
-              rowToEdit.service_id = row.service_id;
-          } else if (rowToEdit.service?.id !== undefined) {
-              rowToEdit.service_id = rowToEdit.service.id;
-          } else if (rowToEdit.service_name?.id !== undefined) {
-              rowToEdit.service_id = rowToEdit.service_name.id;
-          }
+      if (!rowToEdit.service_id) {
+        if (row.service_id) {
+          rowToEdit.service_id = row.service_id;
+        } else if (row.service?.id) {
+          rowToEdit.service_id = row.service.id;
+        } else if (row.service_name?.id) {
+          rowToEdit.service_id = row.service_name.id;
+        } else if (row.service_item?.id) {
+          rowToEdit.service_id = row.service_item.id;
+        } else if (row.serviceType?.id) {
+          rowToEdit.service_id = row.serviceType.id;
+        }
       }
-      console.log("handleEditClick - provider service_id:", rowToEdit.service_id); // Debugging
+
+      console.log(
+        "handleEditClick - provider service_id:",
+        rowToEdit.service_id
+      ); // Debugging
     } else if (rowToEdit.type === "village") {
-      if (rowToEdit.village_id === undefined && rowToEdit.village?.id !== undefined) {
+      if (
+        rowToEdit.village_id === undefined &&
+        rowToEdit.village?.id !== undefined
+      ) {
         rowToEdit.village_id = rowToEdit.village.id;
       }
     } else if (rowToEdit.type === "maintenance_provider") {
@@ -387,39 +407,41 @@ export default function SubscribersPage() {
       },
     },
     ...(tab === "provider"
- ? [
-  {
-  key: "service_type", // Changed key for clarity
-  label: "Services Type",
-  render: (row) => {
- if (row.type === "village") return "-"; // Villages don't have service types
+      ? [
+          {
+            key: "service_type", // Changed key for clarity
+            label: "Services Type",
+            render: (row) => {
+              if (row.type === "village") return "-"; // Villages don't have service types
 
- // 1. Check if 'service_item' object exists with a name (most detailed from your JSON)
- if (row.service_item?.name) {
- return row.service_item.name;
- }
+              // 1. Check if 'service_item' object exists with a name (most detailed from your JSON)
+              if (row.service_item?.name) {
+                return row.service_item.name;
+              }
 
- // 2. Check if 'service' is directly a string (as seen in your JSON example)
- if (typeof row.service === "string") {
- return row.service;
- }
+              // 2. Check if 'service' is directly a string (as seen in your JSON example)
+              if (typeof row.service === "string") {
+                return row.service;
+              }
 
- // 3. Fallback to other nested objects if they contain a name
- if (row.service?.name) return row.service.name;
- if (row.service_name?.name) return row.service_name.name;
- if (row.serviceName) return row.serviceName;
+              // 3. Fallback to other nested objects if they contain a name
+              if (row.service?.name) return row.service.name;
+              if (row.service_name?.name) return row.service_name.name;
+              if (row.serviceName) return row.serviceName;
 
- // 4. Finally, use serviceTypes array to find the name by ID if available
- if (row.service_id) {
- const service = serviceTypes.find((s) => s.id === row.service_id);
- if (service) return service.name;
- }
+              // 4. Finally, use serviceTypes array to find the name by ID if available
+              if (row.service_id) {
+                const service = serviceTypes.find(
+                  (s) => s.id === row.service_id
+                );
+                if (service) return service.name;
+              }
 
- return "N/A";
-  },
-  },
- ]
- : []),
+              return "N/A";
+            },
+          },
+        ]
+      : []),
     ...(tab === "maintenance_provider"
       ? [
           {
@@ -538,7 +560,8 @@ export default function SubscribersPage() {
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                     {selectedRow?.payment_method_id
                       ? paymentMethods.find(
-                          (method) => method.id === selectedRow?.payment_method_id
+                          (method) =>
+                            method.id === selectedRow?.payment_method_id
                         )?.name || "Select Payment Method"
                       : "Select Payment Method"}
                   </SelectTrigger>
@@ -607,21 +630,27 @@ export default function SubscribersPage() {
                     >
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {selectedRow?.service_id
-                          ? serviceTypes.find( // Used 'serviceTypes'
-                              (serviceType) => serviceType.id === selectedRow?.service_id // 'serviceType' for clarity
+                          ? serviceTypes.find(
+                              // Used 'serviceTypes'
+                              (serviceType) =>
+                                serviceType.id === selectedRow?.service_id // 'serviceType' for clarity
                             )?.name || "Select Service Type"
                           : "Select Service Type"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {serviceTypes.map((serviceType) => ( // Used 'serviceTypes'
-                          <SelectItem
-                            className="text-bg-primary !ps-3"
-                            key={serviceType.id}
-                            value={serviceType.id.toString()}
-                          >
-                            {serviceType.id} - {serviceType.name}
-                          </SelectItem>
-                        ))}
+                        {serviceTypes.map(
+                          (
+                            serviceType // Used 'serviceTypes'
+                          ) => (
+                            <SelectItem
+                              className="text-bg-primary !ps-3"
+                              key={serviceType.id}
+                              value={serviceType.id.toString()}
+                            >
+                              {serviceType.id} - {serviceType.name}
+                            </SelectItem>
+                          )
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -646,7 +675,8 @@ export default function SubscribersPage() {
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {selectedRow?.village_id
                           ? villages.find(
-                              (village) => village.id === selectedRow?.village_id
+                              (village) =>
+                                village.id === selectedRow?.village_id
                             )?.name || "Select Village"
                           : "Select Village"}
                       </SelectTrigger>
@@ -670,11 +700,16 @@ export default function SubscribersPage() {
               {selectedRow?.type === "maintenance_provider" && (
                 <>
                   <div className="space-y-2">
-                    <label htmlFor="maintenance_provider_id" className="text-gray-400">
+                    <label
+                      htmlFor="maintenance_provider_id"
+                      className="text-gray-400"
+                    >
                       Maintenance Provider
                     </label>
                     <Select
-                      value={selectedRow?.maintenance_provider_id?.toString() || ""}
+                      value={
+                        selectedRow?.maintenance_provider_id?.toString() || ""
+                      }
                       onValueChange={(value) =>
                         setSelectedRow({
                           ...selectedRow,
@@ -686,7 +721,8 @@ export default function SubscribersPage() {
                         {selectedRow?.maintenance_provider_id
                           ? maintenanceProviders.find(
                               (provider) =>
-                                provider.id === selectedRow?.maintenance_provider_id
+                                provider.id ===
+                                selectedRow?.maintenance_provider_id
                             )?.name || "Select Maintenance Provider"
                           : "Select Maintenance Provider"}
                       </SelectTrigger>

@@ -28,9 +28,12 @@ export default function AddVillage() {
     ar: {
       name: "",
       description: "",
-      location: "",
-      status: "",
     },
+  });
+  const [pickUpData, setPickUpData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
   });
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export default function AddVillage() {
         }
       } catch (error) {
         console.error("Error fetching zones", error);
+        toast.error("Error fetching zones", error);
       }
     };
 
@@ -59,89 +63,106 @@ export default function AddVillage() {
   }, []);
 
   const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        [name]: value,
-      },
-    }));
+    if (name === "image" && value instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [lang]: {
+            ...prev[lang],
+            [name]: reader.result, // Store Base64 string
+          },
+        }));
+      };
+      reader.onerror = (error) => {
+        console.error("Error converting image to Base64:", error);
+        toast.error("Failed to process image.",error);
+      };
+      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [lang]: {
+          ...prev[lang],
+          [name]: value,
+        },
+      }));
+    }
   };
 
-  const handleSubmit = async () => {
-    dispatch(showLoader());
 
-    const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
-    body.append("zone_id", formData.en.zone);
-    body.append("location", formData.en.location);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
+const handleSubmit = async () => {
+  dispatch(showLoader());
 
-    if (formData.en.image) {
-      body.append("image", formData.en.image);
-    }
+  const payload = {
+    name: formData.en.name,
+    description: formData.en.description,
+    zone_id: formData.en.zone,
+    lat: pickUpData.lat,
+    lng: pickUpData.lng,
+    location_map: pickUpData.location_map,
+    location: `${pickUpData.lat},${pickUpData.lng}`,
+    status: formData.en.status === "active" ? "1" : "0",
+    image: formData.en.image, // base64 string
+    ar_name: formData.ar.name,
+    ar_description: formData.ar.description,
+  };
 
-    body.append("ar_name", formData.ar.name);
-    body.append("ar_description", formData.ar.description);
-
-    console.log(
-      "Submitting form with data:",
-      Object.fromEntries(body.entries())
+  try {
+    const response = await fetch(
+      "https://bcknd.sea-go.org/admin/village/add",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
     );
 
-    try {
-      const response = await fetch(
-        "https://bcknd.sea-go.org/admin/village/add",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body,
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Village added successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-        });
-        setFormData({
-          en: {
-            name: "",
-            description: "",
-            zone: "",
-            location: "",
-            status: "",
-            image: null,
-          },
-          ar: {
-            name: "",
-            description: "",
-            location: "",
-            status: "",
-          },
-        });
-        navigate("/villages");
-      } else {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        toast.error(errorData.message || "Failed to add Village.", {
-          position: "top-right",
-          autoClose: 3000,
-        });
-      }
-    } catch (error) {
-      console.error("Error submitting Village:", error);
-      toast.error("An error occurred!", {
+    if (response.ok) {
+      toast.success("Village added successfully!", {
         position: "top-right",
         autoClose: 3000,
       });
-    } finally {
-      dispatch(hideLoader());
+      setFormData({
+        en: {
+          name: "",
+          description: "",
+          zone: "",
+          location: "",
+          status: "",
+          image: null,
+        },
+        ar: {
+          name: "",
+          description: "",
+        },
+      });
+      setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
+      setTimeout(() => {
+        navigate("/villages");
+      }, 2000);
+    } else {
+      const errorData = await response.json();
+      console.error("Error response:", errorData);
+      toast.error(errorData.message || "Failed to add Village.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
     }
-  };
+  } catch (error) {
+    console.error("Error submitting Village:", error);
+    toast.error("An error occurred!", {
+      position: "top-right",
+      autoClose: 3000,
+    });
+  } finally {
+    dispatch(hideLoader());
+  }
+};
+
 
   // Combine English and Arabic fields into a single array
   const fields = [
@@ -162,17 +183,27 @@ export default function AddVillage() {
     },
 
     { type: "file", name: "image", lang: "en" },
-    { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
-    { type: "input", placeholder: "اسم القرية (اختياري)", name: "name", lang: "ar" },
-{
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
-                 lang: "en", 
-            },
+    {
+      type: "input",
+      placeholder: " (اختياري) الوصف",
+      name: "description",
+      lang: "ar",
+    },
+    {
+      type: "input",
+      placeholder: "اسم القرية (اختياري)",
+      name: "name",
+      lang: "ar",
+    },
+    {
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
+      lang: "en",
+    },
   ];
 
   return (

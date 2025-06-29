@@ -22,7 +22,7 @@ export default function EditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white !p-6 rounded-lg shadow-lg max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-bg-primary">Edit User</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-bg-primary">Edit</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">{children}</div>
         <DialogFooter className="!pt-6">

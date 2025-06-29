@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import DataTable from "@/components/DataTableLayout"; // تأكدي أن هذا هو المسار الصحيح لملفك DataTable
+import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import EditDialog from "@/components/EditDialog";
@@ -15,7 +15,7 @@ const Zones = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [zones, setZones] = useState([]);
-  const [permissions, setPermissions] = useState([]); // State for permissions
+  const [permissions, setPermissions] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -81,18 +81,27 @@ const Zones = () => {
       }
 
       const result = await response.json();
-      const currentLang = localStorage.getItem("lang") || "en";
 
       const formatted = result.zones.map((zone) => {
+        console.log("Processing zone:", zone.id, zone.translations); // للـ debugging
+        
+        // فصل الترجمات حسب اللغة والنوع
         const translations = zone.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name = translations[currentLang]?.name || zone.name || "—";
-        const description =
-          translations[currentLang]?.description || zone.description || "—";
+        console.log("Parsed translations:", translations); // للـ debugging
+
+        // استخراج البيانات بالإنجليزي (للعرض في الجدول)
+        const nameEn = translations?.en?.name || zone.name || "—";
+        const descriptionEn = translations?.en?.description || zone.description || "—";
+
+        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
+        const nameAr = translations?.ar?.name || null;
+        const descriptionAr = translations?.ar?.description || null;
 
         const createdDate = new Date(zone.created_at);
         const created_at = `${createdDate.getFullYear()}/${(
@@ -114,13 +123,17 @@ const Zones = () => {
             />
           ) : (
             <Avatar className="w-12 h-12">
-              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
             </Avatar>
           );
+
         return {
           id: zone.id,
-          name,
-          description,
+          name: nameEn,
+          description: descriptionEn,
+          // إضافة الحقول العربية (null لو مش موجودة)
+          nameAr: nameAr,
+          descriptionAr: descriptionAr,
           img: image,
           created_at,
           image_link: zone.image_link,
@@ -140,7 +153,6 @@ const Zones = () => {
     fetchZones();
   }, []);
 
-  // هذه الدوال يتم استدعاؤها فقط إذا كان الزر ظاهرًا وقابلاً للنقر
   const handleEdit = (zone) => {
     setSelectedRow(zone);
     setIsEditOpen(true);
@@ -154,22 +166,38 @@ const Zones = () => {
   const handleSave = async () => {
     if (!selectedRow) return;
 
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("ZonesEdit")) {
       toast.error("You don't have permission to edit zones");
       return;
     }
 
-    const { id, name, description, status } = selectedRow;
+    const { id, name, description, nameAr, descriptionAr, status } = selectedRow;
     const formData = new FormData();
 
-    formData.append("name", name);
-    formData.append("description", description);
+    // بعت الإنجليزي دايماً
+    formData.append("name", name || "");
+    formData.append("description", description || "");
+    
+    // بعت العربي بس لو موجود أصلاً في الداتا (يعني الـ zone له ترجمة عربية)
+    // مش مهم لو فاضي أو مليان، المهم إنه موجود في الـ structure
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      formData.append("ar_name", nameAr || "");
+    }
+    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+      formData.append("ar_description", descriptionAr || "");
+    }
+    
     formData.append("status", status === "active" ? 1 : 0);
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
     } else if (selectedRow.image_link) {
       formData.append("image", selectedRow.image_link);
+    }
+
+    // للـ debugging - شوفي إيه اللي بيتبعت
+    console.log("FormData being sent:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
     }
 
     try {
@@ -199,7 +227,6 @@ const Zones = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("ZonesDelete")) {
       toast.error("You don't have permission to delete zones");
       return;
@@ -228,7 +255,6 @@ const Zones = () => {
   };
 
   const handleToggleStatus = async (row, newStatus) => {
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("ZonesStatus")) {
       toast.error("You don't have permission to change zone status");
       return;
@@ -287,7 +313,7 @@ const Zones = () => {
     { key: "description", label: "Description" },
     { key: "created_at", label: "Added Date" },
     { key: "img", label: "Image" },
-    { key: "status", label: "Status" }, // Status column to render the switch
+    { key: "status", label: "Status" },
   ];
 
   const filterOptionsForZones = [
@@ -302,38 +328,30 @@ const Zones = () => {
     },
   ];
 
-  console.log("Has ZonesAdd permission:", hasPermission("ZonesAdd"));
-  console.log("Has ZonesEdit permission:", hasPermission("ZonesEdit"));
-  console.log("Has ZonesDelete permission:", hasPermission("ZonesDelete"));
-  console.log("Has ZonesStatus permission:", hasPermission("ZonesStatus"));
-
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 
-<DataTable
-  data={zones}
-  columns={columns}
-  // ربط الـ props الخاصة بظهور الأزرار والصلاحيات
-  showAddButton={hasPermission("ZonesAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
-  addRoute="/zones/add"
-
-  onEdit={handleEdit}
-  onDelete={handleDelete}
-  onToggleStatus={handleToggleStatus}
-
-  showEditButton={hasPermission("ZonesEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showDeleteButton={hasPermission("ZonesDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showActions={
-    hasPermission("ZonesEdit") ||
-    hasPermission("ZonesDelete") 
-  }
-  showFilter={true}
-  filterOptions={filterOptionsForZones}
-  searchKeys={["description", "name"]}
-  className="table-compact"
-/>
+      <DataTable
+        data={zones}
+        columns={columns}
+        showAddButton={hasPermission("ZonesAdd")}
+        addRoute="/zones/add"
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onToggleStatus={handleToggleStatus}
+        showEditButton={hasPermission("ZonesEdit")}
+        showDeleteButton={hasPermission("ZonesDelete")}
+        showActions={
+          hasPermission("ZonesEdit") ||
+          hasPermission("ZonesDelete") 
+        }
+        showFilter={true}
+        filterOptions={filterOptionsForZones}
+        searchKeys={["description", "name"]}
+        className="table-compact"
+      />
 
       {selectedRow && (
         <>
@@ -345,8 +363,9 @@ const Zones = () => {
             columns={columns}
             onChange={onChange}
           >
+            {/* الحقول الإنجليزية */}
             <label htmlFor="name" className="text-gray-400 !pb-3">
-              Zone Name
+              Zone Name (English)
             </label>
             <Input
               id="name"
@@ -356,7 +375,7 @@ const Zones = () => {
             />
 
             <label htmlFor="description" className="text-gray-400 !pb-3">
-              Description
+              Description (English)
             </label>
             <Input
               id="description"
@@ -364,6 +383,39 @@ const Zones = () => {
               onChange={(e) => onChange("description", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
+
+            {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
+            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
+
+            {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
+              <>
+                <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
+                  الوصف (عربي)
+                </label>
+                <Input
+                  id="descriptionAr"
+                  value={selectedRow?.descriptionAr || ""}
+                  onChange={(e) => onChange("descriptionAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="وصف المنطقة بالعربي"
+                />
+              </>
+            )}
 
             <label htmlFor="image" className="text-gray-400">
               Image

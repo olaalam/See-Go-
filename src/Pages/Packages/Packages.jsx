@@ -1,6 +1,4 @@
-// ملف Subscription.js - الكود الكامل معدل
 "use client";
-
 import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -35,43 +33,39 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 const Subscription = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [services, setServices] = useState([]);
+  const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   
-  // إضافة useSearchParams لقراءة tab من URL
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'provider';
   const [tab, setTab] = useState(currentTab);
   
   const token = localStorage.getItem("token");
   const [permissions, setPermissions] = useState([]);
-
-  // State for search and filter
+const [serviceSubscriptions, setServiceSubscriptions] = useState([]);
+const [villageSubscriptions, setVillageSubscriptions] = useState([]);
+const [maintenanceSubscriptions, setMaintenanceSubscriptions] = useState([]);
   const [searchValue, setSearchValue] = useState("");
   const [filterValue, setFilterValue] = useState("all");
   const navigate = useNavigate();
 
-  // تحديث URL عند تغيير التاب
   useEffect(() => {
     setSearchParams({ tab });
   }, [tab, setSearchParams]);
 
-  // Define filter options
   const filterOptions = [
     { value: "all", label: "All" },
     { value: "active", label: "Active" },
     { value: "inactive", label: "Inactive" },
   ];
 
-  // Get user permissions from localStorage
   const getUserPermissions = () => {
     try {
       const permissions = localStorage.getItem("userPermission");
       const parsed = permissions ? JSON.parse(permissions) : [];
-
       const flatPermissions = parsed.map(
         (perm) => `${perm.module}:${perm.action}`
       );
@@ -83,9 +77,7 @@ const Subscription = () => {
     }
   };
 
-  // Check if user has specific permission
   const hasPermission = (action) => {
-    // Map subscription actions to the correct permission format
     const permissionMap = {
       'add': 'Subscription:add',
       'edit': 'Subscription:edit', 
@@ -93,30 +85,25 @@ const Subscription = () => {
       'status': 'Subscription:status',
       'view': 'Subscription:view'
     };
-
     const requiredPermission = permissionMap[action.toLowerCase()];
     const hasAccess = permissions.includes(requiredPermission);
-    
     console.log(`Checking permission for ${action}:`, {
       requiredPermission,
       hasAccess,
       allPermissions: permissions
     });
-    
     return hasAccess;
   };
 
-  // Load permissions on component mount
   useEffect(() => {
     const userPermissions = getUserPermissions();
     setPermissions(userPermissions);
   }, []);
 
-  // Check view permission early
   useEffect(() => {
     if (permissions.length > 0 && !hasPermission('view')) {
       toast.error("You don't have permission to view subscriptions");
-      navigate('/dashboard'); // Redirect to dashboard or appropriate page
+      navigate('/dashboard');
       return;
     }
   }, [permissions, navigate]);
@@ -126,151 +113,162 @@ const Subscription = () => {
     Authorization: `Bearer ${token}`,
   });
 
-  const fetchServices = async () => {
-    try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/service_type", {
-        headers: getAuthHeaders(),
-      });
-      const result = await res.json();
-      const formattedServices = (result.service_types || []).map((service) => {
-        const currentLang = localStorage.getItem("lang") || "en";
-        const name =
-          service.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value || service.name;
-        return {
-          id: service.id,
-          name,
-        };
-      });
-      setServices(formattedServices);
-    } catch (err) {
-      console.error("Error fetching services:", err);
-    }
-  };
+const fetchSubscriptions = async () => {
+  dispatch(showLoader());
+  try {
+    const response = await fetch("https://bcknd.sea-go.org/admin/subscription", {
+      headers: getAuthHeaders(),
+    });
+    const result = await response.json();
+    const currentLang = localStorage.getItem("lang") || "en";
 
-  const fetchSubscriptions = async () => {
-    dispatch(showLoader());
-    try {
-      const response = await fetch(
-        "https://bcknd.sea-go.org/admin/subscription",
-        {
-          headers: getAuthHeaders(),
-        }
-      );
-      const result = await response.json();
-      const currentLang = localStorage.getItem("lang") || "en";
+    // معالجة service_types من نفس الاستجابة
+    const formattedServices = (result.services_types || []).map((service) => {
+      const name =
+        service.translations?.find(
+          (t) => t.locale === currentLang && t.key === "name"
+        )?.value || service.name;
+      return {
+        id: service.id,
+        name,
+      };
+    });
+    setServices(formattedServices);
 
-      const formatted = (result.packages || []).map((subscription) => {
+    // معالجة maintenance_types
+    const formattedMaintenanceTypes = (result.maintenance_types || []).map((maintenanceType) => {
+      const name =
+        maintenanceType.translations?.find(
+          (t) => t.locale === currentLang && t.key === "name"
+        )?.value || maintenanceType.name;
+      return {
+        id: maintenanceType.id,
+        name,
+      };
+    });
+    setMaintenanceTypes(formattedMaintenanceTypes);
+
+    // دالة مساعدة لتحويل كل عنصر
+    const formatSubscription = (subscription) => {
         const translations = subscription.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name =
-          translations[currentLang]?.name || subscription.name || "—";
-        const type =
-          translations[currentLang]?.type || subscription.type || "—";
-        const description =
-          translations[currentLang]?.description ||
-          subscription.description ||
-          "—";
-        const serviceName =
-          subscription.service?.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value ||
-          subscription.service?.name ||
-          "—";
 
-        const price = subscription.price || "—";
-        const discount = subscription.discount || "—";
-        const feez = subscription.feez || "—";
-        const admin_num = subscription.admin_num;
-        const security_num = subscription.security_num || "—";
-        const maintenance_module = subscription.maintenance_module;
-        const beach_pool_module = subscription.beach_pool_module;
-        const average =
-          subscription.feez && subscription.discount
-            ? (subscription.feez * (1 - subscription.discount / 100)) : "-";
-        return {
-          id: subscription.id,
-          name,
-          type,
-          description,
-          status: subscription.status === 1 ? "Active" : "Inactive",
-          service_id: subscription.service_id,
-          serviceName,
-          admin_num,
-          security_num,
-          maintenance_module,
-          beach_pool_module,
-          price,
-          discount,
-          feez,
-          average,
-        };
-      });
+        // استخراج البيانات بالإنجليزي (للعرض في الجدول)
+        const nameEn = translations?.en?.name || subscription.name || "—";
+        const descriptionEn = translations?.en?.description || subscription.description || "—";
 
-      setSubscriptions(formatted);
-    } catch (error) {
-      console.error("Error fetching subscriptions:", error);
-    } finally {
-      dispatch(hideLoader());
-    }
-  };
+        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
+        const nameAr = translations?.ar?.name || null;
+        const descriptionAr = translations?.ar?.description || null;
+      const type = translations[currentLang]?.type || subscription.type || "—";
+
+      const serviceName =
+        subscription.service?.translations?.find(
+          (t) => t.locale === currentLang && t.key === "name"
+        )?.value || subscription.service?.name || "—";
+
+      const price = subscription.price || "—";
+      const discount = subscription.discount || "—";
+      const feez = subscription.feez || "—";
+      const admin_num = subscription.admin_num;
+      const security_num = subscription.security_num || "—";
+      const maintenance_module = subscription.maintenance_module;
+      const beach_pool_module = subscription.beach_pool_module;
+      const average =
+        subscription.feez && subscription.discount
+          ? (subscription.feez * (1 - subscription.discount / 100))
+          : "-";
+
+      return {
+        id: subscription.id,
+        type,
+          name: nameEn,
+          description: descriptionEn,
+          // إضافة الحقول العربية (null لو مش موجودة)
+          nameAr: nameAr,
+          descriptionAr: descriptionAr,
+        status: subscription.status === 1 ? "Active" : "Inactive",
+        service_id: subscription.service_id,
+        maintenance_type_id: subscription.maintenance_type_id,
+        serviceName,
+        admin_num,
+        security_num,
+        maintenance_module,
+        beach_pool_module,
+        price,
+        discount,
+        feez,
+        average,
+      };
+    };
+
+    // تهيئة كل نوع بيانات
+    setServiceSubscriptions((result.provider || []).map(formatSubscription));
+    setVillageSubscriptions((result.village || []).map(formatSubscription));
+    setMaintenanceSubscriptions((result.maintenance_provider || []).map(formatSubscription));
+  } catch (error) {
+    console.error("Error fetching subscriptions:", error);
+    toast.error("Failed to fetch subscriptions. Please try again later.");
+  } finally {
+    dispatch(hideLoader());
+  }
+};
 
   useEffect(() => {
-    const fetchData = async () => {
-      await Promise.all([fetchSubscriptions(), fetchServices()]);
-    };
-    fetchData();
+    fetchSubscriptions();
   }, []);
 
-  // Filter and search subscriptions based on the selected tab, search value, and filter value
-  const filteredSubscriptions = subscriptions.filter((subscription) => {
-    // Tab filtering
-    let tabMatch = true;
-    if (tab === "provider") {
-      tabMatch = subscription.type === "provider";
-    } else if (tab === "village") {
-      tabMatch = subscription.type === "village";
-    } else if (tab === "maintenance") {
-      tabMatch =
-        subscription.type === "maintenance_provider" && subscription.maintenance_module;
-    }
+const getActiveSubscriptions = () => {
+  switch (tab) {
+    case 'provider':
+      return serviceSubscriptions;
+    case 'village':
+      return villageSubscriptions;
+    case 'maintenance':
+      return maintenanceSubscriptions;
+    default:
+      return [];
+  }
+};
 
-    // Search filtering
-    const searchMatch = subscription.name
-      .toLowerCase()
-      .includes(searchValue.toLowerCase());
+const filteredSubscriptions = getActiveSubscriptions().filter((subscription) => {
+  const searchMatch = subscription.name
+    .toLowerCase()
+    .includes(searchValue.toLowerCase());
+  
+  let statusMatch = true;
+  if (filterValue === "active") {
+    statusMatch = subscription.status === "Active";
+  } else if (filterValue === "inactive") {
+    statusMatch = subscription.status === "Inactive";
+  }
+  
+  return searchMatch && statusMatch;
+});
 
-    // Status filtering
-    let statusMatch = true;
-    if (filterValue === "active") {
-      statusMatch = subscription.status === "Active";
-    } else if (filterValue === "inactive") {
-      statusMatch = subscription.status === "Inactive";
-    }
-
-    return tabMatch && searchMatch && statusMatch;
+const handleEdit = async (subscription) => {
+  if (!hasPermission('edit')) {
+    toast.error("You don't have permission to edit subscriptions");
+    return;
+  }
+  
+  // تأكد من وجود الخدمات والـ maintenance types
+  console.log('Available services:', services);
+  console.log('Available maintenance types:', maintenanceTypes);
+  console.log('Subscription data:', subscription);
+  
+  setSelectedRow({
+    ...subscription,
+    service_id: subscription.service_id ?? subscription.service?.id ?? "",
+    maintenance_type_id: subscription.maintenance_type_id ?? "",
   });
-
-  const handleEdit = async (subscription) => {
-    if (!hasPermission('edit')) {
-      toast.error("You don't have permission to edit subscriptions");
-      return;
-    }
-    
-    if (services.length === 0) {
-      await fetchServices();
-    }
-    setSelectedRow({
-      ...subscription,
-      service_id: subscription.service_id ?? subscription.service?.id ?? "",
-    });
-    setIsEditOpen(true);
-  };
+  setIsEditOpen(true);
+};
 
   const handleDelete = (subscription) => {
     if (!hasPermission('delete')) {
@@ -291,18 +289,24 @@ const Subscription = () => {
     const {
       id,
       name,
+ nameAr, descriptionAr,
       type,
       description,
       status,
       discount,
       service_id,
+      maintenance_type_id,
       price,
       feez,
     } = selectedRow;
 
-    // Only check service_id if type is provider
+    // Validate service_id for provider type, maintenance_type_id for maintenance type
     if (type === "provider" && (!service_id || isNaN(service_id))) {
       toast.error("Service ID is required for provider type");
+      return;
+    }
+    if (type === "maintenance_provider" && (!maintenance_type_id || isNaN(maintenance_type_id))) {
+      toast.error("Maintenance Type ID is required for maintenance type");
       return;
     }
 
@@ -315,10 +319,18 @@ const Subscription = () => {
     updatedSubscription.append("price", price || "");
     updatedSubscription.append("type", type || "");
     updatedSubscription.append("discount", discount || "");
+        if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      updatedSubscription.append("ar_name", nameAr || "");
+    }
+    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+      updatedSubscription.append("ar_description", descriptionAr || "");
+    }
 
-    // Add service_id only if type = provider
+    // Add appropriate ID based on type
     if (type === "provider") {
       updatedSubscription.append("service_id", service_id);
+    } else if (type === "maintenance_provider") {
+      updatedSubscription.append("maintenance_type_id", maintenance_type_id);
     }
 
     if (type === "village") {
@@ -362,42 +374,50 @@ const Subscription = () => {
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!hasPermission('delete')) {
-      toast.error("You don't have permission to delete subscriptions");
-      return;
-    }
-    
-    try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/subscription/delete/${selectedRow.id}`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Subscription deleted successfully!");
-        setSubscriptions(
-          subscriptions.filter(
-            (subscription) => subscription.id !== selectedRow.id
-          )
-        );
-        setIsDeleteOpen(false);
-      } else {
-        toast.error("Failed to delete subscription!");
+const handleDeleteConfirm = async () => {
+  if (!hasPermission('delete')) {
+    toast.error("You don't have permission to delete subscriptions");
+    return;
+  }
+  
+  try {
+    const response = await fetch(
+      `https://bcknd.sea-go.org/admin/subscription/delete/${selectedRow.id}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
       }
-    } catch (error) {
-      toast.error("Error occurred while deleting subscription!", error);
+    );
+
+    if (response.ok) {
+      toast.success("Subscription deleted successfully!");
+      
+      // حذف من الـ array الصحيح بناءً على الـ tab الحالي
+      const removeFromArray = (prevArray) =>
+        prevArray.filter((subscription) => subscription.id !== selectedRow.id);
+
+      if (tab === 'provider') {
+        setServiceSubscriptions(removeFromArray);
+      } else if (tab === 'village') {
+        setVillageSubscriptions(removeFromArray);
+      } else if (tab === 'maintenance') {
+        setMaintenanceSubscriptions(removeFromArray);
+      }
+      
+      setIsDeleteOpen(false);
+    } else {
+      toast.error("Failed to delete subscription!");
     }
-  };
+  } catch (error) {
+    toast.error("Error occurred while deleting subscription!", error);
+  }
+};
 
   const onChange = (key, value) => {
     setSelectedRow((prev) => ({
       ...prev,
       [key]:
-        key === "service_id"
+        key === "service_id" || key === "maintenance_type_id"
           ? parseInt(value, 10)
           : key === "type"
           ? value.toLowerCase()
@@ -405,51 +425,59 @@ const Subscription = () => {
     }));
   };
 
-  const handleToggleStatus = async (row, newStatus) => {
-    if (!hasPermission('status')) {
-      toast.error("You don't have permission to change subscription status");
-      return;
-    }
+const handleToggleStatus = async (row, newStatus) => {
+  if (!hasPermission('status')) {
+    toast.error("You don't have permission to change subscription status");
+    return;
+  }
 
-    const { id } = row;
-    
-    try {
-      const response = await fetch(
-        `https://bcknd.sea-go.org/admin/subscription/status/${id}?status=${newStatus}`,
-        {
-          method: "PUT",
-          headers: getAuthHeaders(),
-        }
-      );
-
-      if (response.ok) {
-        toast.success("Subscription status updated successfully!");
-        setSubscriptions((prevSubscriptions) =>
-          prevSubscriptions.map((subscription) =>
-            subscription.id === id
-              ? {
-                  ...subscription,
-                  status: newStatus === 1 ? "Active" : "Inactive",
-                }
-              : subscription
-          )
-        );
-      } else {
-        toast.error("Failed to update subscription status!");
+  const { id } = row;
+  
+  try {
+    const response = await fetch(
+      `https://bcknd.sea-go.org/admin/subscription/status/${id}?status=${newStatus}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
       }
-    } catch (error) {
-      toast.error("Error occurred while updating subscription status!", error);
-    }
-  };
+    );
 
-  // التعديل الجديد - تمرير نوع التاب مع الرابط مع التاب الحالي
+    if (response.ok) {
+      toast.success("Subscription status updated successfully!");
+      
+      // تحديث الـ array الصحيح بناءً على الـ tab الحالي
+      const updateArray = (prevArray) =>
+        prevArray.map((subscription) =>
+          subscription.id === id
+            ? {
+                ...subscription,
+                status: newStatus === 1 ? "Active" : "Inactive",
+              }
+            : subscription
+        );
+
+      if (tab === 'provider') {
+        setServiceSubscriptions(updateArray);
+      } else if (tab === 'village') {
+        setVillageSubscriptions(updateArray);
+      } else if (tab === 'maintenance') {
+        setMaintenanceSubscriptions(updateArray);
+      }
+    } else {
+      toast.error("Failed to update subscription status!");
+    }
+  } catch (error) {
+    toast.error("Error occurred while updating subscription status!", error);
+  }
+};
+
+
   const onAdd = () => {
     if (!hasPermission('add')) {
       toast.error("You don't have permission to add subscriptions");
       return;
     }
     
-    // تحديد نوع الاشتراك بناءً على التاب المختار
     let subscriptionType = '';
     if (tab === 'provider') {
       subscriptionType = 'provider';
@@ -459,11 +487,9 @@ const Subscription = () => {
       subscriptionType = 'maintenance_provider';
     }
     
-    // تمرير النوع والتاب الحالي كمعاملات في الرابط
     navigate(`/packages/add?type=${subscriptionType}&returnTab=${tab}`);
   };
 
-  // Permission-based UI controls
   const showAddButton = hasPermission('add');
   const showFilter = true;
   const selectedRows = [];
@@ -480,7 +506,6 @@ const Subscription = () => {
     view: hasPermission('view')
   });
 
-  // Don't render component if user doesn't have view permission
   if (permissions.length > 0 && !hasPermission('view')) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -524,7 +549,6 @@ const Subscription = () => {
         </TabsList>
         <ToastContainer />
 
-        {/* Search, Filter, and Add section */}
         <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
           <Input
             placeholder="Search..."
@@ -568,9 +592,7 @@ const Subscription = () => {
             </div>
           )}
         </div>
-        {/* End of Search, Filter, and Add section */}
 
-        {/* Card Layout for Subscriptions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSubscriptions.map((subscription) => (
             <Card
@@ -621,10 +643,12 @@ const Subscription = () => {
                     Annual subscription fees :
                   </span>{" "}
                   {subscription.price} EGP
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium">Service:</span>{" "}
-                    {subscription.serviceName}
-                  </p>
+                  {subscription.type === "provider" && (
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium">Service:</span>{" "}
+                      {subscription.serviceName}
+                    </p>
+                  )}
                   {subscription.type === "village" && (
                     <>
                       <p className="text-sm text-gray-700">
@@ -704,7 +728,6 @@ const Subscription = () => {
         </div>
       </Tabs>
 
-      {/* Edit and Delete Dialogs */}
       {selectedRow && (
         <>
           <EditDialog
@@ -727,6 +750,37 @@ const Subscription = () => {
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
+                          {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
+
+            {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
+              <>
+                <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
+                  الوصف (عربي)
+                </label>
+                <Input
+                  id="descriptionAr"
+                  value={selectedRow?.descriptionAr || ""}
+                  onChange={(e) => onChange("descriptionAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="وصف المنطقة بالعربي"
+                />
+              </>
+            )}
               <label htmlFor="type" className="text-gray-400 !pb-3">
                 Type
               </label>
@@ -864,7 +918,7 @@ const Subscription = () => {
                   <Select
                     value={selectedRow?.service_id?.toString()}
                     onValueChange={(value) => onChange("service_id", value)}
-                    disabled={services.length === 0}
+                    
                   >
                     <SelectTrigger
                       id="service"
@@ -896,6 +950,46 @@ const Subscription = () => {
                   </Select>
                 </>
               )}
+{selectedRow?.type === "maintenance_provider" && (
+                <>
+                  <label htmlFor="maintenance_types" className="text-gray-400 !pb-3">
+                    Maintenance Type
+                  </label>
+                  <Select
+                    value={selectedRow?.service_id?.toString()}
+                    onValueChange={(value) => onChange("service_id", value)}
+                    disabled={services.length === 0}
+                  >
+                    <SelectTrigger
+                      id="service"
+                      className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]"
+                    >
+                      <SelectValue placeholder="Select Maintenance" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {maintenanceTypes.length > 0 ? (
+                        maintenanceTypes.map((service) => (
+                          <SelectItem
+                            key={service.id}
+                            value={service.id.toString()}
+                            className="text-bg-primary"
+                          >
+                            {service.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem
+                          value={null}
+                          className="text-bg-primary"
+                          disabled
+                        >
+                          No maintenance types available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </>
+)}
             </div>
           </EditDialog>
           <DeleteDialog

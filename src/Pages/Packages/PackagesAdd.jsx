@@ -11,6 +11,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 export default function AddSubscription() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const [maintenanceTypes, setMaintenanceTypes] = useState([]);
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preSelectedType = searchParams.get('type') || '';
@@ -32,6 +34,7 @@ export default function AddSubscription() {
       security_num: "",
       maintenance_module: "0",
       beach_pool_module: "0",
+      maintenance_type_id:"0",
     },
     ar: {
       name: "",
@@ -50,44 +53,53 @@ export default function AddSubscription() {
     setToken(storedToken);
   }, [navigate]);
 
-  // Fetch services when component mounts or token changes
+  // Fetch data when component mounts or token changes
   useEffect(() => {
     if (token) {
-      fetchServices();
+      fetchSubscriptionData();
     }
   }, [token]);
 
-  const fetchServices = async () => {
-    if (!token) return;
-
+  // Modified function to fetch both maintenance types and services from the same API
+  const fetchSubscriptionData = async () => {
     try {
       dispatch(showLoader());
-      const response = await fetch(
-        "https://bcknd.sea-go.org/admin/service_type",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await fetch("https://bcknd.sea-go.org/admin/subscription", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      if (data.service_types) {
+
+      // Set maintenance types
+      if (data.maintenance_types) {
+        setMaintenanceTypes(
+          data.maintenance_types.map((type) => ({
+            label: type.name,
+            value: type.id.toString(),
+          }))
+        );
+      }
+
+      // Set services from service_type array
+      if (data.services_types) {
         setServices(
-          data.service_types.map((service) => ({
+          data.services_types.map((service) => ({
             label: service.name,
             value: service.id.toString(),
           }))
         );
       }
+
     } catch (error) {
-      console.error("Error fetching services:", error);
-      toast.error("Failed to fetch services. Please try again.");
+      console.error("Error fetching subscription data:", error);
+      toast.error("Failed to fetch data. Please try again.");
     } finally {
       dispatch(hideLoader());
     }
@@ -226,6 +238,7 @@ export default function AddSubscription() {
             security_num: "",
             maintenance_module: "0",
             beach_pool_module: "0",
+            maintenance_type_id:"0",
           },
           ar: {
             name: "",
@@ -278,6 +291,7 @@ export default function AddSubscription() {
       lang: "en",
       required: true,
     },
+    
     ...(selectedType === "provider"
       ? [
           {
@@ -290,6 +304,19 @@ export default function AddSubscription() {
           },
         ]
       : []),
+      ...(selectedType === "maintenance_provider"
+  ? [
+      {
+        type: "select",
+        placeholder: "Maintenance Type",
+        name: "maintenance_type_id",
+        options: maintenanceTypes,
+        lang: "en",
+        required: true,
+      },
+    ]
+  : []),
+
     { 
       type: "number", 
       placeholder: "Price ", 

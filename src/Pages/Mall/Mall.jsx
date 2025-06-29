@@ -1,26 +1,16 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react"; // Import useMemo
-
+import { useEffect, useState, useMemo, useCallback } from "react";
 import DataTable from "@/components/DataTableLayout";
-
 import { toast, ToastContainer } from "react-toastify";
-
 import "react-toastify/dist/ReactToastify.css";
-
 import EditDialog from "@/components/EditDialog";
 import DeleteDialog from "@/components/DeleteDialog";
-
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
 import { useDispatch, useSelector } from "react-redux";
-
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
-
 import FullPageLoader from "@/components/Loading";
-
 import { Input } from "@/components/ui/input";
-
 import {
   Select,
   SelectTrigger,
@@ -28,74 +18,173 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-
 import { useNavigate } from "react-router-dom";
 import MapLocationPicker from "@/components/MapLocationPicker";
 
 const Mall = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [malls, setMalls] = useState([]); // Renamed for clarity
-  const [allMalls, setAllMalls] = useState([]); // Store original fetched data
 
-  const [zones, setZones] = useState([]); // Will be populated from result.zones
+  // Core data states
+  const [malls, setMalls] = useState([]);
+  const [allMalls, setAllMalls] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [permissions, setPermissions] = useState([]);
 
-  const [selectedRow, setselectedRow] = useState(null);
+  // Dialog states
+  const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // UI states
   const [imageErrors, setImageErrors] = useState({});
-  const [permissions, setPermissions] = useState([]); // State for permissions
 
-  // New state for filter selections
-  const [selectedZoneFilter, setSelectedZoneFilter] = useState("all");
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
+  // Filter states
+  const [filters, setFilters] = useState({
+    zone: "all",
+    status: "all",
+  });
 
-  const token = localStorage.getItem("token");
-  const navigate = useNavigate();
+  // Edit location state
+  const [editLocationData, setEditLocationData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
+  });
 
-  // الحصول على الصلاحيات من localStorage
-  const getUserPermissions = () => {
+  // Utility functions
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        reject(new Error("No file provided"));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const result = reader.result;
+          if (!result) {
+            reject(new Error("Failed to read file"));
+            return;
+          }
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error("FileReader error"));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const extractBase64FromDataURL = (dataURL) => {
+    if (!dataURL || typeof dataURL !== 'string') {
+      console.warn("Invalid dataURL provided:", dataURL);
+      return null;
+    }
+    
+    if (!dataURL.includes(',')) {
+      return dataURL;
+    }
+    
     try {
-      const permissions = localStorage.getItem("userPermission");
-      const parsed = permissions ? JSON.parse(permissions) : [];
-
-      const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
-      );
-      console.log("Flattened permissions:", flatPermissions);
-      return flatPermissions;
+      const base64Part = dataURL.split(',')[1];
+      if (!base64Part) {
+        console.warn("No base64 data found in dataURL");
+        return null;
+      }
+      
+      const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Regex.test(base64Part)) {
+        console.warn("Invalid base64 format");
+        return null;
+      }
+      
+      return base64Part;
     } catch (error) {
-      console.error("Error parsing user permissions:", error);
-      return [];
+      console.error("Error extracting base64:", error);
+      return null;
     }
   };
 
-  // التحقق من وجود صلاحية معينة
-  const hasPermission = (permission) => {
-    const match = permission.match(/^Mall(.*)$/i);
-    if (!match) return false;
+  const validateImageFile = (file) => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
 
-    const permKey = match[1].toLowerCase();
-    const fullPerm = `Mall:${permKey}`;
+    if (!validTypes.includes(file.type)) {
+      throw new Error("Please select a valid image file (JPEG, PNG, GIF, WebP)");
+    }
 
-    return permissions.includes(fullPerm);
+    if (file.size > maxSize) {
+      throw new Error("Image file size must be less than 5MB");
+    }
+
+    return true;
   };
-
-  // Load permissions on component mount
-  useEffect(() => {
-    const userPermissions = getUserPermissions();
-    setPermissions(userPermissions);
-  }, []);
-
-
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
 
-  const handleImageError = (id) => {
-    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  // Permission utilities
+  const getUserPermissions = () => {
+    try {
+      const permissions = localStorage.getItem("userPermission");
+      const parsed = permissions ? JSON.parse(permissions) : [];
+      return parsed.map(perm => `${perm.module}:${perm.action}`);
+    } catch (error) {
+      console.error("Error parsing user permissions:", error);
+      return [];
+    }
+  };
+
+  const hasPermission = (permission) => {
+    const match = permission.match(/^Mall(.*)$/i);
+    if (!match) return false;
+    const permKey = match[1].toLowerCase();
+    const fullPerm = `Mall:${permKey}`;
+    return permissions.includes(fullPerm);
+  };
+
+  // Event handlers
+  const handleImageError = useCallback((id) => {
+    setImageErrors(prev => ({ ...prev, [id]: true }));
+  }, []);
+
+  const handleFilterChange = useCallback((key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Data fetching
+  const fetchZones = async () => {
+    try {
+      const res = await fetch("https://bcknd.sea-go.org/admin/zone", {
+        headers: getAuthHeaders(),
+      });
+      const result = await res.json();
+      const currentLang = localStorage.getItem("lang") || "en";
+      
+      if (result.zones && Array.isArray(result.zones)) {
+        const formattedZones = result.zones.map((zone) => {
+        const translations = zone.translations.reduce((acc, t) => {
+          if (!acc[t.locale]) acc[t.locale] = {};
+          acc[t.locale][t.key] = t.value;
+          return acc;
+          }, {}) || {};
+          return {
+            id: zone.id,
+            name: translations[currentLang]?.name || zone.name,
+          };
+        });
+        setZones(formattedZones);
+      }
+    } catch (err) {
+      console.error("Error fetching zones:", err);
+    }
   };
 
   const fetchMalls = async () => {
@@ -104,242 +193,340 @@ const Mall = () => {
       const response = await fetch("https://bcknd.sea-go.org/admin/mall", {
         headers: getAuthHeaders(),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
-      // Populate Zones state from result.zones (if available in your actual API response)
-      // Assuming 'result.zones' contains all zones, not just the ones associated with malls
-      const formattedZones = (result.zones || []).map((zone) => {
-        const name =
-          zone.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
-          )?.value || zone.name;
-        return { id: zone.id, name: name };
-      });
-      setZones(formattedZones);
+      if (!result || !result.malls || !Array.isArray(result.malls)) {
+        console.error("Invalid API response structure:", result);
+        setAllMalls([]);
+        setMalls([]);
+        return;
+      }
 
-      // Process malls array
-      const formattedMalls = (result.malls || []).map((mall) => {
-        const translations =
-          mall.translations?.reduce((acc, t) => {
-            if (!acc[t.locale]) acc[t.locale] = {};
-            acc[t.locale][t.key] = t.value;
-            return acc;
-          }, {}) || {};
+      const formatted = result.malls.map((mall) => {
+        // فصل الترجمات حسب اللغة والنوع - same as zones
+        const translations = mall.translations.reduce((acc, t) => {
+          if (!acc[t.locale]) acc[t.locale] = {};
+          acc[t.locale][t.key] = t.value;
+          return acc;
+        }, {});
 
-        const name = translations[currentLang]?.name || mall.name || "—";
-        const rawName = name; // For use in input fields
+ // استخراج البيانات بالإنجليزي (للعرض في الجدول)
+        const nameEn = translations?.en?.name || mall.name || "—";
+        const descriptionEn = translations?.en?.description || mall.description || "—";
+
+        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
+        const nameAr = translations?.ar?.name || null;
+        const descriptionAr = translations?.ar?.description || null;
+
+        // Raw name for editing
+        const rawName = nameEn;
 
         const nameClickable = (
           <span
             onClick={() => navigate(`/mall/single-page-m/${mall.id}`)}
-            className="text-bg-primary hover:text-teal-800 cursor-pointer "
+            className="text-bg-primary hover:text-teal-800 cursor-pointer"
           >
             {name}
           </span>
         );
-        // Assuming location is directly available or derived, if not, it will be "—"
-        const location =
-          translations[currentLang]?.location || mall.location || "—";
-        const description =
-          translations[currentLang]?.description || mall.description || "—";
 
-        const image =
-          mall?.image_link && !imageErrors[mall.id] ? (
-            <img
-              src={mall.image_link}
-              alt={mall.name}
-              className="w-12 h-12 rounded-md object-cover aspect-square"
-              onError={() => handleImageError(mall.id)}
-            />
-          ) : (
-            <Avatar className="w-12 h-12">
-              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-          );
-
-        // Access phone and rating directly from mall object if they exist in your full data
-        const phone = mall.phone || "—"; // Your sample data doesn't have phone
-        const rating = mall.rate || "—"; // Your sample data doesn't have rate
-
-        // Extract zone information directly from the nested zone object
-        let zoneName = "—";
-        let zone_id = null;
-        if (mall.zone) {
-          const zoneTranslation = mall.zone.translations?.find(
+        const location = translations[currentLang]?.location || mall.location || "—";
+        
+        // Get zone information
+        const zoneObj = zones.find(z => z.id === mall.zone_id);
+        const zoneName = zoneObj?.name || 
+          mall.zone?.translations?.find(
             (t) => t.locale === currentLang && t.key === "name"
-          );
-          zoneName = zoneTranslation?.value || mall.zone.name || "—";
-          zone_id = mall.zone.id;
-        }
+          )?.value ||
+          mall.zone?.name ||
+          "—";
+
+        const image = mall?.image_link && !imageErrors[mall.id] ? (
+          <img
+            src={mall.image_link}
+            alt={name}
+            className="w-12 h-12 rounded-md object-cover aspect-square"
+            onError={() => handleImageError(mall.id)}
+          />
+        ) : (
+          <Avatar className="w-12 h-12">
+            <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+          </Avatar>
+        );
+
+        const phone = mall.phone || "—";
+        const rating = mall.rate || "—";
 
         return {
           id: mall.id,
           name: nameClickable,
           rawName,
-          location, // Use 'location' to align with selectedRow structure
-          description,
+          nameEn: nameEn,
+          description: descriptionEn,
+          // إضافة الحقول العربية (null لو مش موجودة)
+          nameAr: nameAr,
+          descriptionAr: descriptionAr,
+          searchableName: name,
           img: image,
-          status: mall.status === 1 ? "Active" : "Inactive",
-          image_link: mall.image_link,
-          zoneName,
-          zone_id,
+          status: mall.status === 1 ? "active" : "inactive",
+          zone_id: mall.zone_id,
+          zone: zoneName,
+          searchableZone: zoneName,
+          location,
           phone,
           rating,
-          open_from: mall.open_from,
-          open_to: mall.open_to,
+          image_link: mall.image_link,
+          open_from: mall.open_from || "",
+          open_to: mall.open_to || "",
+          location_map: mall.location_map || "",
+          lat: mall.lat || 31.2001,
+          lng: mall.lng || 29.9187,
         };
       });
-
-      setAllMalls(formattedMalls); // Store the full list
-      setMalls(formattedMalls); // Initialize displayed malls
+      
+      setAllMalls(formatted);
+      setMalls(formatted);
     } catch (error) {
       console.error("Error fetching malls:", error);
-      toast.error("An error occurred while fetching data!");
+      toast.error("Failed to fetch malls data");
+      setAllMalls([]);
+      setMalls([]);
     } finally {
       dispatch(hideLoader());
     }
   };
 
-  // Fetch provider data on component mount
-  useEffect(() => {
-    fetchMalls();
-  }, []);
-
-  // Filtering logic using useMemo to optimize performance
+  // Filter malls using useMemo
   const filteredMalls = useMemo(() => {
-    let currentFilteredMalls = [...allMalls];
+    let filtered = [...allMalls];
 
-    if (selectedZoneFilter !== "all") {
-      currentFilteredMalls = currentFilteredMalls.filter(
-        (mall) => mall.zoneName === selectedZoneFilter
-      );
+    if (filters.zone !== "all") {
+      filtered = filtered.filter(mall => mall.searchableZone === filters.zone);
     }
 
-    if (selectedStatusFilter !== "all") {
-      currentFilteredMalls = currentFilteredMalls.filter(
-        (mall) =>
-          mall.status.toLowerCase() === selectedStatusFilter.toLowerCase()
-      );
+    if (filters.status !== "all") {
+      filtered = filtered.filter(mall => mall.status === filters.status);
     }
 
-    return currentFilteredMalls;
-  }, [allMalls, selectedZoneFilter, selectedStatusFilter]);
+    return filtered;
+  }, [allMalls, filters]);
 
-  useEffect(() => {
-    // Update displayed malls whenever filters change
-    setMalls(filteredMalls);
-  }, [filteredMalls]);
-
-  const handleEdit = async (mall) => {
-    setselectedRow({
+  // Dialog handlers
+  const handleEdit = (mall) => {
+    if (!mall) {
+      console.error("No mall data provided for editing");
+      return;
+    }
+    
+    const editableMall = {
       ...mall,
-      name: mall.rawName, // Use rawName here for the text field
-      open_from: mall.open_from || "",
-      open_to: mall.open_to || "",
-      zone_id: mall.zone_id, // Ensure zone_id is passed
-      location: mall.location || "", // Pass location from the mall object
-    });
+      name: mall.rawName || mall.name,
+    };
+    
+    setSelectedRow(editableMall);
+    
+    // Set location data
+    const locationData = {
+      location_map: mall.location_map || mall.location || "",
+      lat: mall.lat || 31.2001,
+      lng: mall.lng || 29.9187,
+    };
+    
+    console.log("Setting location data:", locationData);
+    setEditLocationData(locationData);
+    
     setIsEditOpen(true);
   };
 
+  // Sync location data when selectedRow changes
+  useEffect(() => {
+    if (selectedRow && isEditOpen) {
+      const locationData = {
+        location_map: selectedRow.location_map || selectedRow.location || "",
+        lat: selectedRow.lat || 31.2001,
+        lng: selectedRow.lng || 29.9187,
+      };
+      
+      console.log("Syncing location data from selectedRow:", locationData);
+      setEditLocationData(locationData);
+    }
+  }, [selectedRow, isEditOpen]);
+
   const handleDelete = (mall) => {
-    setselectedRow(mall);
+    if (!mall) {
+      console.error("No mall data provided for deletion");
+      return;
+    }
+    
+    setSelectedRow(mall);
     setIsDeleteOpen(true);
   };
 
-  useEffect(() => {
-    if (isEditOpen && selectedRow) {
-      console.log("selectedRow data when opening Edit Dialog:", selectedRow);
+  const onChange = (key, value) => {
+    setSelectedRow((prev) => ({
+      ...prev,
+      [key]: key === "zone_id" ? parseInt(value, 10) || 0 : value,
+    }));
+  };
+
+  const handleImageChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      setSelectedRow(prev => ({
+        ...prev,
+        imageFile: null,
+        imageBase64: null,
+        newImageBase64: null,
+        image_link: prev.image_link,
+        hasNewImage: false,
+      }));
+      return;
     }
-  }, [isEditOpen, selectedRow]);
+
+    try {
+      validateImageFile(file);
+
+      const dataURL = await convertFileToBase64(file);
+      const base64Only = extractBase64FromDataURL(dataURL);
+      
+      if (!base64Only) {
+        throw new Error("Failed to extract base64 data from image");
+      }
+
+      const previewURL = URL.createObjectURL(file);
+      
+      setSelectedRow(prev => ({
+        ...prev,
+        imageFile: file,
+        imageBase64: dataURL,
+        newImageBase64: base64Only,
+        image_link: previewURL,
+        hasNewImage: true,
+      }));
+
+      console.log("Image processed successfully:", {
+        fileName: file.name,
+        fileSize: file.size,
+        base64Length: base64Only.length,
+      });
+
+    } catch (error) {
+      console.error('Error processing image:', error);
+      toast.error(error.message || 'Error processing image file');
+      event.target.value = '';
+    }
+  };
+
+  const formatTimeWithSeconds = (time) => {
+    if (!time) return "";
+    return time.length === 5 ? `${time}:00` : time;
+  };
 
   const handleSave = async () => {
-    const {
-      id,
-      name, // This is now rawName
-      description,
-      status,
-      zone_id, // Must be available
+    if (!selectedRow) return;
 
-      open_from,
-      open_to,
-      //location, // Get location from selectedRow
-    } = selectedRow;
+    if (!hasPermission("MallEdit")) {
+      toast.error("You don't have permission to edit malls");
+      return;
+    }
 
-    if (!zone_id || isNaN(parseInt(zone_id, 10))) {
+    const { id, name, description,nameAr, descriptionAr,status, zone_id, open_from, open_to, newImageBase64, hasNewImage } = selectedRow;
+
+    // Validation
+    if (!id) {
+      toast.error("Mall ID is missing");
+      return;
+    }
+
+    if (!zone_id || isNaN(zone_id)) {
       toast.error("Zone ID is missing or invalid");
       return;
     }
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
-    if (!hasPermission("MallEdit")) {
-      toast.error("You don't have permission to edit Mall");
+
+    if (!name || name.trim() === "") {
+      toast.error("Mall name is required");
       return;
     }
-    const updatedMall = new FormData();
-    updatedMall.append("id", id);
-    updatedMall.append("name", name || "");
-   // updatedMall.append("location", location || "");
-    updatedMall.append("description", description || "");
-    updatedMall.append("status", status === "Active" ? "1" : "0");
-    updatedMall.append("zone_id", parseInt(zone_id, 10));
 
-    const formatTimeWithSeconds = (time) => {
-      if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time;
+    const updatedMall = {
+      id,
+      name: name.trim(),
+      description: description || "",
+      status: status === "active" ? "1" : "0",
+      zone_id: parseInt(zone_id, 10),
+      location: editLocationData.location_map,
+      open_from: formatTimeWithSeconds(open_from) || "",
+      open_to: formatTimeWithSeconds(open_to) || "",
+      lat: editLocationData.lat.toString(),
+      lng: editLocationData.lng.toString(),
+      location_map: editLocationData.location_map,
     };
+    // إضافة الحقول العربية بس لو موجودة أصلاً في الداتا - same logic as zones
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      updatedMall.ar_name = nameAr || "";
+    }
+    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+      updatedMall.ar_description = descriptionAr || "";
+    }
 
-    updatedMall.append("open_from", formatTimeWithSeconds(open_from));
-    updatedMall.append("open_to", formatTimeWithSeconds(open_to));
+    if (hasNewImage && newImageBase64) {
+      console.log("Adding new image to update data, base64 length:", newImageBase64.length);
+      updatedMall.image = selectedRow.imageBase64;
+    }
 
-// ... (inside handleSave function)
-
- if (selectedRow.imageFile) {
- // If a new image file is selected, append it
- updatedMall.append("image", selectedRow.imageFile);
- } else if (selectedRow.image_link) {
- // If no new image file is selected, but there's an existing image_link,
- // append the existing image link. Your backend should be set up to handle this
- // (i.e., if the 'image' field contains a URL, it means to keep the old one).
- updatedMall.append("image", selectedRow.image_link);
- }
-
-// ... (rest of your handleSave function)
+    console.log("Sending update data:", {
+      ...updatedMall,
+      image: updatedMall.image ? `[base64 data: ${updatedMall.image.length} chars]` : 'no image'
+    });
 
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/mall/update/${id}`,
         {
-          method: "POST", // Often PUT for updates, but your code uses POST with ID in URL
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: updatedMall,
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updatedMall),
         }
       );
 
+      const responseData = await response.json();
+      
       if (response.ok) {
         toast.success("Mall updated successfully!");
-       await fetchMalls(); // Re-fetch malls to update the table
+        await fetchMalls();
         setIsEditOpen(false);
-        setselectedRow(null);
+        setSelectedRow(null);
+        setEditLocationData({ location_map: "", lat: 31.2001, lng: 29.9187 });
       } else {
-        const errorData = await response.json();
-        console.error("Update failed:", errorData);
-        toast.error(errorData.message || "Failed to update mall!");
+        console.error("Update failed:", responseData);
+        
+        if (responseData.errors && responseData.errors.image) {
+          toast.error("Image validation failed: " + responseData.errors.image.join(", "));
+        } else {
+          toast.error(responseData.message || "Failed to update mall!");
+        }
       }
     } catch (error) {
-      console.error("Error updating mall:", error);
-      toast.error("Error occurred while updating mall!");
+      console.error("Error occurred while updating mall:", error);
+      toast.error("Network error occurred while updating mall!");
     }
   };
 
   const handleDeleteConfirm = async () => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    if (!selectedRow) return;
+
     if (!hasPermission("MallDelete")) {
-      toast.error("You don't have permission to delete Mall");
+      toast.error("You don't have permission to delete malls");
       return;
     }
+
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/mall/delete/${selectedRow.id}`,
@@ -348,57 +535,35 @@ const Mall = () => {
           headers: getAuthHeaders(),
         }
       );
+
       if (response.ok) {
         toast.success("Mall deleted successfully!");
-        setMalls(malls.filter((mall) => mall.id !== selectedRow.id));
+        setAllMalls(prev => prev.filter(mall => mall.id !== selectedRow.id));
         setIsDeleteOpen(false);
-        // After deletion, re-apply filters to the remaining allMalls
-        setAllMalls(allMalls.filter((mall) => mall.id !== selectedRow.id));
+        setSelectedRow(null);
       } else {
         toast.error("Failed to delete mall!");
       }
     } catch (error) {
-      toast.error("Error occurred while deleting mall!", error);
-    }
-  };
-
-  const onChange = (key, value) => {
-    setselectedRow((prev) => {
-      let newValue = value;
-      // Convert values to integers if they are zone_id
-      if (key === "zone_id") {
-        newValue = parseInt(value, 10);
-      }
-
-      return {
-        ...prev,
-        [key]: newValue,
-        // Ensure rawName is updated only when the key is 'name'
-        rawName: key === "name" ? value : prev.rawName,
-      };
-    });
-  };
-
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setselectedRow((prev) => ({
-        ...prev,
-        imageFile: file,
-        image_link: URL.createObjectURL(file), // For immediate preview of the new image
-      }));
+      console.error("Error occurred while deleting mall!", error);
+      toast.error("Error occurred while deleting mall!");
     }
   };
 
   const handleToggleStatus = async (row, newStatus) => {
-    const { id } = row;
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
-    if (!hasPermission("MallStatus")) {
-      toast.error(
-        "You don't have permission to change Mall status"
-      );
+    if (!row || !row.id) {
+      console.error("Invalid row data for status toggle");
+      toast.error("Invalid mall data");
       return;
     }
+
+    if (!hasPermission("MallStatus")) {
+      toast.error("You don't have permission to change mall status");
+      return;
+    }
+
+    const { id } = row;
+
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/mall/status/${id}?status=${newStatus}`,
@@ -407,13 +572,13 @@ const Mall = () => {
           headers: getAuthHeaders(),
         }
       );
+
       if (response.ok) {
         toast.success("Mall status updated successfully!");
-        // Update allMalls and let useMemo re-calculate filteredMalls
-        setAllMalls((prevAllMalls) =>
-          prevAllMalls.map((mall) =>
+        setAllMalls(prev =>
+          prev.map(mall =>
             mall.id === id
-              ? { ...mall, status: newStatus === 1 ? "Active" : "Inactive" }
+              ? { ...mall, status: newStatus === 1 ? "active" : "inactive" }
               : mall
           )
         );
@@ -421,22 +586,40 @@ const Mall = () => {
         toast.error("Failed to update mall status!");
       }
     } catch (error) {
-      toast.error("Error occurred while updating mall status!", error);
+      console.error("Error occurred while updating mall status!", error);
+      toast.error("Error occurred while updating mall status!");
     }
   };
 
+  // Effects
+  useEffect(() => {
+    const userPermissions = getUserPermissions();
+    setPermissions(userPermissions);
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await Promise.all([fetchMalls(), fetchZones()]);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    setMalls(filteredMalls);
+  }, [filteredMalls]);
+
+  // Table configuration
   const columns = [
     { key: "name", label: "Mall" },
     { key: "img", label: "Image" },
     { key: "description", label: "Description" },
-    { key: "zoneName", label: "Zone" },
-
+    { key: "zone", label: "Zone" },
     { key: "status", label: "Status" },
   ];
 
-  const filterOptionsForVillages = [
+  const filterOptions = [
     {
-      key: "zoneName", // Changed to match the data key
+      key: "searchableZone",
       label: "Zone",
       options: [
         { value: "all", label: "All Zones" },
@@ -444,7 +627,7 @@ const Mall = () => {
       ],
     },
     {
-      key: "status", // Matches the data key
+      key: "status",
       label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
@@ -455,32 +638,30 @@ const Mall = () => {
   ];
 
   return (
-    <div className="p-6">
+    <div className="p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer position="top-right" autoClose={3000} />
-
+      
       <DataTable
-        data={malls} // Pass the filtered data here
+        data={malls}
         columns={columns}
-                showAddButton={hasPermission("MallAdd")}
-
+        showAddButton={hasPermission("MallAdd")}
         addRoute="/mall/add"
-        className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        searchKeys={[
-          "name",
-          "location",
-          "zoneName",
-        ]}
-        showEditButton={hasPermission("MallEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showDeleteButton={hasPermission("MallDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showActions={hasPermission("MallEdit") || hasPermission("MallDelete")}
+        showEditButton={hasPermission("MallEdit")}
+        showDeleteButton={hasPermission("MallDelete")}
+        showActions={
+          hasPermission("MallEdit") || hasPermission("MallDelete")
+        }
         showFilter={true}
-        filterOptions={filterOptionsForVillages} // Pass the enhanced filterOptions
+        filterOptions={filterOptions}
+        searchKeys={["searchableName", "description", "location"]}
+        className="table-compact"
+        onFilterChange={handleFilterChange}
       />
-
+      
       {selectedRow && (
         <>
           <EditDialog
@@ -488,29 +669,64 @@ const Mall = () => {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
-            zones={zones} // Pass the extracted zones
+            zones={zones}
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {/* الحقول الإنجليزية */}
               <label htmlFor="name" className="text-gray-400 !pb-3">
-                Mall Name
+                Mall Name (English)
               </label>
               <Input
-                label="Mall Name"
                 id="name"
-                value={selectedRow?.name}
+                value={selectedRow?.name || ""}
                 onChange={(e) => onChange("name", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
+                required
               />
-{/*
-              <label htmlFor="location" className="text-gray-400 !pb-3">
-                Location
+
+              <label htmlFor="description" className="text-gray-400 !pb-3">
+                Description (English)
               </label>
-              <MapLocationPicker
-                value={selectedRow?.location || ""}
-                onChange={(newValue) => onChange("location", newValue)}
-                placeholder="Search or select location on map"
-              />*/}
+              <Input
+                id="description"
+                value={selectedRow?.description || ""}
+                onChange={(e) => onChange("description", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              {/* الحقول العربية - بس لو الـ village أصلاً له ترجمة عربية */}
+              {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+                <>
+                  <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                    اسم القرية (عربي)
+                  </label>
+                  <Input
+                    id="nameAr"
+                    value={selectedRow?.nameAr || ""}
+                    onChange={(e) => onChange("nameAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="اسم القرية بالعربي"
+                  />
+                </>
+              )}
+
+              {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
+                <>
+                  <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
+                    الوصف (عربي)
+                  </label>
+                  <Input
+                    id="descriptionAr"
+                    value={selectedRow?.descriptionAr || ""}
+                    onChange={(e) => onChange("descriptionAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="وصف القرية بالعربي"
+                  />
+                </>
+              )}
 
               <label htmlFor="zone" className="text-gray-400 !pb-3">
                 Zone
@@ -532,33 +748,40 @@ const Mall = () => {
                       <SelectItem
                         key={zone.id}
                         value={zone.id.toString()}
-                        className="text-bg-primary "
+                        className="text-bg-primary"
                       >
                         {zone.name}
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem
-                      value={null}
-                      className="text-bg-primary"
-                      disabled
-                    >
+                    <SelectItem value="no-zones" disabled>
                       No zones available
                     </SelectItem>
                   )}
                 </SelectContent>
               </Select>
-
-              <label htmlFor="description" className="text-gray-400 !pb-3">
-                Description
+              
+              {/* <label htmlFor="location" className="text-bg-primary !pb-3">
+                Location
               </label>
-              <Input
-                label="description"
-                id="description"
-                value={selectedRow?.description || ""}
-                onChange={(e) => onChange("description", e.target.value)}
-                className="!my-2 text-bg-primary !p-4"
-              />
+              <MapLocationPicker
+                key={selectedRow?.id}
+                value={editLocationData.location_map}
+                onChange={(newValue, coordinates) => {
+                  setEditLocationData(prev => ({
+                    ...prev,
+                    location_map: newValue,
+                    lat: coordinates?.lat || prev.lat,
+                    lng: coordinates?.lng || prev.lng,
+                  }));
+                }}
+                initialCoordinates={{
+                  lat: editLocationData.lat,
+                  lng: editLocationData.lng,
+                }}
+                placeholder="Search or select location on map"
+              /> */}
+
               <label htmlFor="open_from" className="text-gray-400 !pb-3">
                 Open From
               </label>
@@ -584,7 +807,6 @@ const Mall = () => {
               <label htmlFor="image" className="text-gray-400">
                 Image
               </label>
-
               {selectedRow?.image_link && (
                 <div className="flex items-center gap-4 mb-2">
                   <img
@@ -592,27 +814,34 @@ const Mall = () => {
                     alt="Current"
                     className="w-12 h-12 rounded-md object-cover border"
                   />
+                  {selectedRow.hasNewImage && (
+                    <span className="text-sm text-green-600">New image selected</span>
+                  )}
                 </div>
               )}
-
               <Input
                 type="file"
                 id="image"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                 className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
                 onChange={handleImageChange}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: JPEG, PNG, GIF, WebP (max 5MB)
+              </p>
             </div>
           </EditDialog>
+
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
-            name={selectedRow.name}
+            name={selectedRow.rawName || selectedRow.name}
           />
         </>
       )}
     </div>
   );
 };
+
 export default Mall;

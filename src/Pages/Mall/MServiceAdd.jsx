@@ -7,20 +7,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate, useParams } from "react-router-dom";
+import { Input } from "@/components/ui/input"; // Assuming you might use Input for location_map
+import PickUpMap from "@/components/PickUpMap"; // Assuming you use PickUpMap for location
 
 export default function AddProvider() {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
-  // Corrected destructuring for useParams
-  const { id } = useParams(); // <-- Corrected this line
+  const { id } = useParams(); // Keep id for potential mall_id on submission if needed
 
-  // State to store all villages fetched from the API
   const [allVillages, setAllVillages] = useState([]);
   const [services, setServices] = useState([]);
   const [zones, setZones] = useState([]);
-  // State for villages filtered by the selected zone
   const [filteredVillages, setFilteredVillages] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -29,10 +28,8 @@ export default function AddProvider() {
       description: "",
       phone: "",
       service_id: "",
-      zone_id: "", // Renamed to zone_id for clarity and consistency with backend
-      village_id: "", // Added to store the selected village ID
-      location: "",
-      location_map: "",
+      zone: "", // Changed from zone_id to zone
+      village: "", // Changed from village_id to village
       status: "",
       image: null,
       open_from: "",
@@ -44,41 +41,38 @@ export default function AddProvider() {
     },
   });
 
-  // Effect to fetch initial data for dropdowns (services, zones, and all villages)
+  const [pickUpData, setPickUpData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
+  });
+
   useEffect(() => {
     const fetchDataForDropdowns = async () => {
-      dispatch(showLoader()); // Show loader before fetching
+      dispatch(showLoader());
       try {
-        // Changed API endpoint for fetching dropdown data
-        // It was previously hitting /admin/provider/add which is for POST, not GET for options.
-        // Assuming /admin/mall/providers?mall_id=${id} provides the necessary dropdown data,
-        // if not, you might need a different endpoint that returns all services, zones, and villages.
+        // Updated API endpoint to /admin/provider to match the second code block
         const response = await fetch(
-          `https://bcknd.sea-go.org/admin/mall/providers?mall_id=${id}`,
+          `https://bcknd.sea-go.org/admin/provider`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! ${response.status}`);
         const data = await response.json();
 
-        // Populate Services
-        if (data.service_type) {
+        // Mapping services
+        if (data.services_types) { // Note: Changed from service_type to services_types
           setServices(
-            data.service_type.map((service) => ({
+            data.services_types.map((service) => ({
               label: service.name,
               value: service.id.toString(),
             }))
           );
         }
 
-        // Populate Zones
+        // Mapping zones
         if (data.zones) {
           setZones(
             data.zones.map((zone) => ({
@@ -88,183 +82,151 @@ export default function AddProvider() {
           );
         }
 
-        // Populate ALL Villages and store them
+        // Mapping villages
         if (data.villages) {
           setAllVillages(
             data.villages.map((village) => ({
               label: village.name,
               value: village.id.toString(),
-              zone_id: village.zone_id ? village.zone_id.toString() : null, // Ensure village object has zone_id
+              zone_id: village.zone_id?.toString() || null,
             }))
           );
         }
       } catch (error) {
-        console.error("Error fetching data for dropdowns:", error);
+        console.error("Dropdown fetch error:", error);
         toast.error("Failed to load dropdown options.");
       } finally {
-        dispatch(hideLoader()); // Hide loader after fetching (success or error)
+        dispatch(hideLoader());
       }
     };
 
     fetchDataForDropdowns();
-  }, [token, dispatch, id]); // Added 'id' to dependency array since it's used in the fetch URL
+  }, [token, dispatch]); // Removed 'id' from dependency array as it's not used for this fetch
 
-  // Effect to filter villages whenever allVillages or the selected zone_id changes
   useEffect(() => {
-    const selectedZoneId = formData.en.zone_id;
+    // Adjusted to use formData.en.zone
+    const selectedZoneId = formData.en.zone;
     if (selectedZoneId && allVillages.length > 0) {
-      const villagesInSelectedZone = allVillages.filter(
-        (village) => village.zone_id === selectedZoneId
-      );
-      setFilteredVillages(villagesInSelectedZone);
+      const filtered = allVillages.filter((v) => v.zone_id === selectedZoneId);
+      setFilteredVillages(filtered);
 
-      // If the currently selected village_id is no longer in the filtered list, reset it
-      if (
-        !villagesInSelectedZone.some((v) => v.value === formData.en.village_id)
-      ) {
+      // Reset village if the current one is not in the filtered list
+      if (!filtered.some((v) => v.value === formData.en.village)) {
         setFormData((prev) => ({
           ...prev,
-          en: { ...prev.en, village_id: "" },
+          en: { ...prev.en, village: "" }, // Changed from village_id to village
         }));
       }
     } else {
-      // If no zone is selected, or no villages are loaded, clear filtered villages
       setFilteredVillages([]);
       setFormData((prev) => ({
         ...prev,
-        en: { ...prev.en, village_id: "" },
+        en: { ...prev.en, village: "" }, // Changed from village_id to village
       }));
     }
-  }, [formData.en.zone_id, allVillages]);
+  }, [formData.en.zone, allVillages]); // Adjusted to use formData.en.zone
 
   const handleFieldChange = (lang, name, value) => {
-    setFormData((prev) => {
-      const newFormData = {
+    if (name === "image" && value instanceof File) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [lang]: {
+            ...prev[lang],
+            [name]: reader.result, // Store Base64 string
+          },
+        }));
+      };
+      reader.onerror = () => toast.error("Failed to process image.");
+      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+    } else {
+      setFormData((prev) => ({
         ...prev,
         [lang]: {
           ...prev[lang],
           [name]: value,
         },
-      };
-
-      // If the changed field is 'zone_id', reset 'village_id'
-      if (lang === "en" && name === "zone_id") {
-        newFormData.en.village_id = ""; // Reset village_id when zone changes
-      }
-      return newFormData;
-    });
+      }));
+    }
   };
 
   const handleSubmit = async () => {
     dispatch(showLoader());
 
     const body = new FormData();
-    body.append("name", formData.en.name);
-    body.append("description", formData.en.description);
-    body.append("service_id", formData.en.service_id);
-    body.append("location", formData.en.location);
-    body.append("zone_id", formData.en.zone_id); // Using zone_id
-    body.append("location_map", formData.en.location_map);
-    body.append("phone", formData.en.phone);
-    body.append("status", formData.en.status === "active" ? "1" : "0");
-    body.append("mall_id", id); // Appending mall_id from params for provider creation
+    const { en, ar } = formData;
 
-    const formatTimeWithSeconds = (time) => {
-      if (!time) return "";
-      return time.length === 5 ? `${time}:00` : time; // If HH:mm, add :00
-    };
+    body.append("name", en.name);
+    body.append("description", en.description);
+    body.append("service_id", en.service_id);
+    body.append("zone_id", en.zone); // Changed from en.zone_id to en.zone
+    body.append("village_id", en.village); // Changed from en.village_id to en.village
+    body.append("phone", en.phone);
+    body.append("location", `${pickUpData.lat},${pickUpData.lng}`);
+    body.append("location_map", pickUpData.location_map);
+    body.append("status", en.status === "active" ? "1" : "0");
+    body.append("mall_id", id); // Retained for now as it was in original code
 
-    body.append("open_from", formatTimeWithSeconds(formData.en.open_from));
-    body.append("open_to", formatTimeWithSeconds(formData.en.open_to));
+    // Format time with seconds, consistent with the second code block
+    const formatTime = (time) => (time?.length === 5 ? `${time}:00` : time);
+    body.append("open_from", formatTime(en.open_from));
+    body.append("open_to", formatTime(en.open_to));
 
-    if (formData.en.image) {
-      body.append("image", formData.en.image);
+    // Append the Base64 string directly
+    if (en.image) {
+      body.append("image", en.image);
     }
-    if (formData.ar.name) {
-      body.append("ar_name", formData.ar.name);
-    }
-    if (formData.ar.description) {
-      body.append("ar_description", formData.ar.description);
-    }
-
-    console.log(
-      "Submitting form with data:",
-      Object.fromEntries(body.entries())
-    );
+    if (ar.name) body.append("ar_name", ar.name);
+    if (ar.description) body.append("ar_description", ar.description);
 
     try {
-      const response = await fetch(
-        "https://bcknd.sea-go.org/admin/provider/add", // Still sending to this endpoint
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body,
-        }
-      );
+      const response = await fetch("https://bcknd.sea-go.org/admin/provider/add", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
 
       if (response.ok) {
-        const result = await response.json(); // Assuming the backend returns some data on success, e.g., the ID of the new provider
-        toast.success("Provider added successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        const result = await response.json();
+        toast.success("Provider added successfully!");
 
         // Reset form data after successful submission
         setFormData({
           en: {
             name: "",
             description: "",
-            service_id: "",
             phone: "",
-            location: "",
+            service_id: "",
+            zone: "",
+            village: "",
             status: "",
-            zone_id: "",
-            location_map: "",
             image: null,
             open_from: "",
             open_to: "",
           },
-          ar: {
-            name: "",
-            description: "",
-          },
+          ar: { name: "", description: "" },
         });
-        // Navigate to the single provider page if ID is available
-        if (result?.provider?.id) {
-          navigate(`/mall/single-page-m/${result.provider.id}`);
-        } else {
-          // Fallback navigation or message if no ID is returned
-          navigate("/mall"); // Or a list page
-        }
-      } else {
-        let errorMessage = "Failed to add provider.";
-        try {
-          const errorData = await response.json();
+        setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
 
-          if (errorData?.errors && typeof errorData.errors === "object") {
-            errorMessage = Object.values(errorData.errors).flat().join(", ");
-          } else if (errorData?.message) {
-            errorMessage = errorData.message;
-          } else if (typeof errorData === "string") {
-            errorMessage = errorData;
+        // Navigate after a delay, similar to the second code block
+        setTimeout(() => {
+          if (result?.provider?.id) {
+            navigate(`/mall/single-page-m/${result.provider.id}`); // This path might need adjustment based on your routing
+          } else {
+            navigate("/mall"); // Default navigation if provider ID isn't returned
           }
-        } catch (jsonError) {
-          console.error("Failed to parse error response", jsonError);
-        }
-
-        toast.error(errorMessage, {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        const errorMessage = errorData?.errors
+          ? Object.values(errorData.errors).flat().join(", ")
+          : errorData?.message || "Failed to add provider.";
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Error submitting provider:", error);
-      toast.error("An error occurred!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      console.error("Submit error:", error);
+      toast.error("An error occurred!");
     } finally {
       dispatch(hideLoader());
     }
@@ -272,74 +234,50 @@ export default function AddProvider() {
 
   const fields = [
     { type: "input", placeholder: "Provider Name", name: "name", lang: "en" },
-    {
-      type: "input",
-      placeholder: "Description",
-      name: "description",
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Service Type",
-      name: "service_id",
-      options: services,
-      lang: "en",
-    },
-    {
-      type: "select",
-      placeholder: "Zone",
-      name: "zone_id", // Updated to zone_id
-      options: zones,
-      lang: "en",
-    },
-
+    { type: "input", placeholder: "Description", name: "description", lang: "en" },
+    { type: "select", placeholder: "Service Type", name: "service_id", options: services, lang: "en" },
+    { type: "select", placeholder: "Zone", name: "zone", options: zones, lang: "en" }, // Changed name to 'zone'
+    { type: "select", placeholder: "Village", name: "village", options: filteredVillages, lang: "en" }, // Changed name to 'village'
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
     { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
     { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
-    {
-      type: "switch",
-      name: "status",
-      placeholder: "Status",
-      returnType: "binary",
-      activeLabel: "Active",
-      inactiveLabel: "Inactive",
-      lang: "en",
-    },
-    {
-      type: "input",
-      placeholder: " (اختياري) الوصف",
-      name: "description",
-      lang: "ar",
-    },
-    {
-      type: "input",
-      placeholder: " (اختياري) اسم المزود ",
-      name: "name",
-      lang: "ar",
-    },
-    { type: "map", placeholder: "Location", name: "location", lang: "en" },
-
-
+    { type: "switch", name: "status", placeholder: "Status", returnType: "binary", activeLabel: "Active", inactiveLabel: "Inactive", lang: "en" },
+    { type: "input", placeholder: " (اختياري) الوصف", name: "description", lang: "ar" },
+    { type: "input", placeholder: " (اختياري) اسم المزود ", name: "name", lang: "ar" },
+    // Removed the 'map' type from here as it's handled separately below with PickUpMap
   ];
 
   return (
     <div className="w-full p-6 relative">
       {isLoading && <FullPageLoader />}
       <ToastContainer />
-
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
         Add Service Provider
       </h2>
-
       <div className="w-[90%] mx-auto">
-        <Add
-          fields={fields}
-          values={{ en: formData.en, ar: formData.ar }}
-          onChange={handleFieldChange}
-        />
-      </div>
+        <Add fields={fields} values={{ en: formData.en, ar: formData.ar }} onChange={handleFieldChange} />
 
+        {/* Add PickUpMap section, similar to the second code block */}
+        <div className="!mt-6">
+          <label className="block text-sm font-medium text-gray-700 !mb-2">
+            Pick-up Location (Google Maps link or address)
+          </label>
+          <Input
+            type="text"
+            placeholder="Paste Google Maps link or write address"
+            value={pickUpData.location_map}
+            onChange={(e) =>
+              setPickUpData((prev) => ({
+                ...prev,
+                location_map: e.target.value,
+              }))
+            }
+            className="!mb-4 !ps-2"
+          />
+          <PickUpMap tourPickUp={pickUpData} setTourPickUp={setPickUpData} />
+        </div>
+      </div>
       <div className="!my-6">
         <Button
           onClick={handleSubmit}

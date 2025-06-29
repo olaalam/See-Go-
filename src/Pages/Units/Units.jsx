@@ -77,19 +77,19 @@ const Apartment = () => {
       );
 
       const result = await response.json();
-      const currentLang = localStorage.getItem("lang") || "en";
 
       const formatted = result.appartment_types.map((appartment_types) => {
-        const translations = appartment_types.translations.reduce((acc, t) => {
+        const translations =appartment_types.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name =
-          translations[currentLang]?.name || appartment_types.name || "—";
+               const nameEn = translations?.en?.name || appartment_types.name || "—";
+        const nameAr = translations?.ar?.name || null;
+
         const description =
-          translations[currentLang]?.description ||
+          translations?.description ||
           appartment_types.description ||
           "—";
 
@@ -109,7 +109,8 @@ const Apartment = () => {
 
         return {
           id: appartment_types.id,
-          name,
+           name: nameEn,
+          nameAr: nameAr,
           description,
           img: image,
           numberOfVillages: appartment_types.villages_count ?? "0",
@@ -147,11 +148,13 @@ const Apartment = () => {
       return;
     }
     if (!selectedRow) return;
-    const { id, name, status } = selectedRow;
+    const { id, name, status, nameAr } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
-
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      formData.append("ar_name", nameAr || "");
+    }
     formData.append("status", status === "Active" ? 1 : 0);
 
     if (selectedRow.imageFile) {
@@ -353,7 +356,21 @@ const Apartment = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
-
+            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
             <label htmlFor="image" className="text-gray-400">
               Image
             </label>

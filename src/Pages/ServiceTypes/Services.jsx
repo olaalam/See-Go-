@@ -77,18 +77,21 @@ const Services = () => {
       );
 
       const result = await response.json();
-      const currentLang = localStorage.getItem("lang") || "en";
 
       const formatted = result.service_types.map((service) => {
+        // فصل الترجمات حسب اللغة والنوع
         const translations = service.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name = translations[currentLang]?.name || service.name || "—";
-        const description =
-          translations[currentLang]?.description || service.description || "—";
+         const nameEn = translations?.en?.name || service.name || "—";
+        const descriptionEn = translations?.en?.description || service.description || "—";
+
+        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
+        const nameAr = translations?.ar?.name || null;
 
         const image =
           service?.image_link && !imageErrors[service.id] ? (
@@ -106,8 +109,10 @@ const Services = () => {
 
         return {
           id: service.id,
-          name,
-          description,
+          name: nameEn,
+          description: descriptionEn,
+          // إضافة الحقول العربية (null لو مش موجودة)
+          nameAr: nameAr,
           img: image,
           numberOfVillages: service.villages_count ?? "0",
           status: service.status === 1 ? "Active" : "Inactive",
@@ -145,12 +150,14 @@ const Services = () => {
       toast.error("You don't have permission to edit Service Type");
       return;
     }
-    const { id, name, status } = selectedRow;
+    const { id, name, status, nameAr } = selectedRow;
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("status", status === "Active" ? 1 : 0);
-
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      formData.append("ar_name", nameAr || "");
+    }
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
     } else if (selectedRow.image_link) {
@@ -170,7 +177,6 @@ const Services = () => {
 
       if (response.ok) {
         toast.success("Service updated successfully!");
-        const responseData = await response.json();
 
 { /*       setServices((prev) =>
           prev.map((service) =>
@@ -368,7 +374,21 @@ const Services = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
-
+            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
             <label htmlFor="image" className="text-gray-400">
               Image
             </label>

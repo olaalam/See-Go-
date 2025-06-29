@@ -78,18 +78,18 @@ const Maintenance_types = () => {
       );
 
       const result = await response.json();
-      const currentLang = localStorage.getItem("lang") || "en";
 
       const formatted = result.maintenance_types.map((maintenance_type) => {
+        // فصل الترجمات حسب اللغة والنوع
         const translations = maintenance_type.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        const name =
-          translations[currentLang]?.name || maintenance_type.name || "—";
-
+        const nameEn =
+          translations?.name || maintenance_type.name || "—";
+        const nameAr = translations?.ar?.name || null;
         const image =
           maintenance_type?.image_link && !imageErrors[maintenance_type.id] ? (
             <img
@@ -106,7 +106,8 @@ const Maintenance_types = () => {
 
         return {
           id: maintenance_type.id,
-          name,
+          name: nameEn,
+          nameAr: nameAr,
           img: image,
           status: maintenance_type.status === 1 ? "Active" : "Inactive",
           image_link: maintenance_type.image_link, // Keep the raw link for updating
@@ -138,14 +139,17 @@ const Maintenance_types = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    const { id, name, status } = selectedRow;
+    const { id, name, nameAr,status } = selectedRow;
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Maintenance TypeEdit")) {
       toast.error("You don't have permission to edit zones");
       return;
     }
     const formData = new FormData();
-    formData.append("name", name);
+    formData.append("name", name||"");
+        if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+      formData.append("ar_name", nameAr || "");
+    }
     formData.append("status", status === "Active" ? 1 : 0);
 
     // **MODIFIED LOGIC HERE:**
@@ -341,6 +345,23 @@ const Maintenance_types = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
+                        {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
+            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
+              <>
+                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                  اسم المنطقة (عربي)
+                </label>
+                <Input
+                  id="nameAr"
+                  value={selectedRow?.nameAr || ""}
+                  onChange={(e) => onChange("nameAr", e.target.value)}
+                  className="!my-2 text-bg-primary !p-4"
+                  dir="rtl"
+                  placeholder="اسم المنطقة بالعربي"
+                />
+              </>
+            )}
+
 
             <label htmlFor="image" className="text-gray-400">
               Image
