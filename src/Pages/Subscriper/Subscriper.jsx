@@ -348,11 +348,15 @@ export default function SubscribersPage() {
   ];
 
   const columns = [
-    {
-      key: "subscriber",
-      label: "Subscriber Name",
-      render: (row) => row.subscriber || row.name || "N/A",
-    },
+  ...(tab !== "maintenance_provider"
+    ? [
+        {
+          key: "subscriber",
+          label: "Subscriber Name",
+          render: (row) => row.subscriber || row.name || "N/A",
+        },
+      ]
+    : []),
     {
       key: "type",
       label: "Type",

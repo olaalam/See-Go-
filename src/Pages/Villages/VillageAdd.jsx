@@ -7,6 +7,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import PickUpMap from "@/components/PickUpMap";
 
 export default function AddVillage() {
   const dispatch = useDispatch();
@@ -21,7 +23,7 @@ export default function AddVillage() {
       name: "",
       description: "",
       zone: "",
-      location: "",
+      // location: "",
       status: "",
       image: null,
     },
@@ -98,8 +100,8 @@ const handleSubmit = async () => {
     name: formData.en.name,
     description: formData.en.description,
     zone_id: formData.en.zone,
-    lat: pickUpData.lat,
-    lng: pickUpData.lng,
+    lat: pickUpData.lat.toString(),
+    lng: pickUpData.lng.toString(),
     location_map: pickUpData.location_map,
     location: `${pickUpData.lat},${pickUpData.lng}`,
     status: formData.en.status === "active" ? "1" : "0",
@@ -131,7 +133,7 @@ const handleSubmit = async () => {
           name: "",
           description: "",
           zone: "",
-          location: "",
+          // location: "",
           status: "",
           image: null,
         },
@@ -173,7 +175,6 @@ const handleSubmit = async () => {
       name: "description",
       lang: "en",
     },
-    { type: "map", placeholder: "Location", name: "location", lang: "en" },
     {
       type: "select",
       placeholder: "Zone",
@@ -222,6 +223,24 @@ const handleSubmit = async () => {
           values={{ en: formData.en, ar: formData.ar }}
           onChange={handleFieldChange}
         />
+                <div className="!mt-6 !ms-3">
+          <label className="block text-sm font-medium text-gray-700  !mb-2">
+            Pick-up Location (Google Maps link or address)
+          </label>
+          <Input
+            type="text"
+            placeholder="Paste Google Maps link or write address"
+            value={pickUpData.location_map}
+            onChange={(e) =>
+              setPickUpData((prev) => ({
+                ...prev,
+                location_map: e.target.value,
+              }))
+            }
+            className="!mb-4 !ps-2"
+          />
+          <PickUpMap tourPickUp={pickUpData} setTourPickUp={setPickUpData} />
+        </div>
       </div>
 
       <div className="!my-6">

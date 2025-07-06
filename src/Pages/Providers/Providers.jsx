@@ -509,7 +509,7 @@ const Providers = () => {
     const updatedProvider = {
       id,
       name: name || "",
-      location: location || "",
+      location: editPickUpData.location_map,
       description: description || "",
       status: status === "Active" ? "1" : "0",
       service_id: parseInt(service_id, 10),
@@ -777,7 +777,7 @@ const Providers = () => {
               />
 
               <label htmlFor="location" className="text-gray-400 !pb-3">
-                Location (English)
+                Location 
               </label>
               <MapLocationPicker
                 key={selectedRow?.id}
@@ -789,7 +789,6 @@ const Providers = () => {
                     lat: coordinates?.lat || prev.lat,
                     lng: coordinates?.lng || prev.lng,
                   }));
-                  onChange("location", newValue);
                 }}
                 initialCoordinates={{
                   lat: editPickUpData.lat,

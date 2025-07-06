@@ -8,6 +8,8 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 
+import { Input } from "@/components/ui/input";
+import PickUpMap from "@/components/PickUpMap";
 
 export default function MallAdd() {
   const dispatch = useDispatch();
@@ -26,9 +28,8 @@ export default function MallAdd() {
     en: {
       name: "",
       description: "",
-
       zone: "",    // Stores the ID of the selected zone
-      //location: "",
+      // location: "",
       status: "",
       image: null,
       open_from: "",
@@ -39,7 +40,11 @@ export default function MallAdd() {
       description: "",
     },
   });
-
+  const [pickUpData, setPickUpData] = useState({
+    location_map: "",
+    lat: 31.2001,
+    lng: 29.9187,
+  });
   useEffect(() => {
     const fetchDataForDropdowns = async () => {
       try {
@@ -133,7 +138,10 @@ export default function MallAdd() {
     const body = new FormData();
     body.append("name", formData.en.name);
     body.append("description", formData.en.description);
-    //body.append("location", formData.en.location);
+    body.append("location", `${pickUpData.lat},${pickUpData.lng}`);
+    body.append("lat", pickUpData.lat.toString());
+    body.append("lng", pickUpData.lng.toString());
+    body.append("location_map", pickUpData.location_map); // Ensure this matches the backend
     body.append("zone_id", formData.en.zone); // Ensure this matches the backend expectation
 
 
@@ -184,7 +192,7 @@ export default function MallAdd() {
           en: {
             name: "",
             description: "",
-            //location: "",
+            // location: "",
             status: "",
             zone: "",
             image: null,
@@ -196,7 +204,10 @@ export default function MallAdd() {
             description: "",
           },
         });
-        navigate("/mall"); // Navigate after successful submission and state reset
+              setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
+      setTimeout(() => {
+ navigate("/mall");      }, 2000);
+        // Navigate after successful submission and state reset
       } else {
         let errorMessage = "Failed to add subscriber.";
         try {
@@ -239,6 +250,7 @@ export default function MallAdd() {
       name: "description",
       lang: "en",
     },
+    
     {
       type: "select",
       placeholder: "Zone",
@@ -270,7 +282,6 @@ export default function MallAdd() {
       name: "name",
       lang: "ar",
     },
-    //{ type: "map", placeholder: "Location", name: "location", lang: "en" },
   ];
 
   return (
@@ -288,6 +299,24 @@ export default function MallAdd() {
           values={{ en: formData.en, ar: formData.ar }}
           onChange={handleFieldChange}
         />
+                <div className="!mt-6 !ms-4">
+          <label className="block text-sm font-medium text-gray-700  !mb-2">
+            Pick-up Location (Google Maps link or address)
+          </label>
+          <Input
+            type="text"
+            placeholder="Paste Google Maps link or write address"
+            value={pickUpData.location_map}
+            onChange={(e) =>
+              setPickUpData((prev) => ({
+                ...prev,
+                location_map: e.target.value,
+              }))
+            }
+            className="!mb-4 !ps-2"
+          />
+          <PickUpMap tourPickUp={pickUpData} setTourPickUp={setPickUpData} />
+        </div>
       </div>
 
       <div className="!my-6">

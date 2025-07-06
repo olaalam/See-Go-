@@ -81,28 +81,28 @@ const Mall = () => {
   };
 
   const extractBase64FromDataURL = (dataURL) => {
-    if (!dataURL || typeof dataURL !== 'string') {
+    if (!dataURL || typeof dataURL !== "string") {
       console.warn("Invalid dataURL provided:", dataURL);
       return null;
     }
-    
-    if (!dataURL.includes(',')) {
+
+    if (!dataURL.includes(",")) {
       return dataURL;
     }
-    
+
     try {
-      const base64Part = dataURL.split(',')[1];
+      const base64Part = dataURL.split(",")[1];
       if (!base64Part) {
         console.warn("No base64 data found in dataURL");
         return null;
       }
-      
+
       const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
       if (!base64Regex.test(base64Part)) {
         console.warn("Invalid base64 format");
         return null;
       }
-      
+
       return base64Part;
     } catch (error) {
       console.error("Error extracting base64:", error);
@@ -111,11 +111,19 @@ const Mall = () => {
   };
 
   const validateImageFile = (file) => {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
     const maxSize = 5 * 1024 * 1024; // 5MB
 
     if (!validTypes.includes(file.type)) {
-      throw new Error("Please select a valid image file (JPEG, PNG, GIF, WebP)");
+      throw new Error(
+        "Please select a valid image file (JPEG, PNG, GIF, WebP)"
+      );
     }
 
     if (file.size > maxSize) {
@@ -135,7 +143,7 @@ const Mall = () => {
     try {
       const permissions = localStorage.getItem("userPermission");
       const parsed = permissions ? JSON.parse(permissions) : [];
-      return parsed.map(perm => `${perm.module}:${perm.action}`);
+      return parsed.map((perm) => `${perm.module}:${perm.action}`);
     } catch (error) {
       console.error("Error parsing user permissions:", error);
       return [];
@@ -152,11 +160,11 @@ const Mall = () => {
 
   // Event handlers
   const handleImageError = useCallback((id) => {
-    setImageErrors(prev => ({ ...prev, [id]: true }));
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleFilterChange = useCallback((key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   // Data fetching
@@ -167,14 +175,15 @@ const Mall = () => {
       });
       const result = await res.json();
       const currentLang = localStorage.getItem("lang") || "en";
-      
+
       if (result.zones && Array.isArray(result.zones)) {
         const formattedZones = result.zones.map((zone) => {
-        const translations = zone.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-          }, {}) || {};
+          const translations =
+            zone.translations.reduce((acc, t) => {
+              if (!acc[t.locale]) acc[t.locale] = {};
+              acc[t.locale][t.key] = t.value;
+              return acc;
+            }, {}) || {};
           return {
             id: zone.id,
             name: translations[currentLang]?.name || zone.name,
@@ -193,11 +202,11 @@ const Mall = () => {
       const response = await fetch("https://bcknd.sea-go.org/admin/mall", {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       const currentLang = localStorage.getItem("lang") || "en";
 
@@ -216,11 +225,12 @@ const Mall = () => {
           return acc;
         }, {});
 
- // استخراج البيانات بالإنجليزي (للعرض في الجدول)
+        // استخراج البيانات بالإنجليزي (للعرض في الجدول)
         const nameEn = translations?.en?.name || mall.name || "—";
-        const descriptionEn = translations?.en?.description || mall.description || "—";
+        const descriptionEn =
+          translations?.en?.description || mall.description || "—";
 
-        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // استخراج البيانات بالعربي (للـ EditDialog)
         // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
         const nameAr = translations?.ar?.name || null;
         const descriptionAr = translations?.ar?.description || null;
@@ -233,33 +243,36 @@ const Mall = () => {
             onClick={() => navigate(`/mall/single-page-m/${mall.id}`)}
             className="text-bg-primary hover:text-teal-800 cursor-pointer"
           >
-            {name}
+            {nameEn}
           </span>
         );
 
-        const location = translations[currentLang]?.location || mall.location || "—";
-        
+        const location =
+          translations[currentLang]?.location || mall.location || "—";
+
         // Get zone information
-        const zoneObj = zones.find(z => z.id === mall.zone_id);
-        const zoneName = zoneObj?.name || 
+        const zoneObj = zones.find((z) => z.id === mall.zone_id);
+        const zoneName =
+          zoneObj?.name ||
           mall.zone?.translations?.find(
             (t) => t.locale === currentLang && t.key === "name"
           )?.value ||
           mall.zone?.name ||
           "—";
 
-        const image = mall?.image_link && !imageErrors[mall.id] ? (
-          <img
-            src={mall.image_link}
-            alt={name}
-            className="w-12 h-12 rounded-md object-cover aspect-square"
-            onError={() => handleImageError(mall.id)}
-          />
-        ) : (
-          <Avatar className="w-12 h-12">
-            <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        );
+        const image =
+          mall?.image_link && !imageErrors[mall.id] ? (
+            <img
+              src={mall.image_link}
+              alt={name}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(mall.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          );
 
         const phone = mall.phone || "—";
         const rating = mall.rate || "—";
@@ -279,7 +292,8 @@ const Mall = () => {
           zone_id: mall.zone_id,
           zone: zoneName,
           searchableZone: zoneName,
-          location,
+          
+          map:location,
           phone,
           rating,
           image_link: mall.image_link,
@@ -290,7 +304,7 @@ const Mall = () => {
           lng: mall.lng || 29.9187,
         };
       });
-      
+
       setAllMalls(formatted);
       setMalls(formatted);
     } catch (error) {
@@ -308,11 +322,13 @@ const Mall = () => {
     let filtered = [...allMalls];
 
     if (filters.zone !== "all") {
-      filtered = filtered.filter(mall => mall.searchableZone === filters.zone);
+      filtered = filtered.filter(
+        (mall) => mall.searchableZone === filters.zone
+      );
     }
 
     if (filters.status !== "all") {
-      filtered = filtered.filter(mall => mall.status === filters.status);
+      filtered = filtered.filter((mall) => mall.status === filters.status);
     }
 
     return filtered;
@@ -324,24 +340,24 @@ const Mall = () => {
       console.error("No mall data provided for editing");
       return;
     }
-    
+
     const editableMall = {
       ...mall,
       name: mall.rawName || mall.name,
     };
-    
+
     setSelectedRow(editableMall);
-    
+
     // Set location data
     const locationData = {
       location_map: mall.location_map || mall.location || "",
       lat: mall.lat || 31.2001,
       lng: mall.lng || 29.9187,
     };
-    
+
     console.log("Setting location data:", locationData);
     setEditLocationData(locationData);
-    
+
     setIsEditOpen(true);
   };
 
@@ -353,7 +369,7 @@ const Mall = () => {
         lat: selectedRow.lat || 31.2001,
         lng: selectedRow.lng || 29.9187,
       };
-      
+
       console.log("Syncing location data from selectedRow:", locationData);
       setEditLocationData(locationData);
     }
@@ -364,7 +380,7 @@ const Mall = () => {
       console.error("No mall data provided for deletion");
       return;
     }
-    
+
     setSelectedRow(mall);
     setIsDeleteOpen(true);
   };
@@ -379,7 +395,7 @@ const Mall = () => {
   const handleImageChange = async (event) => {
     const file = event.target.files[0];
     if (!file) {
-      setSelectedRow(prev => ({
+      setSelectedRow((prev) => ({
         ...prev,
         imageFile: null,
         imageBase64: null,
@@ -395,14 +411,14 @@ const Mall = () => {
 
       const dataURL = await convertFileToBase64(file);
       const base64Only = extractBase64FromDataURL(dataURL);
-      
+
       if (!base64Only) {
         throw new Error("Failed to extract base64 data from image");
       }
 
       const previewURL = URL.createObjectURL(file);
-      
-      setSelectedRow(prev => ({
+
+      setSelectedRow((prev) => ({
         ...prev,
         imageFile: file,
         imageBase64: dataURL,
@@ -416,11 +432,10 @@ const Mall = () => {
         fileSize: file.size,
         base64Length: base64Only.length,
       });
-
     } catch (error) {
-      console.error('Error processing image:', error);
-      toast.error(error.message || 'Error processing image file');
-      event.target.value = '';
+      console.error("Error processing image:", error);
+      toast.error(error.message || "Error processing image file");
+      event.target.value = "";
     }
   };
 
@@ -437,7 +452,19 @@ const Mall = () => {
       return;
     }
 
-    const { id, name, description,nameAr, descriptionAr,status, zone_id, open_from, open_to, newImageBase64, hasNewImage } = selectedRow;
+    const {
+      id,
+      name,
+      description,
+      nameAr,
+      descriptionAr,
+      status,
+      zone_id,
+      open_from,
+      open_to,
+      newImageBase64,
+      hasNewImage,
+    } = selectedRow;
 
     // Validation
     if (!id) {
@@ -472,18 +499,26 @@ const Mall = () => {
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedMall.ar_name = nameAr || "";
     }
-    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+    if (
+      selectedRow.descriptionAr !== null &&
+      selectedRow.descriptionAr !== undefined
+    ) {
       updatedMall.ar_description = descriptionAr || "";
     }
 
     if (hasNewImage && newImageBase64) {
-      console.log("Adding new image to update data, base64 length:", newImageBase64.length);
+      console.log(
+        "Adding new image to update data, base64 length:",
+        newImageBase64.length
+      );
       updatedMall.image = selectedRow.imageBase64;
     }
 
     console.log("Sending update data:", {
       ...updatedMall,
-      image: updatedMall.image ? `[base64 data: ${updatedMall.image.length} chars]` : 'no image'
+      image: updatedMall.image
+        ? `[base64 data: ${updatedMall.image.length} chars]`
+        : "no image",
     });
 
     try {
@@ -497,7 +532,7 @@ const Mall = () => {
       );
 
       const responseData = await response.json();
-      
+
       if (response.ok) {
         toast.success("Mall updated successfully!");
         await fetchMalls();
@@ -506,9 +541,11 @@ const Mall = () => {
         setEditLocationData({ location_map: "", lat: 31.2001, lng: 29.9187 });
       } else {
         console.error("Update failed:", responseData);
-        
+
         if (responseData.errors && responseData.errors.image) {
-          toast.error("Image validation failed: " + responseData.errors.image.join(", "));
+          toast.error(
+            "Image validation failed: " + responseData.errors.image.join(", ")
+          );
         } else {
           toast.error(responseData.message || "Failed to update mall!");
         }
@@ -538,7 +575,9 @@ const Mall = () => {
 
       if (response.ok) {
         toast.success("Mall deleted successfully!");
-        setAllMalls(prev => prev.filter(mall => mall.id !== selectedRow.id));
+        setAllMalls((prev) =>
+          prev.filter((mall) => mall.id !== selectedRow.id)
+        );
         setIsDeleteOpen(false);
         setSelectedRow(null);
       } else {
@@ -575,8 +614,8 @@ const Mall = () => {
 
       if (response.ok) {
         toast.success("Mall status updated successfully!");
-        setAllMalls(prev =>
-          prev.map(mall =>
+        setAllMalls((prev) =>
+          prev.map((mall) =>
             mall.id === id
               ? { ...mall, status: newStatus === 1 ? "active" : "inactive" }
               : mall
@@ -614,6 +653,7 @@ const Mall = () => {
     { key: "img", label: "Image" },
     { key: "description", label: "Description" },
     { key: "zone", label: "Zone" },
+    { key: "map", label: "Location" },
     { key: "status", label: "Status" },
   ];
 
@@ -641,7 +681,7 @@ const Mall = () => {
     <div className="p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer position="top-right" autoClose={3000} />
-      
+
       <DataTable
         data={malls}
         columns={columns}
@@ -652,16 +692,14 @@ const Mall = () => {
         onToggleStatus={handleToggleStatus}
         showEditButton={hasPermission("MallEdit")}
         showDeleteButton={hasPermission("MallDelete")}
-        showActions={
-          hasPermission("MallEdit") || hasPermission("MallDelete")
-        }
+        showActions={hasPermission("MallEdit") || hasPermission("MallDelete")}
         showFilter={true}
         filterOptions={filterOptions}
         searchKeys={["searchableName", "description", "location"]}
         className="table-compact"
         onFilterChange={handleFilterChange}
       />
-      
+
       {selectedRow && (
         <>
           <EditDialog
@@ -696,37 +734,45 @@ const Mall = () => {
               />
 
               {/* الحقول العربية - بس لو الـ village أصلاً له ترجمة عربية */}
-              {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
-                <>
-                  <label htmlFor="nameAr" className="text-gray-400 !pb-3">
-                    اسم القرية (عربي)
-                  </label>
-                  <Input
-                    id="nameAr"
-                    value={selectedRow?.nameAr || ""}
-                    onChange={(e) => onChange("nameAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="اسم القرية بالعربي"
-                  />
-                </>
-              )}
+              {selectedRow?.nameAr !== null &&
+                selectedRow?.nameAr !== undefined && (
+                  <>
+                    <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                      اسم القرية (عربي)
+                    </label>
+                    <Input
+                      id="nameAr"
+                      value={selectedRow?.nameAr || ""}
+                      onChange={(e) => onChange("nameAr", e.target.value)}
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="اسم القرية بالعربي"
+                    />
+                  </>
+                )}
 
-              {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
-                <>
-                  <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
-                    الوصف (عربي)
-                  </label>
-                  <Input
-                    id="descriptionAr"
-                    value={selectedRow?.descriptionAr || ""}
-                    onChange={(e) => onChange("descriptionAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="وصف القرية بالعربي"
-                  />
-                </>
-              )}
+
+              {selectedRow?.descriptionAr !== null &&
+                selectedRow?.descriptionAr !== undefined && (
+                  <>
+                    <label
+                      htmlFor="descriptionAr"
+                      className="text-gray-400 !pb-3"
+                    >
+                      الوصف (عربي)
+                    </label>
+                    <Input
+                      id="descriptionAr"
+                      value={selectedRow?.descriptionAr || ""}
+                      onChange={(e) =>
+                        onChange("descriptionAr", e.target.value)
+                      }
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="وصف القرية بالعربي"
+                    />
+                  </>
+                )}
 
               <label htmlFor="zone" className="text-gray-400 !pb-3">
                 Zone
@@ -760,8 +806,8 @@ const Mall = () => {
                   )}
                 </SelectContent>
               </Select>
-              
-              {/* <label htmlFor="location" className="text-bg-primary !pb-3">
+
+              <label htmlFor="location" className="text-bg-primary !pb-3">
                 Location
               </label>
               <MapLocationPicker
@@ -780,7 +826,7 @@ const Mall = () => {
                   lng: editLocationData.lng,
                 }}
                 placeholder="Search or select location on map"
-              /> */}
+              /> 
 
               <label htmlFor="open_from" className="text-gray-400 !pb-3">
                 Open From
@@ -815,7 +861,9 @@ const Mall = () => {
                     className="w-12 h-12 rounded-md object-cover border"
                   />
                   {selectedRow.hasNewImage && (
-                    <span className="text-sm text-green-600">New image selected</span>
+                    <span className="text-sm text-green-600">
+                      New image selected
+                    </span>
                   )}
                 </div>
               )}

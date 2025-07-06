@@ -22,7 +22,7 @@ export default function Addsubscrier() {
     paymentMethods: [],
     providerPackages: [],
     villagePackages: [],
-    services: [],
+    service_type: [],
     villages: [],
     providers: [],
     maintenanceProviders: [],
@@ -89,8 +89,8 @@ export default function Addsubscrier() {
               label: item.name,
               value: item.id.toString(),
             })) || [],
-          services:
-            data.services?.map((item) => ({
+          service_type:
+            data.service_type?.map((item) => ({
               label: item.name,
               value: item.id.toString(),
             })) || [],
@@ -220,33 +220,7 @@ export default function Addsubscrier() {
     }
   };
 
-  const baseFields = [
-    {
-      type: "select",
-      placeholder: "Type",
-      name: "type",
-      options: [
-        { value: "provider", label: "provider" },
-        { value: "village", label: "village" },
-        { value: "maintenance_provider", label: "maintenance" },
-      ],
-      value: formData.type,
-      // Add the disabled property based on the state
-      disabled: isTypeFieldDisabled, // <--- ADD THIS LINE
-    },
-    {
-      type: "select",
-      placeholder: "Payment Method",
-      name: "payment_method_id",
-      options: optionsData.paymentMethods || [],
-    },
-    {
-      type: "select",
-      placeholder: "Package",
-      name: "package_id",
-      options: dynamicPackageOptions || [],
-    },
-  ];
+
 
   let dynamicFields = [];
 
@@ -256,7 +230,7 @@ export default function Addsubscrier() {
         type: "select",
         placeholder: "Service",
         name: "service_id",
-        options: optionsData.services || [],
+        options: optionsData.service_type || [],
       },
       {
         type: "select",
@@ -284,7 +258,33 @@ export default function Addsubscrier() {
       },
     ];
   }
-
+  const baseFields = [
+    // {
+    //   type: "select",
+    //   placeholder: "Type",
+    //   name: "type",
+    //   options: [
+    //     { value: "provider", label: "provider" },
+    //     { value: "village", label: "village" },
+    //     { value: "maintenance_provider", label: "maintenance" },
+    //   ],
+    //   value: formData.type,
+    //   // Add the disabled property based on the state
+    //   disabled: isTypeFieldDisabled, // <--- ADD THIS LINE
+    // },
+    {
+      type: "select",
+      placeholder: "Payment Method",
+      name: "payment_method_id",
+      options: optionsData.paymentMethods || [],
+    },
+    {
+      type: "select",
+      placeholder: "Package",
+      name: "package_id",
+      options: dynamicPackageOptions || [],
+    },
+  ];
   const fields = [...baseFields, ...dynamicFields];
 
   return (

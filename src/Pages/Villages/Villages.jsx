@@ -800,7 +800,7 @@ const Villages = () => {
                 placeholder="Search or select location on map"
               />
 
-              <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
+              {/* <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
                 Number of Units
               </label>
               <Input
@@ -810,7 +810,7 @@ const Villages = () => {
                 value={selectedRow?.numberOfUnits || ""}
                 onChange={(e) => onChange("numberOfUnits", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
-              />
+              /> */}
 
               <label htmlFor="image" className="text-gray-400">
                 Image
