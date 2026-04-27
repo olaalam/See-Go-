@@ -10,9 +10,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { showLoader, hideLoader } from '@/Store/LoaderSpinner';
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { set } from "zod";
 
 const Payment_methods = () => {
     const dispatch = useDispatch();
+    const [isSaving, setIsSaving] = useState(false); // State to track saving status
     const isLoading = useSelector((state) => state.loader.isLoading);
     const [payment_methods, setPaymentMethods] = useState([]);
     const token = localStorage.getItem("token");
@@ -116,6 +118,7 @@ const Payment_methods = () => {
 
     const handleSave = async () => {
         if (!selectedRow) return;
+        setIsSaving(true); // Set saving state to true when save starts
         const { id, name, description, nameAr, descriptionAr, status, imageFile } = selectedRow;
     
         const formData = new FormData();
@@ -161,6 +164,8 @@ const Payment_methods = () => {
         } catch (error) {
             console.error("Error updating payment method:", error);
             toast.error("Error occurred while updating payment method!");
+        } finally {
+            setIsSaving(false); // Set saving state back to false when save completes
         }
     };
     
@@ -278,6 +283,7 @@ const Payment_methods = () => {
                         onSave={handleSave}
                         selectedRow={selectedRow}
                         columns={columns}
+                        isSaving={isSaving}
                         onChange={onChange}
                     >
             {/* الحقول الإنجليزية */}

@@ -10,10 +10,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { set } from "zod";
 
 const Zones = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const [zones, setZones] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const token = localStorage.getItem("token");
@@ -165,6 +167,7 @@ const Zones = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true); // Set saving state to true when save starts
 
     if (!hasPermission("ZonesEdit")) {
       toast.error("You don't have permission to edit zones");
@@ -223,6 +226,8 @@ const Zones = () => {
     } catch (error) {
       console.error("Error updating zone:", error);
       toast.error("Error occurred while updating zone!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
@@ -360,6 +365,7 @@ const Zones = () => {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
+            isSaving={isSaving}
             columns={columns}
             onChange={onChange}
           >

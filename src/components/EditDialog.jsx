@@ -15,12 +15,13 @@ export default function EditDialog({
   selectedRow,
   children,
   onSave,
+  isSaving,
 }) {
   if (!selectedRow) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white !p-6 rounded-lg shadow-lg max-w-3xl">
+      <DialogContent className="bg-white !p-6 rounded-lg shadow-lg overflow-visible max-w-3xl">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-bg-primary">Edit</DialogTitle>
         </DialogHeader>
@@ -33,8 +34,8 @@ export default function EditDialog({
           >
             Cancel
           </Button>
-          <Button onClick={onSave} className="bg-bg-primary  cursor-pointer !p-4 text-white rounded-md">
-            Save
+          <Button  disabled={isSaving} onClick={onSave} className="bg-bg-primary  cursor-pointer !p-4 text-white rounded-md">
+           {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

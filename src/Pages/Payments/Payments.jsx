@@ -9,6 +9,7 @@ import RejectDialog from "./RejectDialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 
+
 export default function PaymentsPage() {
   const [tab, setTab] = useState("Pending Payments");
   const [data, setData] = useState([]);

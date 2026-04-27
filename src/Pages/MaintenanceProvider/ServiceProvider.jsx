@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import MapLocationPicker from "@/components/MapLocationPicker";
+import { set } from "react-hook-form";
 
 const Service_provider = () => {
   const dispatch = useDispatch();
@@ -29,6 +30,7 @@ const Service_provider = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [permissions, setPermissions] = useState([]);
+  const[isSaving, setIsSaving] = useState(false);
 
   const token = localStorage.getItem("token");
 
@@ -264,6 +266,7 @@ const Service_provider = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true);
     if (!hasPermission("Provider MaintenanceEdit")) {
       toast.error("You don't have permission to edit Provider Maintenance");
       return;
@@ -359,6 +362,7 @@ const Service_provider = () => {
       toast.error("Error occurred while updating provider!");
     } finally {
       dispatch(hideLoader());
+      setIsSaving(false);
     }
   };
 
@@ -563,6 +567,7 @@ const Service_provider = () => {
             selectedRow={selectedRow}
             columns={columns}
             onChange={onChange}
+            isSaving={isSaving}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               

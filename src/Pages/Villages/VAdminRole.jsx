@@ -24,10 +24,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { set } from "zod";
 
 const Village_roless = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status  
   const [village_roless, setvillage_roless] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
@@ -172,6 +174,7 @@ const Village_roless = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true); // Set saving state to true when save starts
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Village Admin RoleEdit")) {
       toast.error("You don't have permission to edit Village Admin Role");
@@ -212,6 +215,8 @@ const Village_roless = () => {
     } catch (error) {
       console.error("Error updating village_roles:", error);
       toast.error("Error occurred while updating village role!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
@@ -371,6 +376,7 @@ const Village_roless = () => {
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
+            isSaving={isSaving}
             selectedRow={selectedRow}
             columns={columns}
             onChange={onChange}

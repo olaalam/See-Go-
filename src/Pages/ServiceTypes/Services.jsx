@@ -9,9 +9,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { set } from "zod";
 
 const Services = () => {
   const dispatch = useDispatch();
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [services, setServices] = useState([]);
   const token = localStorage.getItem("token");
@@ -144,7 +146,7 @@ const Services = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-    
+    setIsSaving(true); // Set saving state to true when save starts
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Service TypeEdit")) {
       toast.error("You don't have permission to edit Service Type");
@@ -218,6 +220,8 @@ const Services = () => {
     } catch (error) {
       console.error("Error updating service:", error);
       toast.error("Error occurred while updating service!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
@@ -362,6 +366,7 @@ const Services = () => {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
+            isSaving={isSaving}
             columns={columns} // You might not need `columns` here for the EditDialog itself
             onChange={onChange}
           >

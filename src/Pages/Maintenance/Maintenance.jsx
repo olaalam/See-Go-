@@ -9,9 +9,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { set } from "zod";
 
 const Maintenance_types = () => {
   const dispatch = useDispatch();
+  const[isSaving, setIsSaving] = useState(false); // State to track saving status
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [maintenance_types, setmaintenance_types] = useState([]);
   const token = localStorage.getItem("token");
@@ -139,6 +141,7 @@ const Maintenance_types = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true); // Set saving state to true when save starts
     const { id, name, nameAr,status } = selectedRow;
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Maintenance TypeEdit")) {
@@ -186,6 +189,8 @@ const Maintenance_types = () => {
     } catch (error) {
       console.error("Error updating maintenance type:", error);
       toast.error("Error occurred while updating maintenance type!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
@@ -334,6 +339,7 @@ const Maintenance_types = () => {
             onSave={handleSave}
             selectedRow={selectedRow}
             columns={columns}
+            isSaving={isSaving}
             onChange={onChange}
           >
             <label htmlFor="name" className="text-gray-400 !pb-3">

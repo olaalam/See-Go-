@@ -24,11 +24,13 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { set } from "zod";
 
 const Provider_roless = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [provider_roless, setprovider_roless] = useState([]);
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -46,7 +48,7 @@ const Provider_roless = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -80,13 +82,16 @@ const Provider_roless = () => {
   const fetchprovider_roless = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/provider_roles", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/provider_roles",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -108,11 +113,17 @@ const Provider_roless = () => {
             }, {})
           : {};
 
-        const name = translations[currentLang]?.name || adminPosition.name || "—";
+        const name =
+          translations[currentLang]?.name || adminPosition.name || "—";
 
         let roleToDisplay = "";
-        if (Array.isArray(adminPosition.roles) && adminPosition.roles.length > 0) {
-          roleToDisplay = adminPosition.roles.map((roleObj) => roleObj.module).join(", ");
+        if (
+          Array.isArray(adminPosition.roles) &&
+          adminPosition.roles.length > 0
+        ) {
+          roleToDisplay = adminPosition.roles
+            .map((roleObj) => roleObj.module)
+            .join(", ");
         } else {
           roleToDisplay = adminPosition.name;
         }
@@ -141,7 +152,9 @@ const Provider_roless = () => {
   const handleEdit = (provider_roles) => {
     setSelectedRow(provider_roles);
     // Initialize selectedEditRoles with the 'module' strings of the currently assigned roles
-    setSelectedEditRoles(provider_roles.admin_roles_array?.map(r => r.module) || []);
+    setSelectedEditRoles(
+      provider_roles.admin_roles_array?.map((r) => r.module) || [],
+    );
     setIsEditOpen(true);
   };
 
@@ -157,12 +170,12 @@ const Provider_roless = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    setIsSaving(true); // Set saving state to true when save starts
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider Admin RoleEdit")) {
       toast.error("You don't have permission to edit Provider Admin Role");
       return;
     }
-
 
     const { id, name, status } = selectedRow;
     const formData = new FormData();
@@ -182,7 +195,7 @@ const Provider_roless = () => {
           method: "POST", // Or PUT/PATCH if your API uses that
           headers: getAuthHeaders(),
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -199,11 +212,13 @@ const Provider_roless = () => {
     } catch (error) {
       console.error("Error updating provider_roles:", error);
       toast.error("Error occurred while updating provider role!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
   const handleDeleteConfirm = async () => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider Admin RoleDelete")) {
       toast.error("You don't have permission to delete Provider Admin Role");
       return;
@@ -214,12 +229,16 @@ const Provider_roless = () => {
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("provider role deleted successfully!");
-        setprovider_roless(provider_roless.filter((provider_roles) => provider_roles.id !== selectedRow.id));
+        setprovider_roless(
+          provider_roless.filter(
+            (provider_roles) => provider_roles.id !== selectedRow.id,
+          ),
+        );
         setIsDeleteOpen(false);
       } else {
         toast.error("Failed to delete provider role!");
@@ -232,9 +251,11 @@ const Provider_roless = () => {
 
   const handleToggleStatus = async (row, newStatus) => {
     const { id } = row;
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Provider Admin RoleStatus")) {
-      toast.error("You don't have permission to change Provider Admin Role status");
+      toast.error(
+        "You don't have permission to change Provider Admin Role status",
+      );
       return;
     }
 
@@ -244,7 +265,7 @@ const Provider_roless = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -252,9 +273,12 @@ const Provider_roless = () => {
         setprovider_roless((prevprovider_roless) =>
           prevprovider_roless.map((provider_roles) =>
             provider_roles.id === id
-              ? { ...provider_roles, status: newStatus === 1 ? "active" : "inactive" }
-              : provider_roles
-          )
+              ? {
+                  ...provider_roles,
+                  status: newStatus === 1 ? "active" : "inactive",
+                }
+              : provider_roles,
+          ),
         );
       } else {
         const errorData = await response.json();
@@ -318,8 +342,6 @@ const Provider_roless = () => {
     },
   ];
 
-
-
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -328,22 +350,21 @@ const Provider_roless = () => {
       <DataTable
         data={provider_roless}
         columns={columns}
-          showAddButton={hasPermission("Provider Admin RoleAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
-
+        showAddButton={hasPermission("Provider Admin RoleAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute={`/provider-roles/add`} // Use the dynamically constructed addRoute
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
         showFilter={true}
-          showEditButton={hasPermission("Provider Admin RoleEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showDeleteButton={hasPermission("Provider Admin RoleDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showActions={
-    hasPermission("Provider Admin RoleEdit") ||
-    hasPermission("Provider Admin RoleDelete") 
-  }
+        showEditButton={hasPermission("Provider Admin RoleEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("Provider Admin RoleDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={
+          hasPermission("Provider Admin RoleEdit") ||
+          hasPermission("Provider Admin RoleDelete")
+        }
         filterKey={["status"]}
         filterOptions={filterOptionsForprovider_roless}
-        searchKeys={["name"]} 
+        searchKeys={["name"]}
       />
 
       {selectedRow && (
@@ -353,6 +374,7 @@ const Provider_roless = () => {
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
             selectedRow={selectedRow}
+            isSaving={isSaving}
             columns={columns}
             onChange={onChange}
           >
@@ -373,7 +395,7 @@ const Provider_roless = () => {
               </label>
               <Select
                 value={selectedEditRoles.length > 0 ? selectedEditRoles[0] : ""}
-                onValueChange={handleEditRoleChange} 
+                onValueChange={handleEditRoleChange}
               >
                 <SelectTrigger
                   id="assignedRoles"
@@ -386,23 +408,23 @@ const Provider_roless = () => {
                     <SelectItem
                       key={roleModule}
                       value={roleModule}
-                      className={`${selectedEditRoles.includes(roleModule) ? 'bg-gray-100 font-semibold' : ''}`}
+                      className={`${selectedEditRoles.includes(roleModule) ? "bg-gray-100 font-semibold" : ""}`}
                     >
                       {roleModule}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-               {selectedEditRoles.length > 0 && (
+              {selectedEditRoles.length > 0 && (
                 <div className="mt-2 text-sm text-gray-600">
-                    Currently assigned: {selectedEditRoles.join(", ")}
+                  Currently assigned: {selectedEditRoles.join(", ")}
                 </div>
-               )}
-               {selectedEditRoles.length === 0 && (
+              )}
+              {selectedEditRoles.length === 0 && (
                 <div className="mt-2 text-sm text-gray-600">
-                    No modules assigned.
+                  No modules assigned.
                 </div>
-               )}
+              )}
             </div>
             {/* End Role Selection Input */}
           </EditDialog>
@@ -420,7 +442,9 @@ const Provider_roless = () => {
       <Dialog open={isViewRolesOpen} onOpenChange={setIsViewRolesOpen}>
         <DialogContent className="bg-white !mb-4 !p-6 rounded-lg shadow-lg max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-bg-primary">Assigned Roles</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-bg-primary">
+              Assigned Roles
+            </DialogTitle>
           </DialogHeader>
           <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {selectedRoles.length > 0 ? (

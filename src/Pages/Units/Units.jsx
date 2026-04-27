@@ -17,6 +17,7 @@ const Apartment = () => {
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
@@ -148,6 +149,7 @@ const Apartment = () => {
       return;
     }
     if (!selectedRow) return;
+    setIsSaving(true); // Set saving state to true when save starts
     const { id, name, status, nameAr } = selectedRow;
 
     const formData = new FormData();
@@ -187,6 +189,8 @@ const Apartment = () => {
     } catch (error) {
       console.error("Error updating apartment:", error);
       toast.error("Error occurred while updating apartment!");
+    } finally {
+      setIsSaving(false); // Set saving state back to false when save completes
     }
   };
 
@@ -343,6 +347,7 @@ const Apartment = () => {
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
+            isSaving={isSaving}
             selectedRow={selectedRow}
             columns={columns}
             onChange={onChange}

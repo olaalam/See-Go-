@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { set } from "react-hook-form";
 
 export default function SubscribersPage() {
   const [tab, setTab] = useState("provider");
@@ -31,19 +32,18 @@ export default function SubscribersPage() {
   const [villagePackages, setVillagePackages] = useState([]);
   const [maintenanceProviders, setMaintenanceProviders] = useState([]);
   const [maintenancePackages, setMaintenancePackages] = useState([]);
-  const [serviceTypes, setServiceTypes] = useState([]); // Changed from 'services' to 'serviceTypes'
+  const [serviceTypes, setServiceTypes] = useState([]);
   const token = localStorage.getItem("token");
   const [permissions, setPermissions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
 
-  // Get permissions from localStorage
   const getUserPermissions = () => {
     try {
       const permissions = localStorage.getItem("userPermission");
       const parsed = permissions ? JSON.parse(permissions) : [];
-
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -57,18 +57,14 @@ export default function SubscribersPage() {
     navigate("/subscribers/add", { state: { initialType: tab } });
   };
 
-  // Check for specific permission
   const hasPermission = (permission) => {
     const match = permission.match(/^subcriber(.*)$/i);
     if (!match) return false;
-
     const permKey = match[1].toLowerCase();
     const fullPerm = `subcriber:${permKey}`;
-
     return permissions.includes(fullPerm);
   };
 
-  // Load permissions on component mount
   useEffect(() => {
     const userPermissions = getUserPermissions();
     setPermissions(userPermissions);
@@ -80,12 +76,11 @@ export default function SubscribersPage() {
 
   const fetchData = async () => {
     try {
+      
       setLoading(true);
       const response = await axios.get(
         "https://bcknd.sea-go.org/admin/subscriper",
-        {
-          headers: getAuthHeaders(),
-        }
+        { headers: getAuthHeaders() },
       );
 
       let result = [];
@@ -121,30 +116,19 @@ export default function SubscribersPage() {
       setVillagePackages(response.data.village_packages || []);
       setMaintenanceProviders(response.data.maintenance_provider || []);
       setMaintenancePackages(response.data.maintenance_provider_packages || []);
-      // *** IMPORTANT FIX HERE ***
-      // setServiceTypes to the full array of service_type objects
       setServiceTypes(response.data.service_type || []);
-      console.log(
-        "Fetched Service Types:",
-        response.data.subscribers_provider.service_type
-      ); // For debugging
-
-      console.log(
-        "Maintenance Providers (from API data.maintenance_provider):",
-        response.data.maintenance_provider
-      );
-      console.log("Response data keys:", Object.keys(response.data));
     } catch (error) {
       toast.error("Failed to fetch subscribers.");
       console.error("Error fetching data:", error);
     } finally {
+      
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, [tab]); // Dependency on tab to refetch data when tab changes
+  }, [tab]);
 
   const handleEdit = async (row) => {
     console.log("handleEdit: Row data being sent to API:", row);
@@ -152,96 +136,83 @@ export default function SubscribersPage() {
     const formData = new FormData();
     formData.append(
       "payment_method_id",
-      row.payment_method_id?.toString() || ""
+      row.payment_method_id?.toString() || "",
     );
     formData.append("package_id", row.package_id?.toString() || "");
     formData.append("type", row.type);
 
     if (row.type === "provider") {
       formData.append("provider_id", row?.provider_id?.toString() || "");
-      // Use service_id, not service_type_id if the backend expects service_id
       formData.append("service_id", row?.service_id?.toString() || "");
     } else if (row.type === "village") {
       formData.append("village_id", row?.village_id?.toString() || "");
     } else if (row.type === "maintenance_provider") {
       formData.append(
         "maintenance_provider_id",
-        row?.maintenance_provider_id?.toString() || ""
+        row?.maintenance_provider_id?.toString() || "",
+        
       );
     }
 
+    // Debug: log all formData entries
+    for (let [key, value] of formData.entries()) {
+      console.log(key, ":", value);
+    }
+
+    setIsSaving(true);
     try {
       await axios.post(
         `https://bcknd.sea-go.org/admin/subscriper/update/${row.id}`,
         formData,
-        {
-          headers: getAuthHeaders(),
-        }
+        { headers: getAuthHeaders() },
       );
       toast.success("Subscriber updated successfully.");
       fetchData();
     } catch (error) {
-      console.error(
-        "Error updating subscriber:",
-        error.response?.data || error.message
-      );
+      console.error("API error full response:", error.response?.data);
+      console.error("API error status:", error.response?.status);
       toast.error(
         `Failed to update subscriber: ${
           error.response?.data?.message || error.message
-        }`
-      );
+          
+        }`,
+      ); 
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (row) => {
-    console.log("handleDelete: Row data being deleted:", row);
     try {
       await axios.delete(
         `https://bcknd.sea-go.org/admin/subscriper/delete/${row.id}`,
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeaders() },
       );
       toast.success("Subscriber deleted successfully.");
       setData((prevData) => prevData.filter((item) => item.id !== row.id));
     } catch (error) {
       console.error(
         "Error deleting subscriber:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
       toast.error(
         `Failed to delete subscriber: ${
           error.response?.data?.message || error.message
-        }`
+        }`,
       );
     }
   };
 
-  // Function to get Payment Method Name
   const getPaymentMethodName = (row) => {
-    if (row.payment_method_item?.name) {
-      return row.payment_method_item.name;
-    }
-
-    if (row.payment_method?.name) {
-      return row.payment_method.name;
-    }
-
-    if (row.paymentMethod?.name) {
-      return row.paymentMethod.name;
-    }
-
-    if (row.payment_method_name) {
-      return row.payment_method_name;
-    }
-
+    if (row.payment_method_item?.name) return row.payment_method_item.name;
+    if (row.payment_method?.name) return row.payment_method.name;
+    if (row.paymentMethod?.name) return row.paymentMethod.name;
+    if (row.payment_method_name) return row.payment_method_name;
     if (row.payment_method_id) {
       const method = paymentMethods.find((m) => m.id === row.payment_method_id);
       if (method) return method.name;
     }
-
-    if (typeof row.payment_method === "string") {
-      return row.payment_method;
-    }
-
+    if (typeof row.payment_method === "string") return row.payment_method;
     return "N/A";
   };
 
@@ -253,35 +224,32 @@ export default function SubscribersPage() {
     }
 
     // Fix payment_method_id
-    if (rowToEdit.payment_method_id === undefined) {
-      if (rowToEdit.payment_method_item?.id !== undefined) {
+    if (!rowToEdit.payment_method_id) {
+      if (rowToEdit.payment_method_item?.id) {
         rowToEdit.payment_method_id = rowToEdit.payment_method_item.id;
-      } else if (rowToEdit.payment_method?.id !== undefined) {
+      } else if (rowToEdit.payment_method?.id) {
         rowToEdit.payment_method_id = rowToEdit.payment_method.id;
-      } else if (rowToEdit.paymentMethod?.id !== undefined) {
+      } else if (rowToEdit.paymentMethod?.id) {
         rowToEdit.payment_method_id = rowToEdit.paymentMethod.id;
       }
     }
 
-    // Ensure package_id is set if available
-    if (
-      rowToEdit.package_id === undefined &&
-      rowToEdit.package?.id !== undefined
-    ) {
+    // Fix package_id
+    if (!rowToEdit.package_id && rowToEdit.package?.id) {
       rowToEdit.package_id = rowToEdit.package.id;
-    } else if (rowToEdit.package_id === null) {
-      rowToEdit.package_id = undefined;
     }
 
     if (rowToEdit.type === "provider") {
-      if (
-        rowToEdit.provider_id === undefined &&
-        rowToEdit.provider?.id !== undefined
-      ) {
-        rowToEdit.provider_id = rowToEdit.provider.id;
+      // Fix provider_id — use !rowToEdit.provider_id to catch null AND undefined
+      if (!rowToEdit.provider_id) {
+        if (rowToEdit.provider?.id) {
+          rowToEdit.provider_id = rowToEdit.provider.id;
+        } else if (rowToEdit.provider_item?.id) {
+          rowToEdit.provider_id = rowToEdit.provider_item.id;
+        }
       }
-      // *** IMPORTANT: Correctly extract service_id for provider type ***
-      // Check for service_id directly on the row, or nested within 'service' or 'service_name' objects
+
+      // Fix service_id
       if (!rowToEdit.service_id) {
         if (row.service_id) {
           rowToEdit.service_id = row.service_id;
@@ -296,22 +264,17 @@ export default function SubscribersPage() {
         }
       }
 
-      console.log(
-        "handleEditClick - provider service_id:",
-        rowToEdit.service_id
-      ); // Debugging
+      console.log("handleEditClick - provider_id:", rowToEdit.provider_id);
+      console.log("handleEditClick - service_id:", rowToEdit.service_id);
     } else if (rowToEdit.type === "village") {
-      if (
-        rowToEdit.village_id === undefined &&
-        rowToEdit.village?.id !== undefined
-      ) {
+      if (!rowToEdit.village_id && rowToEdit.village?.id) {
         rowToEdit.village_id = rowToEdit.village.id;
       }
     } else if (rowToEdit.type === "maintenance_provider") {
-      if (rowToEdit.maintenance_provider_id === undefined) {
-        if (rowToEdit.maintenance_provider?.id !== undefined) {
+      if (!rowToEdit.maintenance_provider_id) {
+        if (rowToEdit.maintenance_provider?.id) {
           rowToEdit.maintenance_provider_id = rowToEdit.maintenance_provider.id;
-        } else if (rowToEdit.maintenanceProvider?.id !== undefined) {
+        } else if (rowToEdit.maintenanceProvider?.id) {
           rowToEdit.maintenance_provider_id = rowToEdit.maintenanceProvider.id;
         }
       }
@@ -323,7 +286,6 @@ export default function SubscribersPage() {
   };
 
   const handleDeleteClick = (row) => {
-    console.log("handleDelete: Row data being deleted:", row);
     setSelectedRow({ ...row, name: row.subscriber });
     setDeleteDialogOpen(true);
   };
@@ -348,15 +310,15 @@ export default function SubscribersPage() {
   ];
 
   const columns = [
-  ...(tab !== "maintenance_provider"
-    ? [
-        {
-          key: "subscriber",
-          label: "Subscriber Name",
-          render: (row) => row.subscriber || row.name || "N/A",
-        },
-      ]
-    : []),
+    ...(tab !== "maintenance_provider"
+      ? [
+          {
+            key: "subscriber",
+            label: "Subscriber Name",
+            render: (row) => row.subscriber || row.name || "N/A",
+          },
+        ]
+      : []),
     {
       key: "type",
       label: "Type",
@@ -384,13 +346,11 @@ export default function SubscribersPage() {
         if (row.package?.name) return row.package.name;
         if (row.packageName) return row.packageName;
         if (row.package_name) return row.package_name;
-
         if (row.package_id) {
           const packages = getPackagesByType(row.type);
           const pkg = packages.find((p) => p.id === row.package_id);
           if (pkg) return pkg.name;
         }
-
         return "N/A";
       },
     },
@@ -400,47 +360,32 @@ export default function SubscribersPage() {
       render: (row) => {
         if (row.package?.price) return row.package.price;
         if (row.price) return row.price;
-
         if (row.package_id) {
           const packages = getPackagesByType(row.type);
           const pkg = packages.find((p) => p.id === row.package_id);
           if (pkg && pkg.price) return pkg.price;
         }
-
         return "N/A";
       },
     },
     ...(tab === "provider"
       ? [
           {
-            key: "service_type", // Changed key for clarity
+            key: "service_type",
             label: "Services Type",
             render: (row) => {
-              if (row.type === "village") return "-"; // Villages don't have service types
-
-              // 1. Check if 'service_item' object exists with a name (most detailed from your JSON)
-              if (row.service_item?.name) {
-                return row.service_item.name;
-              }
-
-              // 2. Check if 'service' is directly a string (as seen in your JSON example)
-              if (typeof row.service === "string") {
-                return row.service;
-              }
-
-              // 3. Fallback to other nested objects if they contain a name
+              if (row.type === "village") return "-";
+              if (row.service_item?.name) return row.service_item.name;
+              if (typeof row.service === "string") return row.service;
               if (row.service?.name) return row.service.name;
               if (row.service_name?.name) return row.service_name.name;
               if (row.serviceName) return row.serviceName;
-
-              // 4. Finally, use serviceTypes array to find the name by ID if available
               if (row.service_id) {
                 const service = serviceTypes.find(
-                  (s) => s.id === row.service_id
+                  (s) => s.id === row.service_id,
                 );
                 if (service) return service.name;
               }
-
               return "N/A";
             },
           },
@@ -452,25 +397,18 @@ export default function SubscribersPage() {
             key: "maintenance_provider",
             label: "Maintenance Provider",
             render: (row) => {
-              if (row.maintenance_provider?.name) {
+              if (row.maintenance_provider?.name)
                 return row.maintenance_provider.name;
-              }
-
-              if (row.maintenanceProvider?.name) {
+              if (row.maintenanceProvider?.name)
                 return row.maintenanceProvider.name;
-              }
-
-              if (row.maintenance_provider_name) {
+              if (row.maintenance_provider_name)
                 return row.maintenance_provider_name;
-              }
-
               if (row.maintenance_provider_id) {
                 const provider = maintenanceProviders.find(
-                  (p) => p.id === row.maintenance_provider_id
+                  (p) => p.id === row.maintenance_provider_id,
                 );
                 if (provider) return provider.name;
               }
-
               return "N/A";
             },
           },
@@ -485,24 +423,24 @@ export default function SubscribersPage() {
         <TabsList className="grid !ms-3 w-[90%] grid-cols-3 gap-4 bg-transparent !mb-6">
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                  hover:bg-teal-100 hover:text-teal-700"
+              data-[state=active]:bg-bg-primary data-[state=active]:text-white
+              hover:bg-teal-100 hover:text-teal-700"
             value="provider"
           >
             Provider
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                  hover:bg-teal-100 hover:text-teal-700"
+              data-[state=active]:bg-bg-primary data-[state=active]:text-white
+              hover:bg-teal-100 hover:text-teal-700"
             value="village"
           >
             Village
           </TabsTrigger>
           <TabsTrigger
             className="rounded-[10px] border text-bg-primary py-2 transition-all
-                                  data-[state=active]:bg-bg-primary data-[state=active]:text-white
-                                  hover:bg-teal-100 hover:text-teal-700"
+              data-[state=active]:bg-bg-primary data-[state=active]:text-white
+              hover:bg-teal-100 hover:text-teal-700"
             value="maintenance_provider"
           >
             Maintenance Type
@@ -538,6 +476,7 @@ export default function SubscribersPage() {
             open={editDialogOpen}
             onOpenChange={setEditDialogOpen}
             selectedRow={selectedRow}
+            isSaving={isSaving}
             onSave={() => {
               if (selectedRow) {
                 handleEdit(selectedRow);
@@ -548,6 +487,7 @@ export default function SubscribersPage() {
             }}
           >
             <div className="space-y-4">
+              {/* Payment Method */}
               <div className="space-y-2">
                 <label htmlFor="payment_method_id" className="text-gray-400">
                   Payment Method
@@ -565,7 +505,7 @@ export default function SubscribersPage() {
                     {selectedRow?.payment_method_id
                       ? paymentMethods.find(
                           (method) =>
-                            method.id === selectedRow?.payment_method_id
+                            method.id === selectedRow?.payment_method_id,
                         )?.name || "Select Payment Method"
                       : "Select Payment Method"}
                   </SelectTrigger>
@@ -583,6 +523,7 @@ export default function SubscribersPage() {
                 </Select>
               </div>
 
+              {/* Package */}
               <div className="space-y-2">
                 <label htmlFor="package_id" className="text-gray-400">
                   Package
@@ -599,7 +540,7 @@ export default function SubscribersPage() {
                   <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                     {selectedRow?.package_id
                       ? getPackagesByType(selectedRow?.type).find(
-                          (pkg) => pkg.id === selectedRow?.package_id
+                          (pkg) => pkg.id === selectedRow?.package_id,
                         )?.name || "Select Package"
                       : "Select Package"}
                   </SelectTrigger>
@@ -617,11 +558,48 @@ export default function SubscribersPage() {
                 </Select>
               </div>
 
+              {/* Provider type fields */}
               {selectedRow?.type === "provider" && (
                 <>
+                  {/* Provider — FIXED: added this field */}
+                  <div className="space-y-2">
+                    <label htmlFor="provider_id" className="text-gray-400">
+                      Provider
+                    </label>
+                    <Select
+                      value={selectedRow?.provider_id?.toString() || ""}
+                      onValueChange={(value) =>
+                        setSelectedRow({
+                          ...selectedRow,
+                          provider_id: parseInt(value),
+                        })
+                      }
+                    >
+                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                        {selectedRow?.provider_id
+                          ? providers.find(
+                              (p) => p.id === selectedRow?.provider_id,
+                            )?.name || "Select Provider"
+                          : "Select Provider"}
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                        {providers.map((provider) => (
+                          <SelectItem
+                            className="text-bg-primary !ps-3"
+                            key={provider.id}
+                            value={provider.id.toString()}
+                          >
+                            {provider.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Service Type */}
                   <div className="space-y-2">
                     <label htmlFor="service_id" className="text-gray-400">
-                      Service Type {/* Updated label text */}
+                      Service Type
                     </label>
                     <Select
                       value={selectedRow?.service_id?.toString() || ""}
@@ -635,63 +613,18 @@ export default function SubscribersPage() {
                       <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                         {selectedRow?.service_id
                           ? serviceTypes.find(
-                              // Used 'serviceTypes'
-                              (serviceType) =>
-                                serviceType.id === selectedRow?.service_id // 'serviceType' for clarity
+                              (s) => s.id === selectedRow?.service_id,
                             )?.name || "Select Service Type"
                           : "Select Service Type"}
                       </SelectTrigger>
                       <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {serviceTypes.map(
-                          (
-                            serviceType // Used 'serviceTypes'
-                          ) => (
-                            <SelectItem
-                              className="text-bg-primary !ps-3"
-                              key={serviceType.id}
-                              value={serviceType.id.toString()}
-                            >
-                              {serviceType.id} - {serviceType.name}
-                            </SelectItem>
-                          )
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-
-              {selectedRow?.type === "village" && (
-                <>
-                  <div className="space-y-2">
-                    <label htmlFor="village_id" className="text-gray-400">
-                      Village
-                    </label>
-                    <Select
-                      value={selectedRow?.village_id?.toString() || ""}
-                      onValueChange={(value) =>
-                        setSelectedRow({
-                          ...selectedRow,
-                          village_id: parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                        {selectedRow?.village_id
-                          ? villages.find(
-                              (village) =>
-                                village.id === selectedRow?.village_id
-                            )?.name || "Select Village"
-                          : "Select Village"}
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {villages.map((village) => (
+                        {serviceTypes.map((serviceType) => (
                           <SelectItem
                             className="text-bg-primary !ps-3"
-                            key={village.id}
-                            value={village.id.toString()}
+                            key={serviceType.id}
+                            value={serviceType.id.toString()}
                           >
-                            {village.id} - {village.name}
+                            {serviceType.id} - {serviceType.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -700,56 +633,91 @@ export default function SubscribersPage() {
                 </>
               )}
 
-              {/* Improved Maintenance Provider field */}
+              {/* Village type fields */}
+              {selectedRow?.type === "village" && (
+                <div className="space-y-2">
+                  <label htmlFor="village_id" className="text-gray-400">
+                    Village
+                  </label>
+                  <Select
+                    value={selectedRow?.village_id?.toString() || ""}
+                    onValueChange={(value) =>
+                      setSelectedRow({
+                        ...selectedRow,
+                        village_id: parseInt(value),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                      {selectedRow?.village_id
+                        ? villages.find(
+                            (village) => village.id === selectedRow?.village_id,
+                          )?.name || "Select Village"
+                        : "Select Village"}
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {villages.map((village) => (
+                        <SelectItem
+                          className="text-bg-primary !ps-3"
+                          key={village.id}
+                          value={village.id.toString()}
+                        >
+                          {village.id} - {village.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Maintenance Provider type fields */}
               {selectedRow?.type === "maintenance_provider" && (
-                <>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="maintenance_provider_id"
-                      className="text-gray-400"
-                    >
-                      Maintenance Provider
-                    </label>
-                    <Select
-                      value={
-                        selectedRow?.maintenance_provider_id?.toString() || ""
-                      }
-                      onValueChange={(value) =>
-                        setSelectedRow({
-                          ...selectedRow,
-                          maintenance_provider_id: parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                        {selectedRow?.maintenance_provider_id
-                          ? maintenanceProviders.find(
-                              (provider) =>
-                                provider.id ===
-                                selectedRow?.maintenance_provider_id
-                            )?.name || "Select Maintenance Provider"
-                          : "Select Maintenance Provider"}
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                        {maintenanceProviders.length > 0 ? (
-                          maintenanceProviders.map((provider) => (
-                            <SelectItem
-                              className="text-bg-primary !ps-3"
-                              key={provider.id}
-                              value={provider.id.toString()}
-                            >
-                              {provider.id} - {provider.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="text-gray-400 p-2">
-                            No maintenance providers available
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="maintenance_provider_id"
+                    className="text-gray-400"
+                  >
+                    Maintenance Provider
+                  </label>
+                  <Select
+                    value={
+                      selectedRow?.maintenance_provider_id?.toString() || ""
+                    }
+                    onValueChange={(value) =>
+                      setSelectedRow({
+                        ...selectedRow,
+                        maintenance_provider_id: parseInt(value),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                      {selectedRow?.maintenance_provider_id
+                        ? maintenanceProviders.find(
+                            (provider) =>
+                              provider.id ===
+                              selectedRow?.maintenance_provider_id,
+                          )?.name || "Select Maintenance Provider"
+                        : "Select Maintenance Provider"}
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border w-[90%] !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                      {maintenanceProviders.length > 0 ? (
+                        maintenanceProviders.map((provider) => (
+                          <SelectItem
+                            className="text-bg-primary !ps-3"
+                            key={provider.id}
+                            value={provider.id.toString()}
+                          >
+                            {provider.id} - {provider.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="text-gray-400 p-2">
+                          No maintenance providers available
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
           </EditDialog>

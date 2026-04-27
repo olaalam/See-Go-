@@ -20,12 +20,14 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import MapLocationPicker from "@/components/MapLocationPicker";
+import { set } from "react-hook-form";
 
 const Mall = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Core data states
   const [malls, setMalls] = useState([]);
@@ -122,7 +124,7 @@ const Mall = () => {
 
     if (!validTypes.includes(file.type)) {
       throw new Error(
-        "Please select a valid image file (JPEG, PNG, GIF, WebP)"
+        "Please select a valid image file (JPEG, PNG, GIF, WebP)",
       );
     }
 
@@ -255,7 +257,7 @@ const Mall = () => {
         const zoneName =
           zoneObj?.name ||
           mall.zone?.translations?.find(
-            (t) => t.locale === currentLang && t.key === "name"
+            (t) => t.locale === currentLang && t.key === "name",
           )?.value ||
           mall.zone?.name ||
           "—";
@@ -292,8 +294,8 @@ const Mall = () => {
           zone_id: mall.zone_id,
           zone: zoneName,
           searchableZone: zoneName,
-          
-          map:location,
+
+          map: location,
           phone,
           rating,
           image_link: mall.image_link,
@@ -323,7 +325,7 @@ const Mall = () => {
 
     if (filters.zone !== "all") {
       filtered = filtered.filter(
-        (mall) => mall.searchableZone === filters.zone
+        (mall) => mall.searchableZone === filters.zone,
       );
     }
 
@@ -446,7 +448,7 @@ const Mall = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-
+    setIsSaving(true);
     if (!hasPermission("MallEdit")) {
       toast.error("You don't have permission to edit malls");
       return;
@@ -509,7 +511,7 @@ const Mall = () => {
     if (hasNewImage && newImageBase64) {
       console.log(
         "Adding new image to update data, base64 length:",
-        newImageBase64.length
+        newImageBase64.length,
       );
       updatedMall.image = selectedRow.imageBase64;
     }
@@ -528,7 +530,7 @@ const Mall = () => {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedMall),
-        }
+        },
       );
 
       const responseData = await response.json();
@@ -544,7 +546,7 @@ const Mall = () => {
 
         if (responseData.errors && responseData.errors.image) {
           toast.error(
-            "Image validation failed: " + responseData.errors.image.join(", ")
+            "Image validation failed: " + responseData.errors.image.join(", "),
           );
         } else {
           toast.error(responseData.message || "Failed to update mall!");
@@ -553,6 +555,8 @@ const Mall = () => {
     } catch (error) {
       console.error("Error occurred while updating mall:", error);
       toast.error("Network error occurred while updating mall!");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -570,13 +574,13 @@ const Mall = () => {
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Mall deleted successfully!");
         setAllMalls((prev) =>
-          prev.filter((mall) => mall.id !== selectedRow.id)
+          prev.filter((mall) => mall.id !== selectedRow.id),
         );
         setIsDeleteOpen(false);
         setSelectedRow(null);
@@ -609,7 +613,7 @@ const Mall = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -618,8 +622,8 @@ const Mall = () => {
           prev.map((mall) =>
             mall.id === id
               ? { ...mall, status: newStatus === 1 ? "active" : "inactive" }
-              : mall
-          )
+              : mall,
+          ),
         );
       } else {
         toast.error("Failed to update mall status!");
@@ -708,6 +712,7 @@ const Mall = () => {
             onSave={handleSave}
             selectedRow={selectedRow}
             zones={zones}
+            isSaving={isSaving}
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -750,7 +755,6 @@ const Mall = () => {
                     />
                   </>
                 )}
-
 
               {selectedRow?.descriptionAr !== null &&
                 selectedRow?.descriptionAr !== undefined && (
@@ -814,7 +818,7 @@ const Mall = () => {
                 key={selectedRow?.id}
                 value={editLocationData.location_map}
                 onChange={(newValue, coordinates) => {
-                  setEditLocationData(prev => ({
+                  setEditLocationData((prev) => ({
                     ...prev,
                     location_map: newValue,
                     lat: coordinates?.lat || prev.lat,
@@ -826,7 +830,7 @@ const Mall = () => {
                   lng: editLocationData.lng,
                 }}
                 placeholder="Search or select location on map"
-              /> 
+              />
 
               <label htmlFor="open_from" className="text-gray-400 !pb-3">
                 Open From

@@ -33,6 +33,7 @@ const Providers = () => {
   const [zones, setZones] = useState([]);
   const [services, setServices] = useState([]);
   const [permissions, setPermissions] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Dialog states
   const [selectedRow, setSelectedRow] = useState(null);
@@ -481,6 +482,7 @@ const Providers = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true);
 
     const {
       id, name, description, location, nameAr, descriptionAr, locationAr, status, service_id, village_id, zone_id,
@@ -573,6 +575,8 @@ const Providers = () => {
     } catch (error) {
       console.error("Error occurred while updating provider:", error);
       toast.error("Network error occurred while updating provider!");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -750,6 +754,7 @@ const Providers = () => {
             selectedRow={selectedRow}
             zones={zones}
             village={villages}
+            isSaving={isSaving}
             services={services}
             onChange={onChange}
           >

@@ -84,13 +84,16 @@ const Admins = () => {
 
   const fetchAdmins = async () => {
     dispatch(showLoader());
+    
     try {
+      
       const response = await fetch("https://bcknd.sea-go.org/admin/admins", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
         },
+
       });
 
       if (!response.ok) {
@@ -200,7 +203,7 @@ const Admins = () => {
     setSelectedRow(admin);
     setIsDeleteOpen(true);
   };
-
+  
   const handleSave = async () => {
     if (!selectedRow) return;
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
@@ -233,7 +236,7 @@ const Admins = () => {
     formData.append("gender", gender || "");
     formData.append("status", status === "active" ? 1 : 0);
     formData.append("admin_position_id", admin_position_id);
-
+    
     // إضافة كلمة المرور فقط إذا تم إدخالها
     if (password && password.trim() !== "") {
       formData.append("password", password);
@@ -248,13 +251,14 @@ const Admins = () => {
         formData.append("action[]", roleItem);
       });
     }
-
+    
     if (imageFile) {
       formData.append("image", imageFile);
     }
 
     dispatch(showLoader());
     try {
+      
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/admins/update/${id}`,
         {
@@ -263,7 +267,8 @@ const Admins = () => {
           body: formData,
         }
       );
-
+      
+      
       if (response.ok) {
         toast.success("Admin updated successfully!");
         await fetchAdmins();
@@ -299,7 +304,7 @@ const Admins = () => {
           headers: getAuthHeaders(),
         }
       );
-
+      
       if (response.ok) {
         toast.success("Admin deleted successfully!");
         setAdmins(admins.filter((admin) => admin.id !== selectedRow.id));
@@ -334,7 +339,7 @@ const Admins = () => {
       toast.error("You don't have permission to change zone status");
       return;
     }
-
+    
     dispatch(showLoader());
     try {
       const response = await fetch(
@@ -344,7 +349,7 @@ const Admins = () => {
           headers: getAuthHeaders(),
         }
       );
-
+      
       if (response.ok) {
         toast.success("Admin status updated successfully!");
         setAdmins((prevAdmins) =>
@@ -373,7 +378,7 @@ const Admins = () => {
       [key]: value,
     }));
   };
-
+  
   const columns = [
     { key: "name", label: "Name" },
     { key: "phone", label: "Phone" },

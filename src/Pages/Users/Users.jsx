@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
+import { set } from "react-hook-form";
 
 const Users = () => {
   const dispatch = useDispatch();
@@ -29,6 +30,7 @@ const Users = () => {
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // State to manage save button loading state
   const navigate = useNavigate();
   const [permissions, setPermissions] = useState([]); // State for permissions
 
@@ -43,7 +45,7 @@ const Users = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -100,7 +102,7 @@ const Users = () => {
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
-
+      
       const formatted = result?.users?.map((u) => {
         const trans = u.translations?.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
@@ -123,7 +125,7 @@ const Users = () => {
           rawName,
           email: u.email || "—",
           phone: u.phone || "—",
-          gender: trans?.[lang]?.gender || u.gender || "—",
+          gender: (trans?.[lang]?.gender || u.gender || "—").toLowerCase(),
           // Normalize user_type to lowercase for consistent filtering
           user_type: (
             trans?.[lang]?.user_type ||
@@ -175,7 +177,7 @@ const Users = () => {
   const handleSave = async () => {
     const {
       id,
-      rawName, // Use rawName for saving
+      rawName,
       email,
       phone,
       gender,
@@ -185,19 +187,19 @@ const Users = () => {
       rent_from,
       rent_to,
     } = selectedRow;
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    setIsSaving(true);
     if (!hasPermission("UserEdit")) {
       toast.error("You don't have permission to edit User");
       return;
     }
-    // You might want to remove password from this check if it's not always required for updates
-    if (!rawName || !email || !phone || !gender || !birthDate || !user_type) {
+
+    if (!rawName || !email || !phone || !gender) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
     const updatedUser = {
-      name: rawName, // Use rawName here
+      name: rawName,
       email,
       phone,
       gender,
@@ -205,36 +207,39 @@ const Users = () => {
       user_type,
       rent_from,
       rent_to,
-      status: status === "active" ? 1 : 0, // Convert normalized status back to API expected format
+      status: status === "active" ? 1 : 0,
     };
 
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/update/${id}`,
         {
-          method: "POST", // Often PUT/PATCH for updates, but backend expects POST
+          method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedUser),
-        }
+        },
       );
 
       if (res.ok) {
         toast.success("User updated successfully!");
-        // Re-fetch users to ensure data consistency after update, or update state locally
-        fetchUsers(); // Re-fetching is safer after complex updates
+        fetchUsers();
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
+        // Check what the API actually returns
+        const errorData = await res.json();
+        console.error("API error:", errorData);
         toast.error("Failed to update user.");
       }
     } catch (err) {
       toast.error("Error updating user.");
       console.error(err);
+    } finally {
+      setIsSaving(false);
     }
   };
-
   const handleDeleteConfirm = async () => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("UserDelete")) {
       toast.error("You don't have permission to delete User");
       return;
@@ -242,7 +247,7 @@ const Users = () => {
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/delete/${selectedRow.id}`,
-        { method: "DELETE", headers: getAuthHeaders() }
+        { method: "DELETE", headers: getAuthHeaders() },
       );
       if (res.ok) {
         toast.success("User deleted successfully!");
@@ -264,17 +269,15 @@ const Users = () => {
   };
 
   const handleToggleStatus = async (row, newStatus) => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("UserStatus")) {
-      toast.error(
-        "You don't have permission to change  User"
-      );
+      toast.error("You don't have permission to change  User");
       return;
     }
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/status/${row.id}?status=${newStatus}`,
-        { method: "PUT", headers: getAuthHeaders() }
+        { method: "PUT", headers: getAuthHeaders() },
       );
       if (res.ok) {
         toast.success("Status updated!");
@@ -282,8 +285,8 @@ const Users = () => {
           prev.map((u) =>
             u.id === row.id
               ? { ...u, status: newStatus === 1 ? "active" : "inactive" } // Normalize status
-              : u
-          )
+              : u,
+          ),
         );
       } else toast.error("Failed to update status.");
     } catch (err) {
@@ -292,10 +295,9 @@ const Users = () => {
   };
 
   // Dynamically generate filter options for user_type and combine with status options
-  const userTypeOptions = useMemo(() => { // Memoize this to prevent unnecessary re-renders
-    return Array.from(
-      new Set(users.map((user) => user.user_type))
-    )
+  const userTypeOptions = useMemo(() => {
+    // Memoize this to prevent unnecessary re-renders
+    return Array.from(new Set(users.map((user) => user.user_type)))
       .filter((type) => type !== "—") // Filter out placeholder values if any
       .map((type) => ({
         value: type,
@@ -303,27 +305,26 @@ const Users = () => {
       })); // Capitalize for display
   }, [users]);
 
-
   // Restructure filter options for the accordion
-const filterOptionsForUsers = [
-  {
-    label: "Account Type",
-    key: "user_type",
-    options: [
-      { value: "all", label: "All Account Types" },
-      ...userTypeOptions,
-    ],
-  },
-  {
-    label: "Status",
-    key: "status",
-    options: [
-      { value: "all", label: "All Statuses" },
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-    ],
-  },
-];
+  const filterOptionsForUsers = [
+    {
+      label: "Account Type",
+      key: "user_type",
+      options: [
+        { value: "all", label: "All Account Types" },
+        ...userTypeOptions,
+      ],
+    },
+    {
+      label: "Status",
+      key: "status",
+      options: [
+        { value: "all", label: "All Statuses" },
+        { value: "active", label: "Active" },
+        { value: "inactive", label: "Inactive" },
+      ],
+    },
+  ];
 
   const columns = [
     { key: "name", label: "User Name" },
@@ -333,22 +334,10 @@ const filterOptionsForUsers = [
     { key: "gender", label: "Gender" },
     { key: "status", label: "Status" },
   ];
-  console.log(
-    "Has UserAdd permission:",
-    hasPermission("UserAdd")
-  );
-  console.log(
-    "Has UserEdit permission:",
-    hasPermission("UserEdit")
-  );
-  console.log(
-    "Has UserDelete permission:",
-    hasPermission("UserDelete")
-  );
-  console.log(
-    "Has UserStatus permission:",
-    hasPermission("UserStatus")
-  );
+  console.log("Has UserAdd permission:", hasPermission("UserAdd"));
+  console.log("Has UserEdit permission:", hasPermission("UserEdit"));
+  console.log("Has UserDelete permission:", hasPermission("UserDelete"));
+  console.log("Has UserStatus permission:", hasPermission("UserStatus"));
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -356,13 +345,12 @@ const filterOptionsForUsers = [
       <DataTable
         data={users}
         columns={columns}
-                showAddButton={hasPermission("UserAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
-
+        showAddButton={hasPermission("UserAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute="/users/add"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-         showEditButton={hasPermission("UserEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showEditButton={hasPermission("UserEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
         showDeleteButton={hasPermission("UserDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
         showActions={hasPermission("UserEdit") || hasPermission("UserDelete")}
         searchKeys={["name", "email", "phone"]}
@@ -377,9 +365,10 @@ const filterOptionsForUsers = [
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
             onSave={handleSave}
+            isSaving={isSaving}
             selectedRow={selectedRow}
           >
-            <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="max-h-[70vh] md:grid-cols-2 lg:grid-cols-3 !p-4 o[scrollbar-width:none]  [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <InputField
                 label="Name"
                 id="name"
@@ -405,13 +394,64 @@ const filterOptionsForUsers = [
                 value={selectedRow.password}
                 onChange={(val) => onChange("password", val)}
               />
-{/**              <InputField
+              <InputField
                 label="Birth Date"
                 id="birthDate"
                 type="date"
                 value={selectedRow.birthDate}
                 onChange={(val) => onChange("birthDate", val)}
-              /> */}
+              />
+
+              {/* Account Type Select - Uncomment and use if needed for editing */}
+              {/*
+              <div>
+              <Label htmlFor="user_type" className="text-gray-400 !pb-1">
+              Account Type
+              </Label>
+              <Select
+              value={selectedRow.user_type}
+              onValueChange={(val) => onChange("user_type", val)}
+              >
+              <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+              <SelectValue placeholder="Select Account Type" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+              <SelectItem className="text-bg-primary " value="owner">
+              Owner
+              </SelectItem>
+              <SelectItem className="text-bg-primary " value="visitor">
+              Visitor
+              </SelectItem>
+              <SelectItem className="text-bg-primary " value="rent">
+              Renter
+              </SelectItem>
+              </SelectContent>
+              </Select>
+              </div>
+              */}
+
+              {/* Rent From/To fields - Uncomment if needed */}
+              {/*
+              {selectedRow.user_type === "rent" && (
+                <>
+                <InputField
+                label="Rent From"
+                id="rent_from"
+                type="date"
+                value={selectedRow.rent_from}
+                onChange={(val) => onChange("rent_from", val)}
+                />
+                <InputField
+                label="Rent To"
+                id="rent_to"
+                type="date"
+                value={selectedRow.rent_to}
+                onChange={(val) => onChange("rent_to", val)}
+                />
+                </>
+                )}
+                */}
+
               <Label htmlFor="gender" className="text-gray-400 !pb-1">
                 Gender
               </Label>
@@ -422,64 +462,15 @@ const filterOptionsForUsers = [
                 <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                  <SelectItem className="text-bg-primary " value="male">
+                <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary !z-[99999] !max-h-60">
+                  <SelectItem className="text-bg-primary" value="male">
                     Male
                   </SelectItem>
-                  <SelectItem className="text-bg-primary " value="female">
+                  <SelectItem className="text-bg-primary" value="female">
                     Female
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {/* Account Type Select - Uncomment and use if needed for editing */}
-              {/*
-              <div>
-                <Label htmlFor="user_type" className="text-gray-400 !pb-1">
-                  Account Type
-                </Label>
-                <Select
-                  value={selectedRow.user_type}
-                  onValueChange={(val) => onChange("user_type", val)}
-                >
-                  <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-                    <SelectValue placeholder="Select Account Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-                    <SelectItem className="text-bg-primary " value="owner">
-                      Owner
-                    </SelectItem>
-                    <SelectItem className="text-bg-primary " value="visitor">
-                      Visitor
-                    </SelectItem>
-                    <SelectItem className="text-bg-primary " value="rent">
-                      Renter
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              */}
-
-              {/* Rent From/To fields - Uncomment if needed */}
-              {/*
-              {selectedRow.user_type === "rent" && (
-                <>
-                  <InputField
-                    label="Rent From"
-                    id="rent_from"
-                    type="date"
-                    value={selectedRow.rent_from}
-                    onChange={(val) => onChange("rent_from", val)}
-                  />
-                  <InputField
-                    label="Rent To"
-                    id="rent_to"
-                    type="date"
-                    value={selectedRow.rent_to}
-                    onChange={(val) => onChange("rent_to", val)}
-                  />
-                </>
-              )}
-              */}
             </div>
           </EditDialog>
 

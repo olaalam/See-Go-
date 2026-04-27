@@ -20,6 +20,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import MapLocationPicker from "@/components/MapLocationPicker";
+import { set } from "react-hook-form";
 
 const Villages = () => {
   const dispatch = useDispatch();
@@ -36,6 +37,7 @@ const Villages = () => {
   // Dialog states
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [invoiceVillageId, setInvoiceVillageId] = useState(null);
@@ -433,7 +435,7 @@ const Villages = () => {
 
   const handleSave = async () => {
     if (!selectedRow) return;
-
+  setIsSaving(true);
     if (!hasPermission("VillagesEdit")) {
       toast.error("You don't have permission to edit villages");
       return;
@@ -497,6 +499,7 @@ const Villages = () => {
 
     try {
       const response = await fetch(
+      
         `https://bcknd.sea-go.org/admin/village/update/${id}`,
         {
           method: "POST",
@@ -524,6 +527,9 @@ const Villages = () => {
       console.error("Error occurred while updating village:", error);
       toast.error("Network error occurred while updating village!");
     }
+      finally {
+        setIsSaving(false);
+      }
   };
 
   const handleDeleteConfirm = async () => {
@@ -688,6 +694,7 @@ const Villages = () => {
             onSave={handleSave}
             selectedRow={selectedRow}
             zones={zones}
+            isSaving={isSaving}
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
