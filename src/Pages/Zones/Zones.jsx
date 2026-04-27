@@ -31,7 +31,7 @@ const Zones = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -86,7 +86,7 @@ const Zones = () => {
 
       const formatted = result.zones.map((zone) => {
         console.log("Processing zone:", zone.id, zone.translations); // للـ debugging
-        
+
         // فصل الترجمات حسب اللغة والنوع
         const translations = zone.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
@@ -98,9 +98,10 @@ const Zones = () => {
 
         // استخراج البيانات بالإنجليزي (للعرض في الجدول)
         const nameEn = translations?.en?.name || zone.name || "—";
-        const descriptionEn = translations?.en?.description || zone.description || "—";
+        const descriptionEn =
+          translations?.en?.description || zone.description || "—";
 
-        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // استخراج البيانات بالعربي (للـ EditDialog)
         // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
         const nameAr = translations?.ar?.name || null;
         const descriptionAr = translations?.ar?.description || null;
@@ -174,22 +175,26 @@ const Zones = () => {
       return;
     }
 
-    const { id, name, description, nameAr, descriptionAr, status } = selectedRow;
+    const { id, name, description, nameAr, descriptionAr, status } =
+      selectedRow;
     const formData = new FormData();
 
     // بعت الإنجليزي دايماً
     formData.append("name", name || "");
     formData.append("description", description || "");
-    
+
     // بعت العربي بس لو موجود أصلاً في الداتا (يعني الـ zone له ترجمة عربية)
     // مش مهم لو فاضي أو مليان، المهم إنه موجود في الـ structure
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       formData.append("ar_name", nameAr || "");
     }
-    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+    if (
+      selectedRow.descriptionAr !== null &&
+      selectedRow.descriptionAr !== undefined
+    ) {
       formData.append("ar_description", descriptionAr || "");
     }
-    
+
     formData.append("status", status === "active" ? 1 : 0);
     if (selectedRow.imageFile) {
       formData.append("image", selectedRow.imageFile);
@@ -200,7 +205,7 @@ const Zones = () => {
     // للـ debugging - شوفي إيه اللي بيتبعت
     console.log("FormData being sent:");
     for (let pair of formData.entries()) {
-      console.log(pair[0] + ': ' + pair[1]);
+      console.log(pair[0] + ": " + pair[1]);
     }
 
     try {
@@ -210,7 +215,7 @@ const Zones = () => {
           method: "POST",
           headers: getAuthHeaders(),
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -243,7 +248,7 @@ const Zones = () => {
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -273,7 +278,7 @@ const Zones = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -282,8 +287,8 @@ const Zones = () => {
           prevZones.map((zone) =>
             zone.id === id
               ? { ...zone, status: newStatus === 1 ? "active" : "inactive" }
-              : zone
-          )
+              : zone,
+          ),
         );
       } else {
         const errorData = await response.json();
@@ -348,10 +353,7 @@ const Zones = () => {
         onToggleStatus={handleToggleStatus}
         showEditButton={hasPermission("ZonesEdit")}
         showDeleteButton={hasPermission("ZonesDelete")}
-        showActions={
-          hasPermission("ZonesEdit") ||
-          hasPermission("ZonesDelete") 
-        }
+        showActions={hasPermission("ZonesEdit") || hasPermission("ZonesDelete")}
         showFilter={true}
         filterOptions={filterOptionsForZones}
         searchKeys={["description", "name"]}
@@ -391,37 +393,42 @@ const Zones = () => {
             />
 
             {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
-            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
-              <>
-                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
-                  اسم المنطقة (عربي)
-                </label>
-                <Input
-                  id="nameAr"
-                  value={selectedRow?.nameAr || ""}
-                  onChange={(e) => onChange("nameAr", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
-                  dir="rtl"
-                  placeholder="اسم المنطقة بالعربي"
-                />
-              </>
-            )}
+            {selectedRow?.nameAr !== null &&
+              selectedRow?.nameAr !== undefined && (
+                <>
+                  <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                    اسم المنطقة (عربي)
+                  </label>
+                  <Input
+                    id="nameAr"
+                    value={selectedRow?.nameAr || ""}
+                    onChange={(e) => onChange("nameAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="اسم المنطقة بالعربي"
+                  />
+                </>
+              )}
 
-            {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
-              <>
-                <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
-                  الوصف (عربي)
-                </label>
-                <Input
-                  id="descriptionAr"
-                  value={selectedRow?.descriptionAr || ""}
-                  onChange={(e) => onChange("descriptionAr", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
-                  dir="rtl"
-                  placeholder="وصف المنطقة بالعربي"
-                />
-              </>
-            )}
+            {selectedRow?.descriptionAr !== null &&
+              selectedRow?.descriptionAr !== undefined && (
+                <>
+                  <label
+                    htmlFor="descriptionAr"
+                    className="text-gray-400 !pb-3"
+                  >
+                    الوصف (عربي)
+                  </label>
+                  <Input
+                    id="descriptionAr"
+                    value={selectedRow?.descriptionAr || ""}
+                    onChange={(e) => onChange("descriptionAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="وصف المنطقة بالعربي"
+                  />
+                </>
+              )}
 
             <label htmlFor="image" className="text-gray-400">
               Image
