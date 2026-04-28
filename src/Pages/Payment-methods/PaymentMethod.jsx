@@ -22,6 +22,7 @@ const Payment_methods = () => {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [imageErrors, setImageErrors] = useState({});
+    const[isDeleting, setIsDeleting] = useState(false);
 
     const getAuthHeaders = () => ({
         Authorization: `Bearer ${token}`,
@@ -171,6 +172,7 @@ const Payment_methods = () => {
     
 
     const handleDeleteConfirm = async () => {
+        setIsDeleting(true); // Set deleting state to true when delete starts
         try {
             const response = await fetch(
                 `https://bcknd.sea-go.org/admin/payment_method/delete/${selectedRow.id}`,
@@ -190,6 +192,8 @@ const Payment_methods = () => {
         } catch (error) {
             console.error("Error deleting payment_method:", error);
             toast.error("Error occurred while deleting payment_method!");
+        } finally {
+            setIsDeleting(false); // Set deleting state back to false when delete completes
         }
     };
 
@@ -368,6 +372,7 @@ const Payment_methods = () => {
                         onOpenChange={setIsDeleteOpen}
                         onDelete={handleDeleteConfirm}
                         selectedRow={selectedRow}
+                        isDeleting={isDeleting}
                     />
                 </>
             )}

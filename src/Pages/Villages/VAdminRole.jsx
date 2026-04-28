@@ -29,10 +29,11 @@ import { set } from "zod";
 const Village_roless = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
-  const [isSaving, setIsSaving] = useState(false); // State to track saving status  
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const [village_roless, setvillage_roless] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false); // State to track deleting status
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isViewRolesOpen, setIsViewRolesOpen] = useState(false);
@@ -56,7 +57,7 @@ const Village_roless = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -94,7 +95,7 @@ const Village_roless = () => {
             "Content-Type": "application/json",
             ...getAuthHeaders(),
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -157,7 +158,7 @@ const Village_roless = () => {
     setSelectedRow(village_roles);
     // Initialize selectedEditRoles with the 'module' strings of the currently assigned roles
     setSelectedEditRoles(
-      village_roles.admin_roles_array?.map((r) => r.module) || []
+      village_roles.admin_roles_array?.map((r) => r.module) || [],
     );
     setIsEditOpen(true);
   };
@@ -198,7 +199,7 @@ const Village_roless = () => {
           method: "POST", // Or PUT/PATCH if your API uses that
           headers: getAuthHeaders(),
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -226,22 +227,22 @@ const Village_roless = () => {
       toast.error("You don't have permission to delete Village Admin Role");
       return;
     }
-
+    setIsDeleting(true); // Set deleting state to true when delete starts
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_roles/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Village role deleted successfully!");
         setvillage_roless(
           village_roless.filter(
-            (village_roles) => village_roles.id !== selectedRow.id
-          )
+            (village_roles) => village_roles.id !== selectedRow.id,
+          ),
         );
         setIsDeleteOpen(false);
       } else {
@@ -250,6 +251,8 @@ const Village_roless = () => {
     } catch (error) {
       console.error("Error deleting village_roles:", error);
       toast.error("Error occurred while deleting village role!");
+    } finally {
+      setIsDeleting(false); // Set deleting state back to false when delete completes
     }
   };
 
@@ -257,7 +260,9 @@ const Village_roless = () => {
     const { id } = row;
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Village Admin RoleStatus")) {
-      toast.error("You don't have permission to change zone Village Admin Role");
+      toast.error(
+        "You don't have permission to change zone Village Admin Role",
+      );
       return;
     }
     try {
@@ -266,7 +271,7 @@ const Village_roless = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -278,8 +283,8 @@ const Village_roless = () => {
                   ...village_roles,
                   status: newStatus === 1 ? "active" : "inactive",
                 }
-              : village_roles
-          )
+              : village_roles,
+          ),
         );
       } else {
         const errorData = await response.json();
@@ -343,10 +348,22 @@ const Village_roless = () => {
     },
   ];
 
-  console.log("Has Village Admin RoleAdd permission:", hasPermission("Village Admin RoleAdd"));
-  console.log("Has Village Admin RoleEdit permission:", hasPermission("Village Admin RoleEdit"));
-  console.log("Has Village Admin RoleDelete permission:", hasPermission("Village Admin RoleDelete"));
-  console.log("Has Village Admin RoleStatus permission:", hasPermission("Village Admin RoleStatus"));
+  console.log(
+    "Has Village Admin RoleAdd permission:",
+    hasPermission("Village Admin RoleAdd"),
+  );
+  console.log(
+    "Has Village Admin RoleEdit permission:",
+    hasPermission("Village Admin RoleEdit"),
+  );
+  console.log(
+    "Has Village Admin RoleDelete permission:",
+    hasPermission("Village Admin RoleDelete"),
+  );
+  console.log(
+    "Has Village Admin RoleStatus permission:",
+    hasPermission("Village Admin RoleStatus"),
+  );
 
   return (
     <div className="p-4">
@@ -363,7 +380,10 @@ const Village_roless = () => {
         onToggleStatus={handleToggleStatus}
         showEditButton={hasPermission("Village Admin RoleEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
         showDeleteButton={hasPermission("Village Admin RoleDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showActions={hasPermission("Village Admin RoleEdit") || hasPermission("Village Admin RoleDelete")}
+        showActions={
+          hasPermission("Village Admin RoleEdit") ||
+          hasPermission("Village Admin RoleDelete")
+        }
         showFilter={true}
         filterKey={["status"]}
         filterOptions={filterOptionsForvillage_roless}
@@ -440,6 +460,7 @@ const Village_roless = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

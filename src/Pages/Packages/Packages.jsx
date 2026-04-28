@@ -40,7 +40,7 @@ const Subscription = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  
+  const [isDeleting, setIsDeleting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'provider';
   const [tab, setTab] = useState(currentTab);
@@ -383,7 +383,7 @@ const handleDeleteConfirm = async () => {
     toast.error("You don't have permission to delete subscriptions");
     return;
   }
-  
+  setIsDeleting(true);
   try {
     const response = await fetch(
       `https://bcknd.sea-go.org/admin/subscription/delete/${selectedRow.id}`,
@@ -414,6 +414,8 @@ const handleDeleteConfirm = async () => {
     }
   } catch (error) {
     toast.error("Error occurred while deleting subscription!", error);
+  } finally {
+    setIsDeleting(false);
   }
 };
 
@@ -1001,6 +1003,7 @@ const handleToggleStatus = async (row, newStatus) => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

@@ -7,12 +7,14 @@ import { toast, ToastContainer } from "react-toastify";
 import Loading from "@/components/Loading";
 import { Label } from "@radix-ui/react-label";
 import { Outlet } from "react-router-dom";
+import { set } from "zod";
 
 export default function VUnit() {
   const [adminData, setAdminData] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const[isDeleting, setIsDeleting] = useState(false);
   // villagePositions is fetched but not used here, consider if it's needed
   const [villagePositions, setVillagePositions] = useState([]);
   const [selectedRowsForDeletion, setSelectedRowsForDeletion] = useState([]);
@@ -93,6 +95,7 @@ export default function VUnit() {
   };
 
   const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
     try {
       if (selectedRowsForDeletion.length === 0) {
         toast.warn("No units selected for deletion.");
@@ -127,6 +130,8 @@ export default function VUnit() {
     } catch (error) {
       console.error("Error deleting units:", error);
       toast.error("Error deleting units.");
+    }finally {
+      setIsDeleting(false);
     }
   };
 
@@ -171,6 +176,7 @@ const filterOptionsForUnits = [
 
           <DeleteDialog
             open={isDeleteOpen}
+            isDeleting={isDeleting}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
             name={

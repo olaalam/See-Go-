@@ -24,6 +24,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@radix-ui/react-label";
+import { set } from "zod";
 
 const Admins = () => {
   const dispatch = useDispatch();
@@ -37,10 +38,12 @@ const Admins = () => {
   const [imageErrors, setImageErrors] = useState({});
   const [isViewRolesOpen, setIsViewRolesOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [allAvailableRoles, setAllAvailableRoles] = useState([]);
   const [selectedEditRoles, setSelectedEditRoles] = useState([]);
   const [isRolesDropdownOpen, setIsRolesDropdownOpen] = useState(false);
   const [permissions, setPermissions] = useState([]); // State for permissions
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -206,6 +209,7 @@ const Admins = () => {
   
   const handleSave = async () => {
     if (!selectedRow) return;
+    setIsSaving(true);
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("AdminEdit")) {
       toast.error("You don't have permission to edit zones");
@@ -284,12 +288,14 @@ const Admins = () => {
       console.error("Error updating admin:", error);
       toast.error("Error occurred while updating admin!");
     } finally {
+      setIsSaving(false);
       dispatch(hideLoader());
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow) return;
+    setIsDeleting(true);
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("AdminDelete")) {
       toast.error("You don't have permission to delete zones");
@@ -318,6 +324,7 @@ const Admins = () => {
       console.error("Error deleting admin:", error);
       toast.error("Error occurred while deleting admin!");
     } finally {
+      setIsDeleting(false);
       dispatch(hideLoader());
     }
   };
@@ -448,6 +455,7 @@ const Admins = () => {
             selectedRow={selectedRow}
             columns={columns}
             onChange={onChange}
+            isSaving={isSaving}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <label htmlFor="name" className="text-gray-400 !pb-3">
@@ -618,6 +626,7 @@ const Admins = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             selectedRow={selectedRow}
           />
         </>

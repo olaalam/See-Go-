@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 import { useEffect, useState, useMemo } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/select";
 import { useParams } from "react-router-dom";
 import MapLocationPicker from "@/components/MapLocationPicker";
+import { set } from "zod";
 
 const Providers = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
+  const [isSaving , setIsSaving] = useState(false);
   const [providers, setProviders] = useState([]);
   const [allProviders, setAllProviders] = useState([]); // Store original fetched data
 
@@ -32,7 +34,7 @@ const Providers = () => {
   const [availablePackages, setAvailablePackages] = useState([]); // Packages (which are villages in your context)
   const [availableServices, setAvailableServices] = useState([]);
   const [permissions, setPermissions] = useState([]); // State for permissions
-
+const [isDeleting, setIsDeleting] = useState(false);
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -52,7 +54,7 @@ const Providers = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -94,7 +96,7 @@ const Providers = () => {
         `https://bcknd.sea-go.org/admin/mall/providers?mall_id=${id}`,
         {
           headers: getAuthHeaders(),
-        }
+        },
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -123,12 +125,12 @@ const Providers = () => {
         if (
           rawImageLink &&
           rawImageLink.startsWith(
-            "https://bcknd.sea-go.org/storage/https://bcknd.sea-go.org/storage/"
+            "https://bcknd.sea-go.org/storage/https://bcknd.sea-go.org/storage/",
           )
         ) {
           imageUrl = rawImageLink.replace(
             "https://bcknd.sea-go.org/storage/",
-            ""
+            "",
           );
         } else if (rawImageLink && !rawImageLink.startsWith("http")) {
           imageUrl = `https://bcknd.sea-go.org/storage/${rawImageLink}`;
@@ -192,21 +194,28 @@ const Providers = () => {
       setProviders(fetchedProviders); // Initialize displayed providers
 
       // 2. Collect unique zones, packages, and services for filter options and EditDialog
-           if (result.zones) {
-        setAvailableProvider(result.zones.map(zone => ({
-          id: zone.id.toString(),
-          name: zone.name
-        })));
+      if (result.zones) {
+        setAvailableProvider(
+          result.zones.map((zone) => ({
+            id: zone.id.toString(),
+            name: zone.name,
+          })),
+        );
       }
-            if (result.service_type) {
-        setAvailableServices(result.service_type.map(service => ({
-          id: service.id.toString(),
-          name: service.name
-        })));
+      if (result.service_type) {
+        setAvailableServices(
+          result.service_type.map((service) => ({
+            id: service.id.toString(),
+            name: service.name,
+          })),
+        );
       }
     } catch (error) {
       console.error("Error fetching providers:", error);
-      toast.error("Error fetching providers:", error.message || "Unknown error");
+      toast.error(
+        "Error fetching providers:",
+        error.message || "Unknown error",
+      );
     } finally {
       dispatch(hideLoader());
     }
@@ -221,23 +230,21 @@ const Providers = () => {
 
     if (selectedZoneFilter !== "all") {
       currentFilteredProviders = currentFilteredProviders.filter(
-        (provider) => provider.zoneName === selectedZoneFilter
+        (provider) => provider.zoneName === selectedZoneFilter,
       );
     }
 
     if (selectedVillageFilter !== "all") {
       currentFilteredProviders = currentFilteredProviders.filter(
-        (provider) => provider.villageName === selectedVillageFilter
+        (provider) => provider.villageName === selectedVillageFilter,
       );
     }
 
     if (selectedServiceFilter !== "all") {
       currentFilteredProviders = currentFilteredProviders.filter(
-        (provider) => provider.serviceName === selectedServiceFilter
+        (provider) => provider.serviceName === selectedServiceFilter,
       );
     }
-
-
 
     return currentFilteredProviders;
   }, [
@@ -245,25 +252,24 @@ const Providers = () => {
     selectedZoneFilter,
     selectedVillageFilter,
     selectedServiceFilter,
-
   ]);
 
   useEffect(() => {
     setProviders(filteredProviders);
   }, [filteredProviders]);
 
-const handleEdit = async (provider) => {
-  // Note: 'package_id' from fetched data is used as 'village_id' in selectedRow for the EditDialog's 'Package' field
-  setselectedRow({
-    ...provider,
-    service_id: provider.service_id ?? "",
-    name: provider.rawName, // Use rawName for editing
-    open_from: provider.open_from || "", // Corrected
-    open_to: provider.open_to || "", // Corrected
-    zone_id: provider.zone_id,
-  });
-  setIsEditOpen(true);
-};
+  const handleEdit = async (provider) => {
+    // Note: 'package_id' from fetched data is used as 'village_id' in selectedRow for the EditDialog's 'Package' field
+    setselectedRow({
+      ...provider,
+      service_id: provider.service_id ?? "",
+      name: provider.rawName, // Use rawName for editing
+      open_from: provider.open_from || "", // Corrected
+      open_to: provider.open_to || "", // Corrected
+      zone_id: provider.zone_id,
+    });
+    setIsEditOpen(true);
+  };
 
   const handleDelete = (provider) => {
     setselectedRow(provider);
@@ -273,6 +279,7 @@ const handleEdit = async (provider) => {
   const handleSave = async () => {
     // Validate required fields before sending
     if (!selectedRow) return;
+    setIsSaving(true);
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("ProviderEdit")) {
       toast.error("You don't have permission to edit zones");
@@ -324,6 +331,7 @@ const handleEdit = async (provider) => {
     const updatedProvider = new FormData();
     updatedProvider.append("id", id);
     updatedProvider.append("name", name.trim());
+    updatedProvider.append("location_map", location || "");
     updatedProvider.append("location", location || "");
     updatedProvider.append("description", description || "");
     updatedProvider.append("status", status === "Active" ? "1" : "0");
@@ -337,17 +345,11 @@ const handleEdit = async (provider) => {
       return time.length === 5 ? `${time}:00` : time;
     };
 
-    updatedProvider.append("open_from", formatTimeWithSeconds(open_from));
-    updatedProvider.append("open_to", formatTimeWithSeconds(open_to));
-
+    updatedProvider.append("service_id", parsedServiceId.toString());
+    updatedProvider.append("zone_id", parsedZoneId.toString());
     if (selectedRow.imageFile) {
       updatedProvider.append("image", selectedRow.imageFile);
-    } else if (selectedRow.image_link) {
-      // Send the existing image as a fallback
-      updatedProvider.append("image", selectedRow.image_link);
     }
-
-
 
     try {
       const response = await fetch(
@@ -359,7 +361,7 @@ const handleEdit = async (provider) => {
             // "Content-Type" is not set for FormData, browser sets it automatically with boundary
           },
           body: updatedProvider,
-        }
+        },
       );
 
       if (response.ok) {
@@ -375,31 +377,34 @@ const handleEdit = async (provider) => {
     } catch (error) {
       console.error("Error updating provider:", error);
       toast.error("Error occurred while updating provider!");
+    } finally{
+      setIsSaving(false);
     }
   };
 
   const handleDeleteConfirm = async () => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("ProviderDelete")) {
       toast.error("You don't have permission to delete zones");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
       if (response.ok) {
         toast.success("Provider deleted successfully!");
         // Update both displayed and allProviders state
         setProviders(
-          providers.filter((provider) => provider.id !== selectedRow.id)
+          providers.filter((provider) => provider.id !== selectedRow.id),
         );
         setAllProviders(
-          allProviders.filter((provider) => provider.id !== selectedRow.id)
+          allProviders.filter((provider) => provider.id !== selectedRow.id),
         );
         setIsDeleteOpen(false);
         setselectedRow(null); // Clear selected row after deletion
@@ -410,6 +415,8 @@ const handleEdit = async (provider) => {
     } catch (error) {
       console.error("Error occurred while deleting provider:", error);
       toast.error("Error occurred while deleting provider!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -426,7 +433,7 @@ const handleEdit = async (provider) => {
       // إذا تغيرت القرية (Package)، نحدث المنطقة تلقائيًا لتتوافق مع المنطقة الخاصة بهذه القرية
       if (key === "village_id") {
         const selectedVillagePackage = availablePackages.find(
-          (v) => v.id === parseInt(value, 10)
+          (v) => v.id === parseInt(value, 10),
         );
         if (
           selectedVillagePackage &&
@@ -440,7 +447,7 @@ const handleEdit = async (provider) => {
       // أو لجعلها فارغة لإجبار المستخدم على الاختيار من جديد
       if (key === "zone_id" && prev.village_id) {
         const currentSelectedVillagePackage = availablePackages.find(
-          (p) => p.id === prev.village_id
+          (p) => p.id === prev.village_id,
         );
         if (
           currentSelectedVillagePackage &&
@@ -465,18 +472,15 @@ const handleEdit = async (provider) => {
     }
   };
 
-
-
   const columns = [
     { key: "name", label: "Provider " },
     { key: "img", label: "Image" },
     { key: "zoneName", label: "Zone" },
     { key: "serviceName", label: "Service " },
-    {key:"adminName", label: "Admin Name"}, // Display as "Admin Name"
+    { key: "adminName", label: "Admin Name" }, // Display as "Admin Name"
     { key: "villageName", label: "Package" }, // Display as "Package"
     { key: "phone", label: "Phone" },
     { key: "rating", label: "Rating" },
-
   ];
 
   const filterOptions = [
@@ -485,7 +489,10 @@ const handleEdit = async (provider) => {
       label: "Zone",
       options: [
         { value: "all", label: "All Provider" },
-        ...availableProvider.map((zone) => ({ value: zone.name, label: zone.name })),
+        ...availableProvider.map((zone) => ({
+          value: zone.name,
+          label: zone.name,
+        })),
       ],
       onChange: (value) => setSelectedZoneFilter(value),
       selectedValue: selectedZoneFilter,
@@ -500,7 +507,8 @@ const handleEdit = async (provider) => {
             (pkg) =>
               selectedZoneFilter === "all" ||
               pkg.zone_id ===
-                availableProvider.find((z) => z.name === selectedZoneFilter)?.id
+                availableProvider.find((z) => z.name === selectedZoneFilter)
+                  ?.id,
           )
           .map((v) => ({ value: v.name, label: v.name })),
       ],
@@ -520,7 +528,6 @@ const handleEdit = async (provider) => {
       onChange: (value) => setSelectedServiceFilter(value),
       selectedValue: selectedServiceFilter,
     },
-
   ];
 
   // Filtered packages for the Edit Dialog's 'Package' select
@@ -530,7 +537,7 @@ const handleEdit = async (provider) => {
       return availablePackages; // Show all if no zone is selected yet in the dialog
     }
     return availablePackages.filter(
-      (pkg) => pkg.zone_id === selectedRow.zone_id
+      (pkg) => pkg.zone_id === selectedRow.zone_id,
     );
   }, [availablePackages, selectedRow?.zone_id]);
 
@@ -542,18 +549,16 @@ const handleEdit = async (provider) => {
       <DataTable
         data={providers}
         columns={columns}
-          showAddButton={hasPermission("ProviderAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
-
+        showAddButton={hasPermission("ProviderAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute={`/mall/single-page-m/${id}/add`}
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
-  showEditButton={hasPermission("ProviderEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showDeleteButton={hasPermission("ProviderDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-  showActions={
-    hasPermission("ProviderEdit") ||
-    hasPermission("ProviderDelete") 
-  }
+        showEditButton={hasPermission("ProviderEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showDeleteButton={hasPermission("ProviderDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showActions={
+          hasPermission("ProviderEdit") || hasPermission("ProviderDelete")
+        }
         searchKeys={[
           "name",
           "serviceName",
@@ -570,6 +575,7 @@ const handleEdit = async (provider) => {
           <EditDialog
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
+            isSaving={isSaving}
             onSave={handleSave}
             selectedRow={selectedRow}
             zones={availableProvider}
@@ -714,8 +720,6 @@ const handleEdit = async (provider) => {
                 </SelectContent>
               </Select>
 
-
-
               <label htmlFor="image" className="text-gray-400">
                 Image
               </label>
@@ -743,6 +747,7 @@ const handleEdit = async (provider) => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

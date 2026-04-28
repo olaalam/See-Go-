@@ -38,6 +38,7 @@ const Provider_roless = () => {
   const [isViewRolesOpen, setIsViewRolesOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState([]); // New state for all selectable roles
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedEditRoles, setSelectedEditRoles] = useState([]); // State for roles in edit dialog
   const [permissions, setPermissions] = useState([]); // State for permissions
 
@@ -223,6 +224,7 @@ const Provider_roless = () => {
       toast.error("You don't have permission to delete Provider Admin Role");
       return;
     }
+    setIsDeleting(true); // Set deleting state to true when delete starts
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_roles/delete/${selectedRow.id}`,
@@ -246,6 +248,8 @@ const Provider_roless = () => {
     } catch (error) {
       console.error("Error deleting provider_roles:", error);
       toast.error("Error occurred while deleting provider role!");
+    } finally {
+      setIsDeleting(false); // Set deleting state back to false when delete completes
     }
   };
 
@@ -433,6 +437,7 @@ const Provider_roless = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

@@ -13,9 +13,10 @@ import { set } from "zod";
 
 const Maintenance_types = () => {
   const dispatch = useDispatch();
-  const[isSaving, setIsSaving] = useState(false); // State to track saving status
+  const [isSaving, setIsSaving] = useState(false); // State to track saving status
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [maintenance_types, setmaintenance_types] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   const token = localStorage.getItem("token");
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -34,7 +35,7 @@ const Maintenance_types = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -64,7 +65,6 @@ const Maintenance_types = () => {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
-
   const fetchmaintenance_types = async () => {
     dispatch(showLoader());
     try {
@@ -76,7 +76,7 @@ const Maintenance_types = () => {
             "Content-Type": "application/json",
             ...getAuthHeaders(),
           },
-        }
+        },
       );
 
       const result = await response.json();
@@ -89,8 +89,7 @@ const Maintenance_types = () => {
           return acc;
         }, {});
 
-        const nameEn =
-          translations?.name || maintenance_type.name || "—";
+        const nameEn = translations?.name || maintenance_type.name || "—";
         const nameAr = translations?.ar?.name || null;
         const image =
           maintenance_type?.image_link && !imageErrors[maintenance_type.id] ? (
@@ -130,7 +129,10 @@ const Maintenance_types = () => {
 
   const handleEdit = (maintenance_type) => {
     // When opening for edit, store the original image_link if it exists
-    setSelectedRow({ ...maintenance_type, original_image_link: maintenance_type.image_link });
+    setSelectedRow({
+      ...maintenance_type,
+      original_image_link: maintenance_type.image_link,
+    });
     setIsEditOpen(true);
   };
 
@@ -142,15 +144,15 @@ const Maintenance_types = () => {
   const handleSave = async () => {
     if (!selectedRow) return;
     setIsSaving(true); // Set saving state to true when save starts
-    const { id, name, nameAr,status } = selectedRow;
+    const { id, name, nameAr, status } = selectedRow;
     // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Maintenance TypeEdit")) {
       toast.error("You don't have permission to edit zones");
       return;
     }
     const formData = new FormData();
-    formData.append("name", name||"");
-        if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+    formData.append("name", name || "");
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       formData.append("ar_name", nameAr || "");
     }
     formData.append("status", status === "Active" ? 1 : 0);
@@ -172,7 +174,7 @@ const Maintenance_types = () => {
           method: "POST",
           headers: getAuthHeaders(), // Keep these headers if they are for auth only, otherwise they might conflict with FormData's Content-Type
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -195,26 +197,27 @@ const Maintenance_types = () => {
   };
 
   const handleDeleteConfirm = async () => {
-        // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
+    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("Maintenance TypeDelete")) {
       toast.error("You don't have permission to delete zones");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/maintenance_type/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Maintenance type deleted successfully!");
         setmaintenance_types(
           maintenance_types.filter(
-            (maintenance_type) => maintenance_type.id !== selectedRow.id
-          )
+            (maintenance_type) => maintenance_type.id !== selectedRow.id,
+          ),
         );
         setIsDeleteOpen(false);
       } else {
@@ -223,6 +226,8 @@ const Maintenance_types = () => {
     } catch (error) {
       console.error("Error deleting maintenance type:", error);
       toast.error("Error occurred while deleting maintenance type!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -239,7 +244,7 @@ const Maintenance_types = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
@@ -251,8 +256,8 @@ const Maintenance_types = () => {
                   ...maintenance_type,
                   status: newStatus === 1 ? "Active" : "Inactive",
                 }
-              : maintenance_type
-          )
+              : maintenance_type,
+          ),
         );
       } else {
         const errorData = await response.json();
@@ -298,11 +303,11 @@ const Maintenance_types = () => {
 
   const filterOptionsForZones = [
     {
-      key: "status", 
-      label: "Status", 
+      key: "status",
+      label: "Status",
       options: [
         { value: "all", label: "All Statuses" },
-        { value: "Active", label: "Active" }, 
+        { value: "Active", label: "Active" },
         { value: "Inactive", label: "Inactive" },
       ],
     },
@@ -316,16 +321,18 @@ const Maintenance_types = () => {
       <DataTable
         data={maintenance_types}
         columns={columns}
-                showAddButton={hasPermission("Maintenance TypeAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
-
+        showAddButton={hasPermission("Maintenance TypeAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
         addRoute="/maintenance/add"
         className="table-compact"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-                showEditButton={hasPermission("Maintenance TypeEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showEditButton={hasPermission("Maintenance TypeEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
         showDeleteButton={hasPermission("Maintenance TypeDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showActions={hasPermission("Maintenance TypeEdit") || hasPermission("Maintenance TypeDelete")}
+        showActions={
+          hasPermission("Maintenance TypeEdit") ||
+          hasPermission("Maintenance TypeDelete")
+        }
         searchKeys={["name"]}
         filterKey={["status"]}
         filterOptions={filterOptionsForZones}
@@ -351,23 +358,23 @@ const Maintenance_types = () => {
               onChange={(e) => onChange("name", e.target.value)}
               className="!my-2 text-bg-primary !p-4"
             />
-                        {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
-            {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
-              <>
-                <label htmlFor="nameAr" className="text-gray-400 !pb-3">
-                  اسم المنطقة (عربي)
-                </label>
-                <Input
-                  id="nameAr"
-                  value={selectedRow?.nameAr || ""}
-                  onChange={(e) => onChange("nameAr", e.target.value)}
-                  className="!my-2 text-bg-primary !p-4"
-                  dir="rtl"
-                  placeholder="اسم المنطقة بالعربي"
-                />
-              </>
-            )}
-
+            {/* الحقول العربية - بس لو الـ zone أصلاً له ترجمة عربية */}
+            {selectedRow?.nameAr !== null &&
+              selectedRow?.nameAr !== undefined && (
+                <>
+                  <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                    اسم المنطقة (عربي)
+                  </label>
+                  <Input
+                    id="nameAr"
+                    value={selectedRow?.nameAr || ""}
+                    onChange={(e) => onChange("nameAr", e.target.value)}
+                    className="!my-2 text-bg-primary !p-4"
+                    dir="rtl"
+                    placeholder="اسم المنطقة بالعربي"
+                  />
+                </>
+              )}
 
             <label htmlFor="image" className="text-gray-400">
               Image
@@ -395,6 +402,7 @@ const Maintenance_types = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

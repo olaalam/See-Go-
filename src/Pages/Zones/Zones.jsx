@@ -23,6 +23,7 @@ const Zones = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // الحصول على الصلاحيات من localStorage
   const getUserPermissions = () => {
@@ -241,7 +242,7 @@ const Zones = () => {
       toast.error("You don't have permission to delete zones");
       return;
     }
-
+setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/zone/delete/${selectedRow.id}`,
@@ -261,6 +262,8 @@ const Zones = () => {
     } catch (error) {
       console.error("Error deleting zone:", error);
       toast.error("Error occurred while deleting zone!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -458,6 +461,7 @@ const Zones = () => {
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
             name={selectedRow.name}
+            isDeleting={isDeleting}
           />
         </>
       )}

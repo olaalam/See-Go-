@@ -22,6 +22,7 @@ const Services = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
@@ -231,6 +232,7 @@ const Services = () => {
       toast.error("You don't have permission to delete Service Type");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/service_type/delete/${selectedRow.id}`,
@@ -252,6 +254,8 @@ const Services = () => {
     } catch (error) {
       console.error("Error deleting service:", error);
       toast.error("Error occurred while deleting service!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -421,6 +425,7 @@ const Services = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name} // Assuming selectedRow.name exists for display in DeleteDialog
           />
         </>

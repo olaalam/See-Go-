@@ -30,8 +30,8 @@ const Service_provider = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [permissions, setPermissions] = useState([]);
-  const[isSaving, setIsSaving] = useState(false);
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const token = localStorage.getItem("token");
 
   const getAuthHeaders = () => ({
@@ -42,14 +42,16 @@ const Service_provider = () => {
     location_map: "",
     lat: 31.2001,
     lng: 29.9187,
-  })
+  });
   // Helper to convert URL to Base64
   const imageUrlToBase64 = async (url) => {
     if (!url) return null;
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        console.warn(`Failed to fetch image from URL: ${url}, status: ${response.status}`);
+        console.warn(
+          `Failed to fetch image from URL: ${url}, status: ${response.status}`,
+        );
         return null;
       }
       const blob = await response.blob();
@@ -72,7 +74,7 @@ const Service_provider = () => {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -105,7 +107,7 @@ const Service_provider = () => {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
-      
+
       const formattedVillages = (result.villages || []).map((village) => {
         const translations = village.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
@@ -130,7 +132,7 @@ const Service_provider = () => {
         "https://bcknd.sea-go.org/admin/service_provider",
         {
           headers: getAuthHeaders(),
-        }
+        },
       );
       const result = await response.json();
 
@@ -145,15 +147,19 @@ const Service_provider = () => {
             id: type.id,
             name: translations?.en?.name || type.name,
           };
-        }
+        },
       );
       setMaintenanceTypes(formattedMaintenanceTypes);
 
       // Map providers and convert existing images to Base64
       const formattedProviders = await Promise.all(
         (result.providers || []).map(async (provider) => {
-          console.log("Processing provider:", provider.id, provider.translations);
-          
+          console.log(
+            "Processing provider:",
+            provider.id,
+            provider.translations,
+          );
+
           // فصل الترجمات حسب اللغة والنوع - same as villages
           const translations = provider.translations.reduce((acc, t) => {
             if (!acc[t.locale]) acc[t.locale] = {};
@@ -165,14 +171,15 @@ const Service_provider = () => {
 
           // استخراج البيانات بالإنجليزي (للعرض في الجدول)
           const nameEn = translations?.en?.name || provider.name || "—";
-          const descriptionEn = translations?.en?.description || provider.description || "—";
+          const descriptionEn =
+            translations?.en?.description || provider.description || "—";
 
           // استخراج البيانات بالعربي (للـ EditDialog)
           const nameAr = translations?.ar?.name || null;
           const descriptionAr = translations?.ar?.description || null;
 
           const map = provider.location || "—";
-          
+
           let originalImageBase64 = null;
           if (provider.image_link) {
             originalImageBase64 = await imageUrlToBase64(provider.image_link);
@@ -190,11 +197,13 @@ const Service_provider = () => {
             </Avatar>
           );
 
-          const villageData = villages.find((v) => v.id === provider.village_id);
+          const villageData = villages.find(
+            (v) => v.id === provider.village_id,
+          );
           const villageName = villageData?.name || "—";
 
           const maintenanceTypeData = formattedMaintenanceTypes.find(
-            (t) => t.id === provider.maintenance_type_id
+            (t) => t.id === provider.maintenance_type_id,
           );
           const maintenanceTypeName = maintenanceTypeData?.name || "—";
 
@@ -219,11 +228,11 @@ const Service_provider = () => {
             maintenanceTypeName,
             open_from: provider.open_from || "",
             open_to: provider.open_to || "",
-                      location_map: provider.location_map || "",
-          lat: provider.lat || 31.2001,
-          lng: provider.lng || 29.9187,
+            location_map: provider.location_map || "",
+            lat: provider.lat || 31.2001,
+            lng: provider.lng || 29.9187,
           };
-        })
+        }),
       );
 
       setservice_provider(formattedProviders);
@@ -249,13 +258,13 @@ const Service_provider = () => {
     if (!provider) return;
     setselectedRow({ ...provider, name: provider.rawName });
     setIsEditOpen(true);
-        // التأكد من وجود البيانات وإعطاء قيم افتراضية
+    // التأكد من وجود البيانات وإعطاء قيم افتراضية
     const locationData = {
       location_map: provider.location_map || provider.map || "",
       lat: provider.lat || 31.2001,
       lng: provider.lng || 29.9187,
     };
-        console.log("Setting location data:", locationData);
+    console.log("Setting location data:", locationData);
     setEditLocationData(locationData);
   };
 
@@ -271,7 +280,7 @@ const Service_provider = () => {
       toast.error("You don't have permission to edit Provider Maintenance");
       return;
     }
-    
+
     const {
       id,
       rawName,
@@ -311,7 +320,7 @@ const Service_provider = () => {
       maintenance_type_id: maintenance_type_id,
       open_from: formatTimeWithSeconds(open_from),
       open_to: formatTimeWithSeconds(open_to),
-            lat: editLocationData.lat.toString(),
+      lat: editLocationData.lat.toString(),
       lng: editLocationData.lng.toString(),
       location_map: editLocationData.location_map,
     };
@@ -320,14 +329,21 @@ const Service_provider = () => {
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedProvider.ar_name = nameAr || "";
     }
-    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+    if (
+      selectedRow.descriptionAr !== null &&
+      selectedRow.descriptionAr !== undefined
+    ) {
       updatedProvider.ar_description = descriptionAr || "";
     }
 
     // Image handling logic
     if (imageFileBase64) {
       updatedProvider.image = imageFileBase64;
-    } else if (image_link && image_link === original_image_link && originalImageBase64) {
+    } else if (
+      image_link &&
+      image_link === original_image_link &&
+      originalImageBase64
+    ) {
       updatedProvider.image = originalImageBase64;
     } else if (!image_link && original_image_link) {
       updatedProvider.image = null;
@@ -344,7 +360,7 @@ const Service_provider = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(updatedProvider),
-        }
+        },
       );
 
       if (response.ok) {
@@ -372,6 +388,7 @@ const Service_provider = () => {
       toast.error("You don't have permission to delete Provider Maintenance");
       return;
     }
+    setIsDeleting(true);
     try {
       dispatch(showLoader());
       const response = await fetch(
@@ -379,12 +396,12 @@ const Service_provider = () => {
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
       if (response.ok) {
         toast.success("Provider deleted successfully!");
         setservice_provider(
-          service_provider.filter((provider) => provider.id !== selectedRow.id)
+          service_provider.filter((provider) => provider.id !== selectedRow.id),
         );
         setIsDeleteOpen(false);
       } else {
@@ -393,8 +410,9 @@ const Service_provider = () => {
     } catch (error) {
       toast.error("Error occurred while deleting provider!", error);
     } finally {
+      setIsDeleting(false);
       dispatch(hideLoader());
-    }
+    } 
   };
 
   const onChange = (key, value) => {
@@ -442,7 +460,7 @@ const Service_provider = () => {
     const { id } = row;
     if (!hasPermission("Provider MaintenanceStatus")) {
       toast.error(
-        "You don't have permission to change Provider Maintenance status"
+        "You don't have permission to change Provider Maintenance status",
       );
       return;
     }
@@ -453,7 +471,7 @@ const Service_provider = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
       if (response.ok) {
         toast.success("Provider status updated successfully!");
@@ -461,8 +479,8 @@ const Service_provider = () => {
           prevservice_provider.map((provider) =>
             provider.id === id
               ? { ...provider, status: newStatus === 1 ? "active" : "inactive" }
-              : provider
-          )
+              : provider,
+          ),
         );
       } else {
         toast.error("Failed to update provider status!");
@@ -479,7 +497,7 @@ const Service_provider = () => {
     .map((name) => ({ value: name, label: name }));
 
   const uniqueMaintenanceTypeOptions = Array.from(
-    new Set(maintenanceTypes.map((mt) => mt.name))
+    new Set(maintenanceTypes.map((mt) => mt.name)),
   )
     .filter((name) => name && name !== "—")
     .map((name) => ({ value: name, label: name }));
@@ -522,7 +540,7 @@ const Service_provider = () => {
     { key: "phone", label: "Phone" },
     { key: "status", label: "Status" },
   ];
-  
+
   useEffect(() => {
     if (selectedRow && isEditOpen) {
       const locationData = {
@@ -530,7 +548,7 @@ const Service_provider = () => {
         lat: selectedRow.lat || 31.2001,
         lng: selectedRow.lng || 29.9187,
       };
-      
+
       console.log("Syncing location data from selectedRow:", locationData);
       setEditLocationData(locationData);
     }
@@ -553,7 +571,10 @@ const Service_provider = () => {
         showFilter={true}
         showEditButton={hasPermission("Provider MaintenanceEdit")}
         showDeleteButton={hasPermission("Provider MaintenanceDelete")}
-        showActions={hasPermission("Provider MaintenanceEdit") || hasPermission("Provider MaintenanceDelete")}
+        showActions={
+          hasPermission("Provider MaintenanceEdit") ||
+          hasPermission("Provider MaintenanceDelete")
+        }
         filterKey={["villageName", "maintenanceTypeName", "status"]}
         filterOptions={filterOptionsForServices}
       />
@@ -570,7 +591,6 @@ const Service_provider = () => {
             isSaving={isSaving}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              
               {/* الحقول الإنجليزية */}
               <Label htmlFor="name" className="text-gray-400 !pb-3">
                 Provider Name (English)
@@ -595,37 +615,44 @@ const Service_provider = () => {
               />
 
               {/* الحقول العربية - بس لو الـ provider أصلاً له ترجمة عربية */}
-              {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
-                <>
-                  <Label htmlFor="nameAr" className="text-gray-400 !pb-3">
-                    اسم المزود (عربي)
-                  </Label>
-                  <Input
-                    id="nameAr"
-                    value={selectedRow?.nameAr || ""}
-                    onChange={(e) => onChange("nameAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="اسم المزود بالعربي"
-                  />
-                </>
-              )}
+              {selectedRow?.nameAr !== null &&
+                selectedRow?.nameAr !== undefined && (
+                  <>
+                    <Label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                      اسم المزود (عربي)
+                    </Label>
+                    <Input
+                      id="nameAr"
+                      value={selectedRow?.nameAr || ""}
+                      onChange={(e) => onChange("nameAr", e.target.value)}
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="اسم المزود بالعربي"
+                    />
+                  </>
+                )}
 
-              {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
-                <>
-                  <Label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
-                    الوصف (عربي)
-                  </Label>
-                  <Input
-                    id="descriptionAr"
-                    value={selectedRow?.descriptionAr || ""}
-                    onChange={(e) => onChange("descriptionAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="وصف المزود بالعربي"
-                  />
-                </>
-              )}
+              {selectedRow?.descriptionAr !== null &&
+                selectedRow?.descriptionAr !== undefined && (
+                  <>
+                    <Label
+                      htmlFor="descriptionAr"
+                      className="text-gray-400 !pb-3"
+                    >
+                      الوصف (عربي)
+                    </Label>
+                    <Input
+                      id="descriptionAr"
+                      value={selectedRow?.descriptionAr || ""}
+                      onChange={(e) =>
+                        onChange("descriptionAr", e.target.value)
+                      }
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="وصف المزود بالعربي"
+                    />
+                  </>
+                )}
 
               <label htmlFor="location" className="text-gray-400 !pb-3">
                 Location
@@ -764,11 +791,12 @@ const Service_provider = () => {
               />
             </div>
           </EditDialog>
-          
+
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.rawName}
           />
 

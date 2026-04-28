@@ -40,11 +40,11 @@ export default function Add({ fields, values, onChange }) {
 
   const mapFields = useMemo(
     () => fields.filter((field) => field.type === "map"),
-    [fields]
+    [fields],
   );
   const otherFields = useMemo(
     () => fields.filter((field) => field.type !== "map"),
-    [fields]
+    [fields],
   );
 
   return (
@@ -111,11 +111,12 @@ export default function Add({ fields, values, onChange }) {
                     <Input
                       id={fieldId}
                       type="file"
+                      accept={field.accept || "image/*"}
                       onChange={(e) =>
                         handleChange(
                           field.lang,
                           field.name,
-                          e.target.files?.[0]
+                          e.target.files?.[0],
                         )
                       }
                       className={`h-[54px] !mt-4 text-gray-500 ${commonInputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200`}
@@ -176,7 +177,7 @@ export default function Add({ fields, values, onChange }) {
                           handleChange(
                             field.lang,
                             field.name,
-                            checked ? "active" : "inactive"
+                            checked ? "active" : "inactive",
                           )
                         }
                       />
@@ -257,7 +258,7 @@ const ComboboxComponent = ({
           aria-expanded={open}
           className={cn(
             `w-full justify-between !ms-1 !px-5 !py-6 ${commonInputClass}`,
-            !value && "text-muted-foreground"
+            !value && "text-muted-foreground",
           )}
         >
           {selectedLabel || placeholder}
@@ -282,7 +283,7 @@ const ComboboxComponent = ({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      value === option.value ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {option.label}

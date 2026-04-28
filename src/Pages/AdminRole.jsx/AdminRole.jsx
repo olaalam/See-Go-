@@ -28,7 +28,8 @@ const Admin_roles = () => {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [allAvailableRoles, setAllAvailableRoles] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
-
+const [isSaving, setIsSaving] = useState(false);
+const [isDeleting, setIsDeleting] = useState(false);
   // الحصول على الصلاحيات من localStorage
   const getUserPermissions = () => {
     try {
@@ -161,6 +162,7 @@ const Admin_roles = () => {
       toast.error("You don't have permission to delete Admin Role");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/admin_role/delete/${selectedRow.id}`,
@@ -182,6 +184,8 @@ const Admin_roles = () => {
     } catch (error) {
       console.error("Error deleting Admin_roles:", error);
       toast.error("Error occurred while deleting Admin role!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -294,6 +298,7 @@ const Admin_roles = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

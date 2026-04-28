@@ -76,7 +76,6 @@ export default function SubscribersPage() {
 
   const fetchData = async () => {
     try {
-      
       setLoading(true);
       const response = await axios.get(
         "https://bcknd.sea-go.org/admin/subscriper",
@@ -121,7 +120,6 @@ export default function SubscribersPage() {
       toast.error("Failed to fetch subscribers.");
       console.error("Error fetching data:", error);
     } finally {
-      
       setLoading(false);
     }
   };
@@ -150,7 +148,6 @@ export default function SubscribersPage() {
       formData.append(
         "maintenance_provider_id",
         row?.maintenance_provider_id?.toString() || "",
-        
       );
     }
 
@@ -174,9 +171,8 @@ export default function SubscribersPage() {
       toast.error(
         `Failed to update subscriber: ${
           error.response?.data?.message || error.message
-          
         }`,
-      ); 
+      );
     } finally {
       setIsSaving(false);
     }
@@ -477,12 +473,13 @@ export default function SubscribersPage() {
             onOpenChange={setEditDialogOpen}
             selectedRow={selectedRow}
             isSaving={isSaving}
-            onSave={() => {
-              if (selectedRow) {
-                handleEdit(selectedRow);
-              } else {
+            onSave={async () => {
+              if (!selectedRow) {
                 toast.error("No row selected for edit.");
+                return;
               }
+
+              await handleEdit(selectedRow);
               setEditDialogOpen(false);
             }}
           >

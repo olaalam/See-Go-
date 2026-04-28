@@ -39,6 +39,7 @@ const Villages = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [invoiceVillageId, setInvoiceVillageId] = useState(null);
 
@@ -85,28 +86,28 @@ const Villages = () => {
   };
 
   const extractBase64FromDataURL = (dataURL) => {
-    if (!dataURL || typeof dataURL !== 'string') {
+    if (!dataURL || typeof dataURL !== "string") {
       console.warn("Invalid dataURL provided:", dataURL);
       return null;
     }
-    
-    if (!dataURL.includes(',')) {
+
+    if (!dataURL.includes(",")) {
       return dataURL;
     }
-    
+
     try {
-      const base64Part = dataURL.split(',')[1];
+      const base64Part = dataURL.split(",")[1];
       if (!base64Part) {
         console.warn("No base64 data found in dataURL");
         return null;
       }
-      
+
       const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
       if (!base64Regex.test(base64Part)) {
         console.warn("Invalid base64 format");
         return null;
       }
-      
+
       return base64Part;
     } catch (error) {
       console.error("Error extracting base64:", error);
@@ -115,11 +116,19 @@ const Villages = () => {
   };
 
   const validateImageFile = (file) => {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
     const maxSize = 5 * 1024 * 1024; // 5MB
 
     if (!validTypes.includes(file.type)) {
-      throw new Error("Please select a valid image file (JPEG, PNG, GIF, WebP)");
+      throw new Error(
+        "Please select a valid image file (JPEG, PNG, GIF, WebP)",
+      );
     }
 
     if (file.size > maxSize) {
@@ -139,7 +148,7 @@ const Villages = () => {
     try {
       const permissions = localStorage.getItem("userPermission");
       const parsed = permissions ? JSON.parse(permissions) : [];
-      return parsed.map(perm => `${perm.module}:${perm.action}`);
+      return parsed.map((perm) => `${perm.module}:${perm.action}`);
     } catch (error) {
       console.error("Error parsing user permissions:", error);
       return [];
@@ -156,11 +165,11 @@ const Villages = () => {
 
   // Event handlers
   const handleImageError = useCallback((id) => {
-    setImageErrors(prev => ({ ...prev, [id]: true }));
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
   }, []);
 
   const handleFilterChange = useCallback((key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   // Data fetching
@@ -193,11 +202,11 @@ const Villages = () => {
       const response = await fetch("https://bcknd.sea-go.org/admin/village", {
         headers: getAuthHeaders(),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
 
       if (!result || !result.villages || !Array.isArray(result.villages)) {
@@ -209,7 +218,7 @@ const Villages = () => {
 
       const formatted = result.villages.map((village) => {
         console.log("Processing village:", village.id, village.translations); // للـ debugging
-        
+
         // فصل الترجمات حسب اللغة والنوع - same as zones
         const translations = village.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
@@ -221,9 +230,10 @@ const Villages = () => {
 
         // استخراج البيانات بالإنجليزي (للعرض في الجدول)
         const nameEn = translations?.en?.name || village.name || "—";
-        const descriptionEn = translations?.en?.description || village.description || "—";
+        const descriptionEn =
+          translations?.en?.description || village.description || "—";
 
-        // استخراج البيانات بالعربي (للـ EditDialog) 
+        // استخراج البيانات بالعربي (للـ EditDialog)
         // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
         const nameAr = translations?.ar?.name || null;
         const descriptionAr = translations?.ar?.description || null;
@@ -241,10 +251,11 @@ const Villages = () => {
         );
 
         // Get zone information
-        const zoneObj = zones.find(z => z.id === village.zone_id);
-        const zoneName = zoneObj?.name || 
+        const zoneObj = zones.find((z) => z.id === village.zone_id);
+        const zoneName =
+          zoneObj?.name ||
           village.zone?.translations?.find(
-            (t) => t.locale === "en" && t.key === "name"
+            (t) => t.locale === "en" && t.key === "name",
           )?.value ||
           village.zone?.name ||
           "—";
@@ -290,7 +301,7 @@ const Villages = () => {
           lng: village.lng || 29.9187,
         };
       });
-      
+
       setAllVillages(formatted);
       setVillages(formatted);
     } catch (error) {
@@ -308,11 +319,15 @@ const Villages = () => {
     let filtered = [...allVillages];
 
     if (filters.zone !== "all") {
-      filtered = filtered.filter(village => village.searchableZone === filters.zone);
+      filtered = filtered.filter(
+        (village) => village.searchableZone === filters.zone,
+      );
     }
 
     if (filters.status !== "all") {
-      filtered = filtered.filter(village => village.status === filters.status);
+      filtered = filtered.filter(
+        (village) => village.status === filters.status,
+      );
     }
 
     return filtered;
@@ -324,25 +339,25 @@ const Villages = () => {
       console.error("No village data provided for editing");
       return;
     }
-    
+
     const editableVillage = {
       ...village,
       name: village.rawName || village.nameEn,
       numberOfUnits: Number(village.numberOfUnits) || 0,
     };
-    
+
     setSelectedRow(editableVillage);
-    
+
     // التأكد من وجود البيانات وإعطاء قيم افتراضية
     const locationData = {
       location_map: village.location_map || village.map || "",
       lat: village.lat || 31.2001,
       lng: village.lng || 29.9187,
     };
-    
+
     console.log("Setting location data:", locationData);
     setEditLocationData(locationData);
-    
+
     setIsEditOpen(true);
   };
 
@@ -359,7 +374,7 @@ const Villages = () => {
         lat: selectedRow.lat || 31.2001,
         lng: selectedRow.lng || 29.9187,
       };
-      
+
       console.log("Syncing location data from selectedRow:", locationData);
       setEditLocationData(locationData);
     }
@@ -370,7 +385,7 @@ const Villages = () => {
       console.error("No village data provided for deletion");
       return;
     }
-    
+
     setSelectedRow(village);
     setIsDeleteOpen(true);
   };
@@ -388,7 +403,7 @@ const Villages = () => {
   const handleImageChange = async (event) => {
     const file = event.target.files[0];
     if (!file) {
-      setSelectedRow(prev => ({
+      setSelectedRow((prev) => ({
         ...prev,
         imageFile: null,
         imageBase64: null,
@@ -404,14 +419,14 @@ const Villages = () => {
 
       const dataURL = await convertFileToBase64(file);
       const base64Only = extractBase64FromDataURL(dataURL);
-      
+
       if (!base64Only) {
         throw new Error("Failed to extract base64 data from image");
       }
 
       const previewURL = URL.createObjectURL(file);
-      
-      setSelectedRow(prev => ({
+
+      setSelectedRow((prev) => ({
         ...prev,
         imageFile: file,
         imageBase64: dataURL,
@@ -425,23 +440,33 @@ const Villages = () => {
         fileSize: file.size,
         base64Length: base64Only.length,
       });
-
     } catch (error) {
-      console.error('Error processing image:', error);
-      toast.error(error.message || 'Error processing image file');
-      event.target.value = '';
+      console.error("Error processing image:", error);
+      toast.error(error.message || "Error processing image file");
+      event.target.value = "";
     }
   };
 
   const handleSave = async () => {
     if (!selectedRow) return;
-  setIsSaving(true);
+    setIsSaving(true);
     if (!hasPermission("VillagesEdit")) {
       toast.error("You don't have permission to edit villages");
       return;
     }
 
-    const { id, name, description, nameAr, descriptionAr, status, zone_id, numberOfUnits, newImageBase64, hasNewImage } = selectedRow;
+    const {
+      id,
+      name,
+      description,
+      nameAr,
+      descriptionAr,
+      status,
+      zone_id,
+      numberOfUnits,
+      newImageBase64,
+      hasNewImage,
+    } = selectedRow;
 
     // Validation
     if (!id) {
@@ -482,43 +507,52 @@ const Villages = () => {
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedVillage.ar_name = nameAr || "";
     }
-    if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
+    if (
+      selectedRow.descriptionAr !== null &&
+      selectedRow.descriptionAr !== undefined
+    ) {
       updatedVillage.ar_description = descriptionAr || "";
     }
 
     if (hasNewImage && newImageBase64) {
-      console.log("Adding new image to update data, base64 length:", newImageBase64.length);
+      console.log(
+        "Adding new image to update data, base64 length:",
+        newImageBase64.length,
+      );
       updatedVillage.image = selectedRow.imageBase64;
     }
 
     // للـ debugging - شوفي إيه اللي بيتبعت
     console.log("Sending update data:", {
       ...updatedVillage,
-      image: updatedVillage.image ? `[base64 data: ${updatedVillage.image.length} chars]` : 'no image'
+      image: updatedVillage.image
+        ? `[base64 data: ${updatedVillage.image.length} chars]`
+        : "no image",
     });
 
     try {
       const response = await fetch(
-      
         `https://bcknd.sea-go.org/admin/village/update/${id}`,
         {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedVillage),
-        }
+        },
       );
 
       const responseData = await response.json();
-      
+
       if (response.ok) {
         toast.success("Village updated successfully!");
         await fetchVillages();
         handleCloseEdit();
       } else {
         console.error("Update failed:", responseData);
-        
+
         if (responseData.errors && responseData.errors.image) {
-          toast.error("Image validation failed: " + responseData.errors.image.join(", "));
+          toast.error(
+            "Image validation failed: " + responseData.errors.image.join(", "),
+          );
         } else {
           toast.error(responseData.message || "Failed to update village!");
         }
@@ -526,15 +560,14 @@ const Villages = () => {
     } catch (error) {
       console.error("Error occurred while updating village:", error);
       toast.error("Network error occurred while updating village!");
+    } finally {
+      setIsSaving(false);
     }
-      finally {
-        setIsSaving(false);
-      }
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow) return;
-
+    setIsDeleting(true);
     if (!hasPermission("VillagesDelete")) {
       toast.error("You don't have permission to delete villages");
       return;
@@ -546,12 +579,14 @@ const Villages = () => {
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Village deleted successfully!");
-        setAllVillages(prev => prev.filter(village => village.id !== selectedRow.id));
+        setAllVillages((prev) =>
+          prev.filter((village) => village.id !== selectedRow.id),
+        );
         setIsDeleteOpen(false);
         setSelectedRow(null);
       } else {
@@ -560,6 +595,8 @@ const Villages = () => {
     } catch (error) {
       console.error("Error occurred while deleting village!", error);
       toast.error("Error occurred while deleting village!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -583,17 +620,17 @@ const Villages = () => {
         {
           method: "PUT",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Village status updated successfully!");
-        setAllVillages(prev =>
-          prev.map(village =>
+        setAllVillages((prev) =>
+          prev.map((village) =>
             village.id === id
               ? { ...village, status: newStatus === 1 ? "active" : "inactive" }
-              : village
-          )
+              : village,
+          ),
         );
       } else {
         toast.error("Failed to update village status!");
@@ -657,7 +694,7 @@ const Villages = () => {
     <div className="p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer position="top-right" autoClose={3000} />
-      
+
       <DataTable
         data={villages}
         columns={columns}
@@ -677,7 +714,7 @@ const Villages = () => {
         className="table-compact"
         onFilterChange={handleFilterChange}
       />
-      
+
       {isInvoiceOpen && (
         <InvoiceDialog
           open={isInvoiceOpen}
@@ -685,7 +722,7 @@ const Villages = () => {
           villageId={invoiceVillageId}
         />
       )}
-      
+
       {selectedRow && (
         <>
           <EditDialog
@@ -721,37 +758,44 @@ const Villages = () => {
               />
 
               {/* الحقول العربية - بس لو الـ village أصلاً له ترجمة عربية */}
-              {(selectedRow?.nameAr !== null && selectedRow?.nameAr !== undefined) && (
-                <>
-                  <label htmlFor="nameAr" className="text-gray-400 !pb-3">
-                    اسم القرية (عربي)
-                  </label>
-                  <Input
-                    id="nameAr"
-                    value={selectedRow?.nameAr || ""}
-                    onChange={(e) => onChange("nameAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="اسم القرية بالعربي"
-                  />
-                </>
-              )}
+              {selectedRow?.nameAr !== null &&
+                selectedRow?.nameAr !== undefined && (
+                  <>
+                    <label htmlFor="nameAr" className="text-gray-400 !pb-3">
+                      اسم القرية (عربي)
+                    </label>
+                    <Input
+                      id="nameAr"
+                      value={selectedRow?.nameAr || ""}
+                      onChange={(e) => onChange("nameAr", e.target.value)}
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="اسم القرية بالعربي"
+                    />
+                  </>
+                )}
 
-              {(selectedRow?.descriptionAr !== null && selectedRow?.descriptionAr !== undefined) && (
-                <>
-                  <label htmlFor="descriptionAr" className="text-gray-400 !pb-3">
-                    الوصف (عربي)
-                  </label>
-                  <Input
-                    id="descriptionAr"
-                    value={selectedRow?.descriptionAr || ""}
-                    onChange={(e) => onChange("descriptionAr", e.target.value)}
-                    className="!my-2 text-bg-primary !p-4"
-                    dir="rtl"
-                    placeholder="وصف القرية بالعربي"
-                  />
-                </>
-              )}
+              {selectedRow?.descriptionAr !== null &&
+                selectedRow?.descriptionAr !== undefined && (
+                  <>
+                    <label
+                      htmlFor="descriptionAr"
+                      className="text-gray-400 !pb-3"
+                    >
+                      الوصف (عربي)
+                    </label>
+                    <Input
+                      id="descriptionAr"
+                      value={selectedRow?.descriptionAr || ""}
+                      onChange={(e) =>
+                        onChange("descriptionAr", e.target.value)
+                      }
+                      className="!my-2 text-bg-primary !p-4"
+                      dir="rtl"
+                      placeholder="وصف القرية بالعربي"
+                    />
+                  </>
+                )}
 
               <label htmlFor="zone" className="text-gray-400 !pb-3">
                 Zone
@@ -785,7 +829,7 @@ const Villages = () => {
                   )}
                 </SelectContent>
               </Select>
-              
+
               <label htmlFor="location" className="text-bg-primary !pb-3">
                 Location
               </label>
@@ -793,7 +837,7 @@ const Villages = () => {
                 key={selectedRow?.id}
                 value={editLocationData.location_map}
                 onChange={(newValue, coordinates) => {
-                  setEditLocationData(prev => ({
+                  setEditLocationData((prev) => ({
                     ...prev,
                     location_map: newValue,
                     lat: coordinates?.lat || prev.lat,
@@ -830,7 +874,9 @@ const Villages = () => {
                     className="w-12 h-12 rounded-md object-cover border"
                   />
                   {selectedRow.hasNewImage && (
-                    <span className="text-sm text-green-600">New image selected</span>
+                    <span className="text-sm text-green-600">
+                      New image selected
+                    </span>
                   )}
                 </div>
               )}
@@ -849,6 +895,7 @@ const Villages = () => {
 
           <DeleteDialog
             open={isDeleteOpen}
+            isDeleting={isDeleting}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
             name={selectedRow.rawName || selectedRow.nameEn}

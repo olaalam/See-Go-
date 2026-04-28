@@ -16,6 +16,7 @@ import Loading from "@/components/Loading";
 import { Label } from "@radix-ui/react-label";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { set } from "zod";
 
 export default function VAdmin() {
   const [adminData, setAdminData] = useState([]);
@@ -28,7 +29,7 @@ export default function VAdmin() {
   const [villagePositions, setVillagePositions] = useState([]);
   const [imageErrors, setImageErrors] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
-
+  const [isDeleting, setIsDeleting] = useState(false); // New state for delete loading
   const { id } = useParams();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -43,7 +44,7 @@ export default function VAdmin() {
       const parsed = permissions ? JSON.parse(permissions) : [];
 
       const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`
+        (perm) => `${perm.module}:${perm.action}`,
       );
       console.log("Flattened permissions:", flatPermissions);
       return flatPermissions;
@@ -123,7 +124,7 @@ export default function VAdmin() {
           `https://bcknd.sea-go.org/admin/village_admin/${id}`,
           {
             headers: getAuthHeaders(),
-          }
+          },
         );
 
         if (!adminRes.ok) {
@@ -140,7 +141,7 @@ export default function VAdmin() {
           Array.isArray(adminJson.admins) ? adminJson.admins : []
         ).map((admin) => {
           const position = villagePositions.find(
-            (pos) => pos.id === admin.admin_position_id
+            (pos) => pos.id === admin.admin_position_id,
           );
           const name = admin?.name || "N/A"; // Fallback for name
           const image =
@@ -162,8 +163,8 @@ export default function VAdmin() {
               typeof admin.status === "string"
                 ? admin.status
                 : admin.status === 1
-                ? "Active"
-                : "Inactive",
+                  ? "Active"
+                  : "Inactive",
             role: position ? position.name : "Unknown",
             image,
             original_image_link: admin.image_link, // Store original for reversion
@@ -188,7 +189,7 @@ export default function VAdmin() {
           "https://bcknd.sea-go.org/admin/village",
           {
             headers: getAuthHeaders(),
-          }
+          },
         );
 
         if (villagesRes.ok) {
@@ -200,7 +201,7 @@ export default function VAdmin() {
               label:
                 v.translations.find((t) => t.locale === currentLang)?.name ||
                 v.name,
-            }))
+            })),
           );
         } else {
           toast.error("Failed to load villages.");
@@ -218,7 +219,7 @@ export default function VAdmin() {
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/status/${row.id}?status=${newStatus}`,
-        { method: "PUT", headers: getAuthHeaders() }
+        { method: "PUT", headers: getAuthHeaders() },
       );
 
       if (response.ok) {
@@ -231,13 +232,13 @@ export default function VAdmin() {
                   ...admin,
                   status: newStatus === 1 ? "Active" : "Inactive",
                 }
-              : admin
-          )
+              : admin,
+          ),
         );
       } else {
         const errorData = await response.json();
         toast.error(
-          `Failed to update status: ${errorData.message || response.statusText}`
+          `Failed to update status: ${errorData.message || response.statusText}`,
         );
       }
     } catch (err) {
@@ -261,31 +262,34 @@ export default function VAdmin() {
       toast.error("You don't have permission to delete zones");
       return;
     }
+    setIsDeleting(true); // Start loading for delete
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/village_admin/delete/${selectedRow.id}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),
-        }
+        },
       );
 
       if (response.ok) {
         toast.success("Admin deleted!");
         setAdminData((prev) =>
-          prev.filter((admin) => admin.id !== selectedRow.id)
+          prev.filter((admin) => admin.id !== selectedRow.id),
         );
         setIsDeleteOpen(false);
         setSelectedRow(null); // Clear selected row after deletion
       } else {
         const errorData = await response.json();
         toast.error(
-          `Failed to delete admin: ${errorData.message || response.statusText}`
+          `Failed to delete admin: ${errorData.message || response.statusText}`,
         );
       }
     } catch (error) {
       console.error("Error deleting admin:", error);
       toast.error("Error deleting admin.");
+    } finally {
+      setIsDeleting(false); // End loading for delete
     }
   };
 
@@ -341,7 +345,7 @@ export default function VAdmin() {
           method: "POST", // Postman image indicates POST for update
           headers: getAuthHeaders(true), // This will only include Authorization
           body: formData,
-        }
+        },
       );
 
       if (response.ok) {
@@ -353,7 +357,7 @@ export default function VAdmin() {
       } else {
         const errorData = await response.json();
         toast.error(
-          `Failed to update admin: ${errorData.message || response.statusText}`
+          `Failed to update admin: ${errorData.message || response.statusText}`,
         );
       }
     } catch (err) {
@@ -409,7 +413,8 @@ export default function VAdmin() {
             showEditButton={hasPermission("Village AdminEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
             showDeleteButton={hasPermission("Village AdminDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
             showActions={
-              hasPermission("Village AdminEdit") || hasPermission("Village AdminDelete")
+              hasPermission("Village AdminEdit") ||
+              hasPermission("Village AdminDelete")
             }
             filterOptions={filterOptionsForVillageAdmin}
           />
@@ -528,6 +533,7 @@ export default function VAdmin() {
               <DeleteDialog
                 open={isDeleteOpen}
                 onOpenChange={setIsDeleteOpen}
+                isDeleting={isDeleting} // Pass isDeleting state to DeleteDialog
                 onDelete={handleDeleteConfirm}
                 name={selectedRow?.name}
               />

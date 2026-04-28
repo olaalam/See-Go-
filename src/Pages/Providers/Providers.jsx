@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import MapLocationPicker from "@/components/MapLocationPicker";
+import { set } from "zod";
 
 const Providers = () => {
   const dispatch = useDispatch();
@@ -34,6 +35,7 @@ const Providers = () => {
   const [services, setServices] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
   // Dialog states
   const [selectedRow, setSelectedRow] = useState(null);
@@ -587,7 +589,7 @@ const Providers = () => {
       toast.error("You don't have permission to delete providers");
       return;
     }
-
+setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
@@ -608,6 +610,8 @@ const Providers = () => {
     } catch (error) {
       console.error("Error deleting provider:", error);
       toast.error("Error occurred while deleting provider!");
+    } finally{
+      setIsDeleting(false);
     }
   };
 
@@ -996,6 +1000,7 @@ const Providers = () => {
           <DeleteDialog
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
+            isDeleting={isDeleting}
             onDelete={handleDeleteConfirm}
             name={selectedRow.rawName || selectedRow.name}
           />

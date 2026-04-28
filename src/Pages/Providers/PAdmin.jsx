@@ -16,6 +16,7 @@ import Loading from "@/components/Loading";
 import { Label } from "@radix-ui/react-label";
 import { Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"; // Assuming you have Avatar components
+import { set } from "zod";
 
 export default function PAdmin() {
   const [adminData, setAdminData] = useState([]);
@@ -24,9 +25,10 @@ export default function PAdmin() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [providerOptions, setproviderOptions] = useState([]);
+  const[isSaving,setIsSaving]=useState(false);
   const [imageErrors, setImageErrors] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
-
+const[isDeleting,setIsDeleting]=useState(false);
   const [providerPositions, setproviderPositions] = useState([]);
   const { id } = useParams();
   const token = localStorage.getItem("token");
@@ -244,6 +246,7 @@ export default function PAdmin() {
       toast.error("You don't have permission to delete zones");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/delete/${selectedRow.id}`,
@@ -267,6 +270,8 @@ export default function PAdmin() {
       }
     } catch (error) {
       toast.error("Error deleting admin.", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -310,7 +315,7 @@ export default function PAdmin() {
 
     // If your backend expects a PUT request, you might need to handle the method override
     // For POST with FormData, this is generally sufficient.
-
+setIsSaving(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider_admin/update/${id}`,
@@ -339,6 +344,8 @@ export default function PAdmin() {
       }
     } catch (err) {
       toast.error(`Error updating admin: ${err.message || err}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -463,6 +470,7 @@ export default function PAdmin() {
             <>
               <EditDialog
                 open={isEditOpen}
+                isSaving={isSaving}
                 onOpenChange={setIsEditOpen}
                 onSave={handleSave}
                 selectedRow={selectedRow}
@@ -559,6 +567,7 @@ export default function PAdmin() {
               <DeleteDialog
                 open={isDeleteOpen}
                 onOpenChange={setIsDeleteOpen}
+                isDeleting={isDeleting}
                 onDelete={handleDeleteConfirm}
                 name={selectedRow?.name}
               />

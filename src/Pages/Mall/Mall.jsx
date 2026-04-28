@@ -28,6 +28,7 @@ const Mall = () => {
   const token = localStorage.getItem("token");
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Core data states
   const [malls, setMalls] = useState([]);
@@ -562,7 +563,7 @@ const Mall = () => {
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow) return;
-
+    setIsDeleting(true);
     if (!hasPermission("MallDelete")) {
       toast.error("You don't have permission to delete malls");
       return;
@@ -590,6 +591,8 @@ const Mall = () => {
     } catch (error) {
       console.error("Error occurred while deleting mall!", error);
       toast.error("Error occurred while deleting mall!");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -888,6 +891,7 @@ const Mall = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.rawName || selectedRow.name}
           />
         </>

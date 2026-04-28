@@ -21,7 +21,7 @@ const Apartment = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
   const [permissions, setPermissions] = useState([]); // State for permissions
-
+const [isDeleting, setIsDeleting] = useState(false);
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
   });
@@ -200,6 +200,7 @@ const Apartment = () => {
       toast.error("You don't have permission to delete Appartment Type");
       return;
     }
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/appartment_type/delete/${selectedRow.id}`,
@@ -221,7 +222,7 @@ const Apartment = () => {
     } catch (error) {
       console.error("Error deleting apartment:", error);
       toast.error("Error occurred while deleting apartment!");
-    }
+    } setIsDeleting(false);
   };
 
   const handleToggleStatus = async (row, newStatus) => {
@@ -402,6 +403,7 @@ const Apartment = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.name}
           />
         </>

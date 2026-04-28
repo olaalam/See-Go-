@@ -31,6 +31,7 @@ const Users = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // State to manage save button loading state
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const [permissions, setPermissions] = useState([]); // State for permissions
 
@@ -102,7 +103,7 @@ const Users = () => {
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
-      
+
       const formatted = result?.users?.map((u) => {
         const trans = u.translations?.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
@@ -125,6 +126,10 @@ const Users = () => {
           rawName,
           email: u.email || "—",
           phone: u.phone || "—",
+        /*  birthDate : u.birthDate
+            ? new Date(u.birthDate).toLocaleDateString()
+            : "—",
+          rawBirthDate: u.birthDate || "", */
           gender: (trans?.[lang]?.gender || u.gender || "—").toLowerCase(),
           // Normalize user_type to lowercase for consistent filtering
           user_type: (
@@ -146,7 +151,7 @@ const Users = () => {
             </Avatar>
           ),
           password: "", // This might be a security concern if you're pulling and then resending passwords. Ideally, passwords are not sent back to the frontend.
-          birthDate: u.birthDate || "",
+
           rent_from: u.rent_from || "",
           rent_to: u.rent_to || "",
         };
@@ -181,7 +186,7 @@ const Users = () => {
       email,
       phone,
       gender,
-      birthDate,
+     // rawBirthDate,
       user_type,
       status,
       rent_from,
@@ -203,7 +208,7 @@ const Users = () => {
       email,
       phone,
       gender,
-      birthDate,
+     // birthDate: rawBirthDate,
       user_type,
       rent_from,
       rent_to,
@@ -244,6 +249,7 @@ const Users = () => {
       toast.error("You don't have permission to delete User");
       return;
     }
+    setIsDeleting(true);
     try {
       const res = await fetch(
         `https://bcknd.sea-go.org/admin/user/delete/${selectedRow.id}`,
@@ -256,6 +262,8 @@ const Users = () => {
       } else toast.error("Failed to delete user!");
     } catch (err) {
       toast.error("Error deleting user!", err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -330,6 +338,7 @@ const Users = () => {
     { key: "name", label: "User Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
+   // { key: "birthDate", label: "Birth Date" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
     { key: "status", label: "Status" },
@@ -394,13 +403,13 @@ const Users = () => {
                 value={selectedRow.password}
                 onChange={(val) => onChange("password", val)}
               />
-              <InputField
+             {/*  <InputField
                 label="Birth Date"
                 id="birthDate"
                 type="date"
-                value={selectedRow.birthDate}
-                onChange={(val) => onChange("birthDate", val)}
-              />
+                value={selectedRow.rawBirthDate}
+                onChange={(val) => onChange("rawBirthDate", val)}
+              /> */}
 
               {/* Account Type Select - Uncomment and use if needed for editing */}
               {/*
@@ -478,6 +487,7 @@ const Users = () => {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
+            isDeleting={isDeleting}
             name={selectedRow.rawName} // Use rawName for display in delete dialog
           />
         </>
