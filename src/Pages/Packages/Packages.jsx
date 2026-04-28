@@ -29,11 +29,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FooterInvoiceImage from "@/assets/FooterInvoice.png";
 import { Plus, Trash } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { set } from "zod";
 
 const Subscription = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [services, setServices] = useState([]);
+  const[isSaving, setIsSaving] = useState(false);
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -285,11 +287,10 @@ const handleEdit = async (subscription) => {
       toast.error("You don't have permission to edit subscriptions");
       return;
     }
-
     const {
       id,
       name,
- nameAr, descriptionAr,
+      nameAr, descriptionAr,
       type,
       description,
       status,
@@ -299,7 +300,7 @@ const handleEdit = async (subscription) => {
       price,
       feez,
     } = selectedRow;
-
+    
     // Validate service_id for provider type, maintenance_type_id for maintenance type
     if (type === "provider" && (!service_id || isNaN(service_id))) {
       toast.error("Service ID is required for provider type");
@@ -309,7 +310,7 @@ const handleEdit = async (subscription) => {
       toast.error("Maintenance Type ID is required for maintenance type");
       return;
     }
-
+    
     const updatedSubscription = new FormData();
     updatedSubscription.append("id", id);
     updatedSubscription.append("name", name || "");
@@ -319,13 +320,13 @@ const handleEdit = async (subscription) => {
     updatedSubscription.append("price", price || "");
     updatedSubscription.append("type", type || "");
     updatedSubscription.append("discount", discount || "");
-        if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
+    if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedSubscription.append("ar_name", nameAr || "");
     }
     if (selectedRow.descriptionAr !== null && selectedRow.descriptionAr !== undefined) {
       updatedSubscription.append("ar_description", descriptionAr || "");
     }
-
+    
     // Add appropriate ID based on type
     if (type === "provider") {
       updatedSubscription.append("service_id", service_id);
@@ -349,6 +350,7 @@ const handleEdit = async (subscription) => {
       );
     }
 
+     setIsSaving(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/subscription/update/${id}`,
@@ -371,6 +373,8 @@ const handleEdit = async (subscription) => {
       }
     } catch (error) {
       toast.error("Error occurred while updating subscription!", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -736,6 +740,7 @@ const handleToggleStatus = async (row, newStatus) => {
             onSave={handleSave}
             selectedRow={selectedRow}
             services={services}
+            isSaving={isSaving}
             onChange={onChange}
             className="!p-4"
           >
