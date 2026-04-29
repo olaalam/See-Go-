@@ -10,10 +10,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import image from "../../assets/Login.png";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { set } from "zod";
 
 const Login = () => {
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,7 +35,7 @@ const handleLogin = async (e) => {
     toast.error("Email/Username and password are required");
     return;
   }
-
+setLoading(true);
   try {
     const data = await loginAuth(emailOrUsername, password);
 
@@ -66,6 +68,8 @@ const handleLogin = async (e) => {
   } catch (error) {
     const msg = error?.response?.data?.message || "Login failed. Please try again.";
     toast.error(msg);
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -94,11 +98,11 @@ const handleLogin = async (e) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button
+              <Button disabled={loading}
                 className="w-full xl:w-[70%] rounded-[10px] bg-bg-primary cursor-pointer hover:bg-teal-600 text-white"
                 type="submit"
               >
-                Send
+                {loading ? "Logging in..." : "Log In"}
               </Button>
             </form>
           </CardContent>
