@@ -23,15 +23,16 @@ export default function AddVillage() {
       name: "",
       description: "",
       zone: "",
-      // location: "",
       status: "",
       image: null,
+      units_num: "", // Added state initialization
     },
     ar: {
       name: "",
       description: "",
     },
   });
+
   const [pickUpData, setPickUpData] = useState({
     location_map: "",
     lat: 31.2001,
@@ -52,12 +53,12 @@ export default function AddVillage() {
             data.zones.map((zone) => ({
               label: zone.name,
               value: zone.id.toString(),
-            }))
+            })),
           );
         }
       } catch (error) {
         console.error("Error fetching zones", error);
-        toast.error("Error fetching zones", error);
+        toast.error("Error fetching zones");
       }
     };
 
@@ -72,15 +73,15 @@ export default function AddVillage() {
           ...prev,
           [lang]: {
             ...prev[lang],
-            [name]: reader.result, // Store Base64 string
+            [name]: reader.result,
           },
         }));
       };
       reader.onerror = (error) => {
         console.error("Error converting image to Base64:", error);
-        toast.error("Failed to process image.",error);
+        toast.error("Failed to process image.");
       };
-      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+      reader.readAsDataURL(value);
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -92,81 +93,79 @@ export default function AddVillage() {
     }
   };
 
+  const handleSubmit = async () => {
+    dispatch(showLoader());
 
-const handleSubmit = async () => {
-  dispatch(showLoader());
+    const payload = {
+      name: formData.en.name,
+      description: formData.en.description,
+      zone_id: formData.en.zone,
+    units_num: formData.en.units_num ? Number(formData.en.units_num) : 0,
+      lat: pickUpData.lat.toString(),
+      lng: pickUpData.lng.toString(),
+      location_map: pickUpData.location_map,
+      location: `${pickUpData.lat},${pickUpData.lng}`,
+      status: formData.en.status === "active" ? "1" : "0",
+      image: formData.en.image,
+      ar_name: formData.ar.name,
+      ar_description: formData.ar.description,
+    };
 
-  const payload = {
-    name: formData.en.name,
-    description: formData.en.description,
-    zone_id: formData.en.zone,
-    lat: pickUpData.lat.toString(),
-    lng: pickUpData.lng.toString(),
-    location_map: pickUpData.location_map,
-    location: `${pickUpData.lat},${pickUpData.lng}`,
-    status: formData.en.status === "active" ? "1" : "0",
-    image: formData.en.image, // base64 string
-    ar_name: formData.ar.name,
-    ar_description: formData.ar.description,
+    try {
+      const response = await fetch(
+        "https://bcknd.sea-go.org/admin/village/add",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Village added successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        setFormData({
+          en: {
+            name: "",
+            description: "",
+            zone: "",
+            status: "",
+            image: null,
+            units_num: "", // Reset after successful submit
+          },
+          ar: {
+            name: "",
+            description: "",
+          },
+        });
+        setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
+        setTimeout(() => {
+          navigate("/villages");
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        console.error("Error response:", errorData);
+        toast.error(errorData.message || "Failed to add Village.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting Village:", error);
+      toast.error("An error occurred!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+    } finally {
+      dispatch(hideLoader());
+    }
   };
 
-  try {
-    const response = await fetch(
-      "https://bcknd.sea-go.org/admin/village/add",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-
-    if (response.ok) {
-      toast.success("Village added successfully!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-      setFormData({
-        en: {
-          name: "",
-          description: "",
-          zone: "",
-          // location: "",
-          status: "",
-          image: null,
-        },
-        ar: {
-          name: "",
-          description: "",
-        },
-      });
-      setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
-      setTimeout(() => {
-        navigate("/villages");
-      }, 2000);
-    } else {
-      const errorData = await response.json();
-      console.error("Error response:", errorData);
-      toast.error(errorData.message || "Failed to add Village.", {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    }
-  } catch (error) {
-    console.error("Error submitting Village:", error);
-    toast.error("An error occurred!", {
-      position: "top-right",
-      autoClose: 3000,
-    });
-  } finally {
-    dispatch(hideLoader());
-  }
-};
-
-
-  // Combine English and Arabic fields into a single array
   const fields = [
     { type: "input", placeholder: "Village Name", name: "name", lang: "en" },
     {
@@ -182,7 +181,12 @@ const handleSubmit = async () => {
       options: zones,
       lang: "en",
     },
-
+    {
+      type: "input",
+      placeholder: "Limit of Units",
+      name: "units_num",
+      lang: "en",
+    }, // Added field configuration block
     { type: "file", name: "image", lang: "en" },
     {
       type: "input",
@@ -217,14 +221,13 @@ const handleSubmit = async () => {
       </h2>
 
       <div className="w-[90%] mx-auto">
-        {/* Pass all fields to a single Add component */}
         <Add
           fields={fields}
           values={{ en: formData.en, ar: formData.ar }}
           onChange={handleFieldChange}
         />
-                <div className="!mt-6 !ms-3">
-          <label className="block text-sm font-medium text-gray-700  !mb-2">
+        <div className="!mt-6 !ms-3">
+          <label className="block text-sm font-medium text-gray-700 !mb-2">
             Pick-up Location (Google Maps link or address)
           </label>
           <Input
