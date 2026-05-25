@@ -35,6 +35,7 @@ export default function AddSubscription() {
       maintenance_module: "0",
       beach_pool_module: "0",
       maintenance_type_id:"0",
+      units_num:"0",
     },
     ar: {
       name: "",
@@ -186,6 +187,7 @@ export default function AddSubscription() {
       body.append("discount", formData.en.discount || "0");
       body.append("status", formData.en.status === "active" ? "1" : "0");
       body.append("feez", formData.en.feez || "0");
+      body.append("units_num", formData.en.units_num || "0");
 
       // Add service_id only for provider type
       if (formData.en.type === "provider" && formData.en.service) {
@@ -239,6 +241,7 @@ export default function AddSubscription() {
             maintenance_module: "0",
             beach_pool_module: "0",
             maintenance_type_id:"0",
+            units_num:"0",
           },
           ar: {
             name: "",
@@ -339,6 +342,13 @@ export default function AddSubscription() {
       lang: "en",
       min: 0,
       max: 100 
+    },
+    {
+      type: "number",
+      placeholder: "Units Number",
+      name: "units_num",
+      lang: "en",
+      min: 0
     },
 
     // Arabic fields

@@ -181,6 +181,7 @@ const fetchSubscriptions = async () => {
       const security_num = subscription.security_num || "—";
       const maintenance_module = subscription.maintenance_module;
       const beach_pool_module = subscription.beach_pool_module;
+      const units_num = subscription.units_num ?? "";
       const average =
         subscription.feez && subscription.discount
           ? (subscription.feez * (1 - subscription.discount / 100))
@@ -206,6 +207,7 @@ const fetchSubscriptions = async () => {
         discount,
         feez,
         average,
+        units_num,
       };
     };
 
@@ -299,6 +301,7 @@ const handleEdit = async (subscription) => {
       maintenance_type_id,
       price,
       feez,
+      units_num,
     } = selectedRow;
     
     // Validate service_id for provider type, maintenance_type_id for maintenance type
@@ -320,6 +323,7 @@ const handleEdit = async (subscription) => {
     updatedSubscription.append("price", price || "");
     updatedSubscription.append("type", type || "");
     updatedSubscription.append("discount", discount || "");
+    updatedSubscription.append("units_num", units_num || "0");
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedSubscription.append("ar_name", nameAr || "");
     }
@@ -914,6 +918,19 @@ const handleToggleStatus = async (row, newStatus) => {
                 id="discount"
                 value={selectedRow?.discount || ""}
                 onChange={(e) => onChange("discount", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+              />
+
+              <label htmlFor="units_num" className="text-gray-400 !pb-3">
+                Units Number
+              </label>
+              <Input
+                type="number"
+                label="units_num"
+                id="units_num"
+                min="0"
+                value={selectedRow?.units_num ?? ""}
+                onChange={(e) => onChange("units_num", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               />
 
