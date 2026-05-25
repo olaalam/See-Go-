@@ -172,16 +172,21 @@ export default function DataTable({
   return (
     <div className="w-full !p-3 space-y-6">
       <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-        {/* Search Input */}
-        <Input
-          placeholder="Search..."
-          className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-1/3 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
-          value={searchValue}
-          onChange={(e) => {
-            setSearchValue(e.target.value);
-            setCurrentPage(1); // Reset to page 1 on search
-          }}
-        />
+        {/* Search Input + Total */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Input
+            placeholder="Search..."
+            className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-64 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
+            value={searchValue}
+            onChange={(e) => {
+              setSearchValue(e.target.value);
+              setCurrentPage(1); // Reset to page 1 on search
+            }}
+          />
+          <span className="text-sm font-semibold text-bg-primary whitespace-nowrap">
+            Total: {filteredData.length}
+          </span>
+        </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {showFilter && filterOptions.length > 0 && (
