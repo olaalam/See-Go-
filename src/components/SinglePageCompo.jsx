@@ -19,6 +19,7 @@ import Owner from "@/Pages/Users/Owner";
 import Services from "@/Pages/Users/Services";
 import ServiceProvider from "@/Pages/Mall/MService";
 import InvoiceList from "@/Pages/Invoice/InvoiceList";
+import OnlineUsers from "@/Pages/Villages/OnlineUsers";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -52,7 +53,6 @@ export default function VillageDetailsCard({
     } else if (entityType === "provider" || isProviderPage) {
       return { providerId: id, entityType: "provider" };
     } else {
-      // Default fallback
       return { villageId: id, entityType: "village" };
     }
   };
@@ -64,8 +64,9 @@ export default function VillageDetailsCard({
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid !ms-3 w-[90%] grid-cols-5 gap-6 bg-transparent !my-6">
-          <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+        {/* تم تحويل الكلاس إلى flex flex-wrap ليتناسب مع زيادة عدد التابات ديناميكياً */}
+        <TabsList className="flex flex-wrap !ms-3 w-[90%] gap-3 bg-transparent !my-6">
+          <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                       data-[state=active]:bg-bg-primary data-[state=active]:text-white
                       hover:bg-teal-100 hover:text-teal-700" value="info">
             Information
@@ -73,12 +74,12 @@ export default function VillageDetailsCard({
 
           {isUserSinglePage ? (
             <>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="owner">
                 Property
               </TabsTrigger>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="services">
                 Services
@@ -86,12 +87,12 @@ export default function VillageDetailsCard({
             </>
           ) : isMallSinglePage ? (
             <>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="gallery">
                 Images
               </TabsTrigger>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="service-providers">
                 Service Providers
@@ -99,17 +100,17 @@ export default function VillageDetailsCard({
             </>
           ) : isProviderPage ? (
             <>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="admin">
                 Admin Users
               </TabsTrigger>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="gallery">
                 Images
               </TabsTrigger>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="invoice">
                 Invoices
@@ -117,27 +118,33 @@ export default function VillageDetailsCard({
             </>
           ) : (
             <>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="admin">
                 Admin Users
               </TabsTrigger>
-              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="gallery">
                 Images
               </TabsTrigger>
               {entityType === "village" && (
                 <>
-                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="units">
                     Units
                   </TabsTrigger>
-                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 transition-all
+                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="invoice">
                     Invoices
+                  </TabsTrigger>
+                  {/* تاب المستخدمين المتصلين بالقرية */}
+                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700" value="online-users">
+                    Online Users
                   </TabsTrigger>
                 </>
               )}
@@ -270,6 +277,10 @@ export default function VillageDetailsCard({
                 <TabsContent value="units"><Units /></TabsContent>
                 <TabsContent value="invoice">
                   <InvoiceList {...invoiceProps} />
+                </TabsContent>
+                {/* محتوى الـ Online Users وتمرير الـ villageId كميكانيزم تصفية لو تطلب السيرفر ذلك */}
+                <TabsContent value="online-users">
+                  <OnlineUsers villageId={id} />
                 </TabsContent>
               </>
             )}
