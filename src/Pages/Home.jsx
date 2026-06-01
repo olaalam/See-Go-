@@ -11,6 +11,8 @@ import {
   FaBuilding,
   FaUserCheck,
 } from "react-icons/fa";
+import { Link } from "react-router-dom";
+
 
 const Home = () => {
   const [homeStats, setHomeStats] = useState({
@@ -143,7 +145,7 @@ if (!hasPermission("Home")) {
     <div className="!p-4 flex !gap-3 md:flex-row flex-col">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {/* Number Of Village */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/villages"} className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaHome className="text-6xl text-[#0E7490]" />
           </div>
@@ -151,10 +153,10 @@ if (!hasPermission("Home")) {
             <div className="text-3xl font-bold">{homeStats.villages}</div>
             <div className="">Number Of Village</div>
           </div>
-        </div>
+        </Link>
 
         {/* Number Of Users */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/users"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaUsers className="text-6xl text-[#0E7490]" />
           </div>
@@ -162,10 +164,10 @@ if (!hasPermission("Home")) {
             <div className="text-3xl font-bold">{homeStats.users}</div>
             <div className="">Number Of Users</div>
           </div>
-        </div>
+        </Link>
 
         {/* Number Of Subscribers */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/subscribers"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaUserCheck className="text-6xl text-[#0E7490]" />
           </div>
@@ -175,12 +177,12 @@ if (!hasPermission("Home")) {
             </div>
             <div className="">Number Of Subscribers</div>
           </div>
-        </div>
+        </Link>
 
 
 
         {/* Pending Payments */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/payments"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaMoneyBillWave className="text-6xl text-[#0E7490]" />
           </div>
@@ -188,10 +190,10 @@ if (!hasPermission("Home")) {
             <div className="text-3xl font-bold">{homeStats.pending_payment}</div>
             <div className="">Pending Payments</div>
           </div>
-        </div>
+        </Link>
 
         {/* Service Providers */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/providers"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaTools className="text-6xl text-[#0E7490]" />
           </div>
@@ -199,10 +201,10 @@ if (!hasPermission("Home")) {
             <div className="text-3xl font-bold">{homeStats.service_providers}</div>
             <div className="">Service Providers</div>
           </div>
-        </div>
+        </Link>
 
         {/* Maintenance Providers */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+        <Link to={"/maintenance-provider"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex items-center justify-center">
             <FaWrench className="text-6xl text-[#0E7490]" />
           </div>
@@ -212,11 +214,11 @@ if (!hasPermission("Home")) {
             </div>
             <div className="">Maintenance Providers</div>
           </div>
-        </div>
+        </Link>
       </div>
       <div>
       {/* Number Of Units */}
-        <div className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex md:flex-col flex-row items-start border-r-4 border-bg-primary">
+        <Link to={"/units"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex md:flex-col flex-row items-start border-r-4 border-bg-primary">
           <div className="!p-4 flex md:flex-col items-center justify-center ">
             <FaBuilding className="text-6xl text-[#0E7490] !mb-2" />
             <div className="flex flex-col items-start justify-center !ps-3">
@@ -226,7 +228,7 @@ if (!hasPermission("Home")) {
             <div className="">Number Of Units</div>
              </div>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );
