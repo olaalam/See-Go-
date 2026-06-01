@@ -8,12 +8,14 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useParams } from "react-router-dom";
 
 const OnlineUsers = ({ villageId }) => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
   const token = localStorage.getItem("token");
+
   const apiUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
 
   // دالة لتجهيز الـ Headers الخاصة بالتوثيق مثل مكون Zones
@@ -26,7 +28,7 @@ const OnlineUsers = ({ villageId }) => {
   const fetchOnlineUsers = async () => {
     dispatch(showLoader());
     try {
-      const response = await fetch(`${apiUrl}/admin/village_admin/village_active`, {
+      const response = await fetch(`${apiUrl}/admin/village_admin/village_active?village_id=${villageId}`, {
         method: "GET",
         headers: getAuthHeaders(),
       });

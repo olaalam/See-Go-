@@ -19,7 +19,8 @@ import Owner from "@/Pages/Users/Owner";
 import Services from "@/Pages/Users/Services";
 import ServiceProvider from "@/Pages/Mall/MService";
 import InvoiceList from "@/Pages/Invoice/InvoiceList";
-import OnlineUsers from "@/Pages/Villages/OnlineUsers";
+import OnlineAdmins from "@/Pages/Villages/OnlineAdmins";
+import OnlineUsers from "@/Pages/Users/OnlineUsers";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -142,6 +143,11 @@ export default function VillageDetailsCard({
                   </TabsTrigger>
                   {/* تاب المستخدمين المتصلين بالقرية */}
                   <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700" value="online-admins">
+                    Online Admins
+                  </TabsTrigger>
+                                    <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="online-users">
                     Online Users
@@ -279,7 +285,10 @@ export default function VillageDetailsCard({
                   <InvoiceList {...invoiceProps} />
                 </TabsContent>
                 {/* محتوى الـ Online Users وتمرير الـ villageId كميكانيزم تصفية لو تطلب السيرفر ذلك */}
-                <TabsContent value="online-users">
+                <TabsContent value="online-admins">
+                  <OnlineAdmins villageId={id} />
+                </TabsContent>
+                                <TabsContent value="online-users">
                   <OnlineUsers villageId={id} />
                 </TabsContent>
               </>

@@ -91,7 +91,7 @@ const navItems = [
       },
       {
         label: "Login request",
-        to: "/online-users",
+        to: "/login-request",
         icon: <User size={20} />,
         permissionKey: "Admin Role",
       },

@@ -48,8 +48,9 @@ import MAdminAdd from "./Pages/Mall/MServiceAdd";
 import InvoiceCard from "./Pages/Invoice/Invoice";
 import AdminRole from "./Pages/AdminRole.jsx/AdminRole";
 import AdminRoleAdd from "./Pages/AdminRole.jsx/AdminRoleDialog";
-import OnlineUsers from "./Pages/Users/OnlineUsers";
+import LoginRequest from "./Pages/Users/LoginRequest";
 import CodeRequests from "./Pages/Users/CodeRequests";
+import OnlineUsers from "./Pages/Users/OnlineUsers";
 
 const router = createBrowserRouter([
   {
@@ -494,7 +495,7 @@ const router = createBrowserRouter([
           },
         ],
       },
-{
+      {
         path: "admin-role",
         children: [
           {
@@ -516,18 +517,26 @@ const router = createBrowserRouter([
         ],
       },
       {
-        path: "online-users",
+        path: "login-request",
         element: (
           <ProtectedRoute permissionKey="Admin Role">
-            <OnlineUsers />
+            <LoginRequest />
           </ProtectedRoute>
         ),
       },
-            {
+      {
         path: "code-request",
         element: (
           <ProtectedRoute permissionKey="Admin Role">
             <CodeRequests />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "online-users",
+        element: (
+          <ProtectedRoute permissionKey="Admin Role">
+            <OnlineUsers />
           </ProtectedRoute>
         ),
       },
