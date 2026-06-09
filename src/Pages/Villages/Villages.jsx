@@ -276,6 +276,7 @@ const Villages = () => {
 
         const map = village.location || "—";
         const population = village.population_count || "—";
+        const units_num = village.units_num || "—";
 
         return {
           id: village.id,
@@ -294,6 +295,7 @@ const Villages = () => {
           zone: zoneName,
           searchableZone: zoneName,
           map,
+          units_num,
           population,
           image_link: village.image_link,
           location_map: village.location_map || "",
@@ -394,7 +396,7 @@ const Villages = () => {
     setSelectedRow((prev) => ({
       ...prev,
       [key]:
-        key === "zone_id" || key === "numberOfUnits"
+        key === "zone_id" || key === "numberOfUnits" || key === "units_num"
           ? parseInt(value, 10) || 0
           : value,
     }));
@@ -466,6 +468,7 @@ const Villages = () => {
       numberOfUnits,
       newImageBase64,
       hasNewImage,
+      units_num
     } = selectedRow;
 
     // Validation
@@ -494,6 +497,7 @@ const Villages = () => {
       id,
       name: name.trim(),
       description: description || "",
+      units_num: units_num || 0,
       status: status === "active" ? "1" : "0",
       zone_id: parseInt(zone_id, 10),
       location: editLocationData.location_map,
@@ -663,6 +667,7 @@ const Villages = () => {
     { key: "name", label: "Village Name" },
     { key: "img", label: "Image" },
     { key: "description", label: "Description" },
+    { key: "units_num", label: "UnitsNum" },
     { key: "numberOfUnits", label: "Number of Units" },
     { key: "zone", label: "Zone" },
     { key: "map", label: "Location" },
@@ -862,6 +867,19 @@ const Villages = () => {
                 onChange={(e) => onChange("numberOfUnits", e.target.value)}
                 className="!my-2 text-bg-primary !p-4"
               /> */}
+              {/* حقل إدخال عدد الوحدات (units_num) */}
+              <label htmlFor="units_num" className="text-gray-400 !pb-3">
+                Units Number
+              </label>
+              <Input
+                id="units_num"
+                type="number"
+                min="0"
+                value={selectedRow?.units_num ?? ""}
+                onChange={(e) => onChange("units_num", e.target.value)}
+                className="!my-2 text-bg-primary !p-4"
+                placeholder="Enter units number"
+              />
 
               <label htmlFor="image" className="text-gray-400">
                 Image
