@@ -89,6 +89,18 @@ const navItems = [
         icon: <Shield size={20} />,
         permissionKey: "Admin Role",
       },
+      {
+        label: "Login request",
+        to: "/online-users",
+        icon: <User size={20} />,
+        permissionKey: "Admin Role",
+      },
+      {
+        label: "Code Request",
+        to: "/code-request",
+        icon: <Users size={20} />,
+        permissionKey: "User",
+      },
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
