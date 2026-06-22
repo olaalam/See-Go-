@@ -37,7 +37,7 @@ const OnlineUsers = ({ villageId }) => {
       }
 
       const result = await response.json();
-      
+
       // استخراج مصفوفة المستخدمين حسب شكل استجابة السيرفر
       const rawList = result.admins || result.data || result;
       if (Array.isArray(rawList)) {
@@ -120,8 +120,9 @@ const OnlineUsers = ({ villageId }) => {
         data={users}
         columns={columns}
         showFilter={false}
+        searchKeys={["name"]}
         showSearch={true}
-        showAddButton={false} 
+        showAddButton={false}
         showActions={false} // تم تفعيلها false لأن زر الأكشن مدمج بداخل مصفوفة الـ columns نفسها
         className="table-compact"
       />
