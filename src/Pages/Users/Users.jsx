@@ -18,8 +18,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { set } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 
 const Users = () => {
   const dispatch = useDispatch();
@@ -34,6 +35,7 @@ const Users = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const [permissions, setPermissions] = useState([]); // State for permissions
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
@@ -301,7 +303,30 @@ const Users = () => {
       toast.error("Error updating status.", err);
     }
   };
+  // 2. دالة عمل Force Logout باستخدام fetch العادي
+  const handleForceLogout = async (userId) => {
+    dispatch(showLoader());
+    try {
+      const response = await fetch(`${apiUrl}/admin/user/logout_user/${userId}`, {
+        method: "GET", // تم الإبقاء عليها GET بناءً على مسار الـ API الخاص بكِ
+        headers: getAuthHeaders(),
+      });
 
+      if (response.ok) {
+        toast.success("User logged out successfully!");
+        await fetchUsers(); // إعادة تحديث الجدول فوراً بعد الطرد
+      } else {
+        const errorData = await response.json();
+        console.error("Force logout failed:", errorData);
+        toast.error("Failed to force logout user!");
+      }
+    } catch (error) {
+      console.error("Error during force logout:", error);
+      toast.error("Error occurred while forcing logout!");
+    } finally {
+      dispatch(hideLoader());
+    }
+  };
   // Dynamically generate filter options for user_type and combine with status options
   const userTypeOptions = useMemo(() => {
     // Memoize this to prevent unnecessary re-renders
@@ -341,7 +366,23 @@ const Users = () => {
    // { key: "birthDate", label: "Birth Date" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-red-600 !p-2 border-red-200 hover:bg-red-50 hover:text-red-700 cursor-pointer flex items-center gap-2 transition-all"
+          onClick={() => handleForceLogout(row.id)}
+        >
+          <LogOut className="w-4 h-4" />
+          Force Logout
+        </Button>
+      ),
+    },
     { key: "status", label: "Status" },
+
   ];
   console.log("Has UserAdd permission:", hasPermission("UserAdd"));
   console.log("Has UserEdit permission:", hasPermission("UserEdit"));
