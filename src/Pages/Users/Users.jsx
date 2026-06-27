@@ -128,10 +128,11 @@ const Users = () => {
           rawName,
           email: u.email || "—",
           phone: u.phone || "—",
-        /*  birthDate : u.birthDate
-            ? new Date(u.birthDate).toLocaleDateString()
-            : "—",
-          rawBirthDate: u.birthDate || "", */
+
+          /*  birthDate : u.birthDate
+              ? new Date(u.birthDate).toLocaleDateString()
+              : "—",
+            rawBirthDate: u.birthDate || "", */
           gender: (trans?.[lang]?.gender || u.gender || "—").toLowerCase(),
           // Normalize user_type to lowercase for consistent filtering
           user_type: (
@@ -188,7 +189,8 @@ const Users = () => {
       email,
       phone,
       gender,
-     // rawBirthDate,
+      password,
+      // rawBirthDate,
       user_type,
       status,
       rent_from,
@@ -210,7 +212,8 @@ const Users = () => {
       email,
       phone,
       gender,
-     // birthDate: rawBirthDate,
+      password,
+      // birthDate: rawBirthDate,
       user_type,
       rent_from,
       rent_to,
@@ -363,7 +366,7 @@ const Users = () => {
     { key: "name", label: "User Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
-   // { key: "birthDate", label: "Birth Date" },
+    // { key: "birthDate", label: "Birth Date" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
     {
@@ -444,7 +447,7 @@ const Users = () => {
                 value={selectedRow.password}
                 onChange={(val) => onChange("password", val)}
               />
-             {/*  <InputField
+              {/*  <InputField
                 label="Birth Date"
                 id="birthDate"
                 type="date"

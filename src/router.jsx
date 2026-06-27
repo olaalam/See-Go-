@@ -51,6 +51,8 @@ import AdminRoleAdd from "./Pages/AdminRole.jsx/AdminRoleDialog";
 import LoginRequest from "./Pages/Users/LoginRequest";
 import CodeRequests from "./Pages/Users/CodeRequests";
 import OnlineUsers from "./Pages/Users/OnlineUsers";
+import HelpGroupsPage from "./Pages/HelpGroup/HelpGroup";
+import HelpVideosPage from "./Pages/HelpGroup/HelpVideos";
 
 const router = createBrowserRouter([
   {
@@ -540,6 +542,24 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+            {
+        path: "help-group",
+        element: (
+          <ProtectedRoute permissionKey="Admin Role">
+            <HelpGroupsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "help-videos",
+        element: (
+          <ProtectedRoute permissionKey="Admin Role">
+            <HelpVideosPage />
+          </ProtectedRoute>
+        ),
+      },
+      
+
       {
         path: "*",
         element: <NotFound />,

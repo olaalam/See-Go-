@@ -17,6 +17,8 @@ import {
   Wrench,
   Users,
   ShoppingBag,
+  HelpCircle,
+  Video,
 } from "lucide-react";
 
 import {
@@ -197,6 +199,26 @@ const navItems = [
         to: "/zones",
         icon: <Map size={20} />,
         permissionKey: "Zone",
+      },
+    ],
+    dropdownIcon: <ChevronDown size={20} />,
+  },
+  {
+    label: "Help Center",
+    icon: <HelpCircle size={20} />,
+    permissionKey: null,
+    children: [
+      {
+        label: "Help Groups",
+        to: "/help-group",
+        icon: <HelpCircle size={20} />,
+        permissionKey: "Admin Role",
+      },
+      {
+        label: "Help Videos",
+        to: "/help-videos",
+        icon: <Video size={20} />,
+        permissionKey: "Admin Role",
       },
     ],
     dropdownIcon: <ChevronDown size={20} />,
