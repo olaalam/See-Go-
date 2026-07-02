@@ -21,6 +21,7 @@ import ServiceProvider from "@/Pages/Mall/MService";
 import InvoiceList from "@/Pages/Invoice/InvoiceList";
 import OnlineAdmins from "@/Pages/Villages/OnlineAdmins";
 import OnlineUsers from "@/Pages/Users/OnlineUsers";
+import PReviews from "@/Pages/Providers/PReviews";
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -115,6 +116,11 @@ export default function VillageDetailsCard({
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="invoice">
                 Invoices
+              </TabsTrigger>
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700" value="reviews">
+                Reviews
               </TabsTrigger>
             </>
           ) : (
@@ -271,6 +277,7 @@ export default function VillageDetailsCard({
             <TabsContent value="invoice">
               <InvoiceList {...invoiceProps} />
             </TabsContent>
+            <TabsContent value="reviews"><PReviews /></TabsContent>
           </>
         )}
 
