@@ -35,7 +35,13 @@ const Providers = () => {
   const [services, setServices] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // --- حالات الترقيم من الباك إند (Pagination States) ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Dialog states
   const [selectedRow, setSelectedRow] = useState(null);
@@ -91,24 +97,24 @@ const Providers = () => {
       console.warn("Invalid dataURL provided:", dataURL);
       return null;
     }
-    
+
     if (!dataURL.includes(',')) {
       return dataURL;
     }
-    
+
     try {
       const base64Part = dataURL.split(',')[1];
       if (!base64Part) {
         console.warn("No base64 data found in dataURL");
         return null;
       }
-      
+
       const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
       if (!base64Regex.test(base64Part)) {
         console.warn("Invalid base64 format");
         return null;
       }
-      
+
       return base64Part;
     } catch (error) {
       console.error("Error extracting base64:", error);
@@ -171,152 +177,192 @@ const Providers = () => {
   };
 
   // Data fetching
-  const fetchProviders = async () => {
-    dispatch(showLoader());
+  const fetchProviders = async (page = 1, search = "") => {
+    dispatch(showLoader()); //
     try {
-      const response = await fetch("https://bcknd.sea-go.org/admin/provider", {
-        headers: getAuthHeaders(),
+      const url = `https://bcknd.sea-go.org/admin/provider?page=${page}${search ? `&search=${search}` : ""}`;
+      const response = await fetch(url, { //
+        headers: getAuthHeaders(), //[cite: 6]
       });
-      const result = await response.json();
+      const result = await response.json(); //[cite: 6]
 
       // Process zones - same as Villages
-      const formattedZones = (result.zones || []).map((zone) => {
-        const translations = zone.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
+      const formattedZones = (result.zones || []).map((zone) => { //[cite: 6]
+        const translations = zone.translations.reduce((acc, t) => { //[cite: 6]
+          if (!acc[t.locale]) acc[t.locale] = {}; //[cite: 6]
+          acc[t.locale][t.key] = t.value; //[cite: 6]
+          return acc; //[cite: 6]
         }, {});
-        return {
-          id: zone.id,
-          name: translations?.en?.name || zone.name,
+        return { //[cite: 6]
+          id: zone.id, //[cite: 6]
+          name: translations?.en?.name || zone.name, //[cite: 6]
         };
       });
-      setZones(formattedZones);
+      setZones(formattedZones); //[cite: 6]
 
       // Process villages - same as Villages
-      const formattedVillages = (result.villages || []).map((village) => {
-        const translations = village.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
+      const formattedVillages = (result.villages || []).map((village) => { //[cite: 6]
+        const translations = village.translations.reduce((acc, t) => { //[cite: 6]
+          if (!acc[t.locale]) acc[t.locale] = {}; //[cite: 6]
+          acc[t.locale][t.key] = t.value; //[cite: 6]
+          return acc; //[cite: 6]
         }, {});
-        return {
-          id: village.id,
-          name: translations?.en?.name || village.name,
-          zone_id: village.zone_id,
+        return { //[cite: 6]
+          id: village.id, //[cite: 6]
+          name: translations?.en?.name || village.name, //[cite: 6]
+          zone_id: village.zone_id, //[cite: 6]
         };
       });
-      setVillages(formattedVillages);
+      setVillages(formattedVillages); //[cite: 6]
 
       // Process services - same as Villages
-      const formattedServices = (result.services_types || []).map((service) => {
-        const translations = service.translations.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
+      const formattedServices = (result.services_types || []).map((service) => { //[cite: 6]
+        const translations = service.translations.reduce((acc, t) => { //[cite: 6]
+          if (!acc[t.locale]) acc[t.locale] = {}; //[cite: 6]
+          acc[t.locale][t.key] = t.value; //[cite: 6]
+          return acc; //[cite: 6]
         }, {});
-        return {
-          id: service.id,
-          name: translations?.en?.name || service.name,
+        return { //[cite: 6]
+          id: service.id, //[cite: 6]
+          name: translations?.en?.name || service.name, //[cite: 6]
         };
       });
-      setServices(formattedServices);
+      setServices(formattedServices); //[cite: 6]
+
+      // --- التعديل الجوهري هنا لاستيعاب الريسبونس الجديد ---
+      let rawProvidersList = [];
+      if (result.providers) {
+        if (Array.isArray(result.providers)) {
+          rawProvidersList = result.providers;
+          setTotalCount(result.providers.length);
+          setTotalPages(1);
+        } else {
+          rawProvidersList = result.providers.data || [];
+          setCurrentPage(result.providers.current_page || page);
+          setTotalPages(result.providers.last_page || 1);
+          setTotalCount(result.providers.total || 0);
+        }
+      } else if (result.data) {
+        rawProvidersList = result.data;
+        setCurrentPage(result.current_page || page);
+        setTotalPages(result.last_page || 1);
+        setTotalCount(result.total || 0);
+      }
 
       // Process providers - Updated with same logic as Villages
-      const processedProviders = (result.providers || []).map((provider) => {
-        console.log("Processing provider:", provider.id, provider.translations); // للـ debugging
-        
-        // فصل الترجمات حسب اللغة والنوع - same as Villages
-        const translations = provider.translations?.reduce((acc, t) => {
-          if (!acc[t.locale]) acc[t.locale] = {};
-          acc[t.locale][t.key] = t.value;
-          return acc;
-        }, {}) || {};
+      const processedProviders = rawProvidersList.map((provider) => { //[cite: 6]
+        console.log("Processing provider:", provider.id, provider.translations); //[cite: 6]
 
-        console.log("Parsed translations:", translations); // للـ debugging
+        // فصل الترجمات حسب اللغة والنوع
+        const translations = provider.translations?.reduce((acc, t) => { //[cite: 6]
+          if (!acc[t.locale]) acc[t.locale] = {}; //[cite: 6]
+          acc[t.locale][t.key] = t.value; //[cite: 6]
+          return acc; //[cite: 6]
+        }, {}) || {}; //[cite: 6]
 
-        // استخراج البيانات بالإنجليزي (للعرض في الجدول)
-        const nameEn = translations?.en?.name || provider.name || "—";
-        const descriptionEn = translations?.en?.description || provider.description || "—";
-        const locationEn = translations?.en?.location || provider.location || "—";
+        console.log("Parsed translations:", translations); //[cite: 6]
 
-        // استخراج البيانات بالعربي (للـ EditDialog) 
-        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
-        const nameAr = translations?.ar?.name || null;
-        const descriptionAr = translations?.ar?.description || null;
-        const locationAr = translations?.ar?.location || null;
+        // استخراج البيانات بالإنجليزي أو العربي مع عمل fallback من الحقول المباشرة إذا لم توجد الترجمة
+        const nameEn = translations?.en?.name || provider.name || provider.translations?.find(t => t.locale === 'en' && t.key === 'name')?.value || "—"; //[cite: 6]
+        const descriptionEn = translations?.en?.description || provider.description || provider.translations?.find(t => t.locale === 'en' && t.key === 'description')?.value || "—"; //[cite: 6]
+        const locationEn = translations?.en?.location || provider.location || "—"; //[cite: 6]
+
+        // التأكد من استخراج البيانات العربي بشكل صحيح من التابز أو الحقول المباشرة للـ API الجديد (مثل ar_name و ar_description)
+        const nameAr = translations?.ar?.name || provider.ar_name || provider.translations?.find(t => t.locale === 'ar' && t.key === 'name')?.value || null; //[cite: 6]
+        const descriptionAr = translations?.ar?.description || provider.ar_description || provider.translations?.find(t => t.locale === 'ar' && t.key === 'description')?.value || null; //[cite: 6]
+        const locationAr = translations?.ar?.location || provider.ar_location || null; //[cite: 6]
 
         // Raw name for editing
-        const rawName = nameEn;
+        const rawName = nameEn; //[cite: 6]
 
         // Get related data
-        const serviceObj = formattedServices.find(s => s.id === provider.service_id);
-        const villageObj = formattedVillages.find(v => v.id === provider.village_id);
-        const zoneObj = villageObj ? formattedZones.find(z => z.id === villageObj.zone_id) : null;
+        const serviceObj = formattedServices.find(s => s.id === provider.service_id); //[cite: 6]
+        const villageObj = formattedVillages.find(v => v.id === provider.village_id); //[cite: 6]
+        const zoneObj = villageObj ? formattedZones.find(z => z.id === villageObj.zone_id) : formattedZones.find(z => z.id === provider.zone_id); //[cite: 6]
 
-        const nameClickable = (
-          <span
-            onClick={() => navigate(`/providers/single-page-p/${provider.id}`)}
-            className="text-bg-primary hover:text-teal-800 cursor-pointer"
+        // استخراج الأسماء من الريسبونس الجديد مباشرة لو الـ lookup فشل
+        const serviceNameFinal = provider.service?.name || serviceObj?.name || "—";
+        const zoneNameFinal = provider.zone?.name || zoneObj?.name || "—";
+        const villageNameFinal = provider.village?.name || villageObj?.name || "—";
+
+        const nameClickable = ( //[cite: 6]
+          <span //[cite: 6]
+            onClick={() => navigate(`/providers/single-page-p/${provider.id}`)} //[cite: 6]
+            className="text-bg-primary hover:text-teal-800 cursor-pointer" //[cite: 6]
           >
             {nameEn}
           </span>
         );
 
-        const image = provider?.image_link && !imageErrors[provider.id] ? (
-          <img
-            src={provider.image_link}
-            alt={provider.name}
-            className="w-12 h-12 rounded-md object-cover aspect-square"
-            onError={() => handleImageError(provider.id)}
+        const image = provider?.image_link && !imageErrors[provider.id] ? ( //[cite: 6]
+          <img //[cite: 6]
+            src={provider.image_link} //[cite: 6]
+            alt={provider.name} //[cite: 6]
+            className="w-12 h-12 rounded-md object-cover aspect-square" //[cite: 6]
+            onError={() => handleImageError(provider.id)} //[cite: 6]
           />
         ) : (
-          <Avatar className="w-12 h-12">
-            <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <Avatar className="w-12 h-12"> //[cite: 6]
+            <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback> //[cite: 6]
+          </Avatar> //[cite: 6]
         );
 
-        return {
-          id: provider.id,
-          name: nameClickable,
-          rawName,
-          nameEn: nameEn,
-          description: descriptionEn,
-          location: locationEn,
-          // إضافة الحقول العربية (null لو مش موجودة)
-          nameAr: nameAr,
-          descriptionAr: descriptionAr,
-          locationAr: locationAr,
-          searchableName: nameEn,
-          map: locationEn,
-          img: image,
-          status: provider.status === 1 ? "Active" : "Inactive",
-          service_id: provider.service_id,
-          serviceName: serviceObj?.name || "—",
-          phone: provider.phone || "—",
-          rating: provider.rate || "—",
-          image_link: provider.image_link,
-          villageName: villageObj?.name || "—",
-          village_id: provider.village_id,
-          zoneName: zoneObj?.name || "—",
-          zone_id: zoneObj?.id,
+        return { //[cite: 6]
+          id: provider.id, //[cite: 6]
+          name: nameClickable, //[cite: 6]
+          rawName, //[cite: 6]
+          nameEn: nameEn, //[cite: 6]
+          description: descriptionEn, //[cite: 6]
+          location: locationEn, //[cite: 6]
+          nameAr: nameAr, //[cite: 6]
+          descriptionAr: descriptionAr, //[cite: 6]
+          locationAr: locationAr, //[cite: 6]
+          searchableName: nameEn, //[cite: 6]
+          map: locationEn, //[cite: 6]
+          img: image, //[cite: 6]
+          status: provider.status === 1 ? "Active" : "Inactive", //[cite: 6]
+          service_id: provider.service_id, //[cite: 6]
+          serviceName: serviceNameFinal, //[cite: 6]
+          phone: provider.phone || "—", //[cite: 6]
+          rating: provider.rate || "—", //[cite: 6]
+          image_link: provider.image_link, //[cite: 6]
+          villageName: villageNameFinal, //[cite: 6]
+          village_id: provider.village_id, //[cite: 6]
+          zoneName: zoneNameFinal, //[cite: 6]
+          zone_id: provider.zone?.id || zoneObj?.id, //[cite: 6]
           adminName: provider.super_admin?.name || "—",
+          admin_id: provider.admin_id,
+          package_id: provider.package_id,
+          packageName: provider.package?.name || "—",
           open_from: provider.open_from,
           open_to: provider.open_to,
           location_map: provider.location_map || "",
           lat: provider.lat || 31.2001,
           lng: provider.lng || 29.9187,
-        };
+        }; //[cite: 6]
       });
 
-      setAllProviders(processedProviders);
-      setProviders(processedProviders);
-    } catch (error) {
-      console.error("Error fetching providers:", error);
-      toast.error("Error fetching providers");
-    } finally {
-      dispatch(hideLoader());
+      setAllProviders(processedProviders); //[cite: 6]
+      setProviders(processedProviders); //[cite: 6]
+    } catch (error) { //[cite: 6]
+      console.error("Error fetching providers:", error); //[cite: 6]
+      toast.error("Error fetching providers"); //[cite: 6]
+    } finally { //[cite: 6]
+      dispatch(hideLoader()); //[cite: 6]
     }
+  };
+
+  // عند تغيير الصفحة من الجدول
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    fetchProviders(newPage, searchQuery);
+  };
+
+  // عند كتابة كلمة بحث
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    setCurrentPage(1); // تصفير الصفحة عند البحث الجديد
+    fetchProviders(1, val);
   };
 
   // Filter providers using useMemo
@@ -336,7 +382,7 @@ const Providers = () => {
     }
 
     if (filters.status !== "all") {
-      filtered = filtered.filter(provider => 
+      filtered = filtered.filter(provider =>
         provider.status.toLowerCase() === filters.status.toLowerCase()
       );
     }
@@ -350,7 +396,7 @@ const Providers = () => {
       console.error("No provider data provided for editing");
       return;
     }
-    
+
     const editableProvider = {
       ...provider,
       name: provider.rawName || provider.nameEn,
@@ -369,7 +415,7 @@ const Providers = () => {
       lat: provider.lat || 31.2001,
       lng: provider.lng || 29.9187,
     };
-    
+
     console.log("Setting location data:", locationData);
     setEditPickUpData(locationData);
 
@@ -389,7 +435,7 @@ const Providers = () => {
         lat: selectedRow.lat || 31.2001,
         lng: selectedRow.lng || 29.9187,
       };
-      
+
       console.log("Syncing location data from selectedRow:", locationData);
       setEditPickUpData(locationData);
     }
@@ -400,7 +446,7 @@ const Providers = () => {
       console.error("No provider data provided for deletion");
       return;
     }
-    
+
     setSelectedRow(provider);
     setIsDeleteOpen(true);
   };
@@ -408,7 +454,7 @@ const Providers = () => {
   const onChange = (key, value) => {
     setSelectedRow(prev => {
       let newValue = value;
-      
+
       if (key === "service_id" || key === "village_id" || key === "zone_id") {
         newValue = parseInt(value, 10);
       }
@@ -453,13 +499,13 @@ const Providers = () => {
 
       const dataURL = await convertFileToBase64(file);
       const base64Only = extractBase64FromDataURL(dataURL);
-      
+
       if (!base64Only) {
         throw new Error("Failed to extract base64 data from image");
       }
 
       const previewURL = URL.createObjectURL(file);
-      
+
       setSelectedRow(prev => ({
         ...prev,
         imageFile: file,
@@ -560,14 +606,14 @@ const Providers = () => {
       );
 
       const responseData = await response.json();
-      
+
       if (response.ok) {
         toast.success("Provider updated successfully!");
         await fetchProviders();
         handleCloseEdit();
       } else {
         console.error("Update failed:", responseData);
-        
+
         if (responseData.errors && responseData.errors.image) {
           toast.error("Image validation failed: " + responseData.errors.image.join(", "));
         } else {
@@ -589,7 +635,7 @@ const Providers = () => {
       toast.error("You don't have permission to delete providers");
       return;
     }
-setIsDeleting(true);
+    setIsDeleting(true);
     try {
       const response = await fetch(
         `https://bcknd.sea-go.org/admin/provider/delete/${selectedRow.id}`,
@@ -610,7 +656,7 @@ setIsDeleting(true);
     } catch (error) {
       console.error("Error deleting provider:", error);
       toast.error("Error occurred while deleting provider!");
-    } finally{
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -661,7 +707,7 @@ setIsDeleting(true);
   }, []);
 
   useEffect(() => {
-    fetchProviders();
+    fetchProviders(1, "");
   }, []);
 
   useEffect(() => {
@@ -676,6 +722,7 @@ setIsDeleting(true);
     { key: "serviceName", label: "Service" },
     { key: "villageName", label: "Village" },
     { key: "adminName", label: "Admin Name" },
+    { key: "packageName", label: "Package" },
     { key: "phone", label: "Phone" },
     { key: "map", label: "Location" },
     { key: "status", label: "Status" },
@@ -747,6 +794,14 @@ setIsDeleting(true);
         showFilter={true}
         filterOptions={filterOptions}
         onFilterChange={handleFilterChange}
+
+        // --- البارامترات المضافة للبيجينشن من الباك إند ---
+        isBackendPagination={true}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        onPageChange={handlePageChange}
+        onSearchChange={handleSearchChange}
       />
 
       {selectedRow && (
@@ -786,7 +841,7 @@ setIsDeleting(true);
               />
 
               <label htmlFor="location" className="text-gray-400 !pb-3">
-                Location 
+                Location
               </label>
               <MapLocationPicker
                 key={selectedRow?.id}

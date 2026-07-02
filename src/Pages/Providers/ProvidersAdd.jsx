@@ -50,7 +50,7 @@ export default function AddProvider() {
     const fetchDataForDropdowns = async () => {
       try {
         const response = await fetch(
-          "https://bcknd.sea-go.org/admin/provider",
+          "https://bcknd.sea-go.org/admin/provider/lists",
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -192,7 +192,8 @@ export default function AddProvider() {
               open_from: "",
               open_to: "",
             },
-            ar: { name: "", description: "" 
+            ar: {
+              name: "", description: ""
 
             },
           });
@@ -208,7 +209,7 @@ export default function AddProvider() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("An error occurred.",err, { autoClose: 3000 });
+      toast.error("An error occurred.", err, { autoClose: 3000 });
     } finally {
       dispatch(hideLoader());
     }

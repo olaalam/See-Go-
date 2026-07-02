@@ -122,40 +122,22 @@ export default function DataTable({
 
     return currentData;
   }, [data, searchValue, activeFilters, searchKeys, isBackendPagination]);
-const getPaginationItems = (current, total) => {
-  const delta = 2; // عدد الصفحات التي تظهر حول الصفحة الحالية
-  const range = [];
-  const rangeWithDots = [];
-  let l;
-
-  for (let i = 1; i <= total; i++) {
-    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+  const getPaginationItems = (current, total) => {
+    const range = [];
+    for (let i = 1; i <= total; i++) {
       range.push(i);
     }
-  }
-
-  for (let i of range) {
-    if (l) {
-      if (i - l === 2) {
-        rangeWithDots.push(l + 1);
-      } else if (i - l !== 1) {
-        rangeWithDots.push("...");
-      }
-    }
-    rangeWithDots.push(i);
-    l = i;
-  }
-  return rangeWithDots;
-};
+    return range;
+  };
   // --- منطق الترقيم ---
   const totalPagesLocal = Math.ceil(filteredData.length / itemsPerPage);
-  
+
   // حساب الصفحة الحالية لغرض العرض
   const displayCurrentPage = isBackendPagination ? (controlledCurrentPage || 1) : currentPage;
-  
+
   // تحديد الـ startIndex لترقيم الصفوف
   const startIndex = (displayCurrentPage - 1) * itemsPerPage;
-  
+
   // البيانات المعروضة
   const paginatedData = isBackendPagination ? data : filteredData.slice(startIndex, startIndex + itemsPerPage);
 
@@ -398,8 +380,8 @@ const getPaginationItems = (current, total) => {
                           const displayText =
                             url.length > 20
                               ? `${url.substring(0, 10)}...${url.substring(
-                                  url.length - 10
-                                )}`
+                                url.length - 10
+                              )}`
                               : url;
                           const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(url)}`;
                           return (
@@ -493,45 +475,45 @@ const getPaginationItems = (current, total) => {
         </Table>
         <div className="w-full !mb-10 max-w-[1200px] mx-auto">
           <Pagination className="!mb-2 flex justify-center items-center m-auto">
-<PaginationContent className="text-bg-primary font-semibold flex gap-1">
-  <PaginationItem>
-    <PaginationPrevious
-      onClick={() => handlePageChange(displayCurrentPage - 1)}
-      disabled={displayCurrentPage === 1}
-      className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === 1 })}
-    />
-  </PaginationItem>
+            <PaginationContent className="text-bg-primary font-semibold flex gap-1">
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(displayCurrentPage - 1)}
+                  disabled={displayCurrentPage === 1}
+                  className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === 1 })}
+                />
+              </PaginationItem>
 
-  {getPaginationItems(displayCurrentPage, displayTotalPages).map((page, index) => (
-    <PaginationItem key={index}>
-      {page === "..." ? (
-        <span className="px-3 py-1 text-gray-500">...</span>
-      ) : (
-        <PaginationLink
-          onClick={() => handlePageChange(page)}
-          aria-current={displayCurrentPage === page ? "page" : undefined}
-          className={clsx(
-            "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg cursor-pointer",
-            {
-              "bg-bg-primary text-white hover:bg-bg-primary": displayCurrentPage === page,
-              "text-bg-primary": displayCurrentPage !== page,
-            }
-          )}
-        >
-          {page}
-        </PaginationLink>
-      )}
-    </PaginationItem>
-  ))}
+              {getPaginationItems(displayCurrentPage, displayTotalPages).map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === "..." ? (
+                    <span className="px-3 py-1 text-gray-500">...</span>
+                  ) : (
+                    <PaginationLink
+                      onClick={() => handlePageChange(page)}
+                      aria-current={displayCurrentPage === page ? "page" : undefined}
+                      className={clsx(
+                        "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg cursor-pointer",
+                        {
+                          "bg-bg-primary text-white hover:bg-bg-primary": displayCurrentPage === page,
+                          "text-bg-primary": displayCurrentPage !== page,
+                        }
+                      )}
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
 
-  <PaginationItem>
-    <PaginationNext
-      onClick={() => handlePageChange(displayCurrentPage + 1)}
-      disabled={displayCurrentPage === displayTotalPages || displayTotalPages === 0}
-      className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === displayTotalPages || displayTotalPages === 0 })}
-    />
-  </PaginationItem>
-</PaginationContent>
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(displayCurrentPage + 1)}
+                  disabled={displayCurrentPage === displayTotalPages || displayTotalPages === 0}
+                  className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === displayTotalPages || displayTotalPages === 0 })}
+                />
+              </PaginationItem>
+            </PaginationContent>
           </Pagination>
         </div>
       </div>
