@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch"; // 🌟 استيراد الـ Switch لتغيير حالة التوثيق
 import {
   Select,
   SelectTrigger,
@@ -18,7 +19,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { LogOut, Heart } from "lucide-react"; // 🌟 تم إضافة Heart هنا
+import { LogOut, Heart } from "lucide-react"; 
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -37,10 +38,9 @@ const Users = () => {
   const [permissions, setPermissions] = useState([]);
   const apiUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
 
-  // 🌟 1. حالات الترقيم (Pagination States)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0); 
+  const [totalItems, setTotalItems] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
   const getAuthHeaders = () => ({
@@ -95,13 +95,12 @@ const Users = () => {
     }
   };
 
-  // 🌟 2. جلب البيانات وتحديد حالة المفضلة لكل مستخدم
   const fetchUsers = async (page = 1, search = "") => {
     dispatch(showLoader());
     try {
       const url = new URL(`${apiUrl}/admin/user/users`);
       url.searchParams.append("page", page);
-      
+
       if (search && search.trim() !== "") {
         url.searchParams.append("search", search.trim());
       }
@@ -147,6 +146,8 @@ const Users = () => {
             u.user_type ||
             "—"
           ).toLowerCase(),
+          // 🌟 نتركها كـ القيمة الأصلية القادمة من السيرفر (0 أو 1) ليقرأها الـ Switch بشكل صحيح
+          verification: u.verification, 
           status: u.status === 1 ? "active" : "inactive",
           img: u.image_link ? (
             <img
@@ -162,8 +163,6 @@ const Users = () => {
           password: "",
           rent_from: u.rent_from || "",
           rent_to: u.rent_to || "",
-          // 🌟 قراءة حالة المفضلة: إذا كانت غير فارغة (not null) يتم اعتبارها true
-          is_favourite: !!u.favourite, 
         };
       });
       setUsers(formatted);
@@ -173,49 +172,14 @@ const Users = () => {
       dispatch(hideLoader());
     }
   };
-
-  // 🌟 3. دالة إضافة / حذف من المفضلة عبر الـ API
-  const handleToggleFavorite = async (userId, currentStatus) => {
-    dispatch(showLoader());
-    try {
-      // الـ API الخاص بالإشارة المرجعية (Favorite Toggle)
-      // ملحوظة: الـ API مصمم كـ POST، لو كان الـ API بالباك إند مبني كـ GET، يمكنك تبديل الـ method لـ "GET"
-      const res = await fetch(`${apiUrl}/admin/user/make_user_favourite/${userId}`, {
-        method: "GET", 
-        headers: getAuthHeaders(),
-      });
-
-      if (res.ok) {
-        toast.success(
-          currentStatus 
-            ? "User removed from favorites successfully!" 
-            : "User added to favorites successfully!"
-        );
-        
-        // تحديث الحالة فوراً في الـ State دون الحاجة لإعادة تحميل الصفحة بالكامل
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === userId ? { ...u, is_favourite: !currentStatus } : u
-          )
-        );
-      } else {
-        toast.error("Failed to update favorite status!");
-      }
-    } catch (err) {
-      console.error("Error toggling favorite:", err);
-      toast.error("An error occurred while updating favorite status!");
-    } finally {
-      dispatch(hideLoader());
-    }
-  };
-
+  
   useEffect(() => {
     fetchVillages();
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchUsers(1, searchQuery); 
+      fetchUsers(1, searchQuery);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -276,7 +240,7 @@ const Users = () => {
 
       if (res.ok) {
         toast.success("User updated successfully!");
-        fetchUsers(currentPage, searchQuery); 
+        fetchUsers(currentPage, searchQuery);
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
@@ -348,6 +312,33 @@ const Users = () => {
     }
   };
 
+  // 🌟 دالة معالجة وتغيير الـ Verification عبر الـ GET API المطلوب
+  const handleToggleVerification = async (row) => {
+    try {
+      const res = await fetch(
+        `${apiUrl}/admin/user/verification_user/${row.id}`,
+        { method: "GET", headers: getAuthHeaders() },
+      );
+      
+      if (res.ok) {
+        toast.success("User verification toggled successfully!");
+        // تعديل الحالة بشكل فوري في الـ State المحلي
+        setUsers((prevUsers) =>
+          prevUsers.map((u) =>
+            u.id === row.id
+              ? { ...u, verification: u.verification === 1 ? 0 : 1 }
+              : u
+          )
+        );
+      } else {
+        toast.error("Failed to update user verification status.");
+      }
+    } catch (err) {
+      console.error("Error changing verification status:", err);
+      toast.error("Error updating verification status.");
+    }
+  };
+
   const handleForceLogout = async (userId) => {
     dispatch(showLoader());
     try {
@@ -394,31 +385,27 @@ const Users = () => {
     },
   ];
 
-  // 🌟 4. إضافة عمود المفضلة (Favorite) إلى الـ columns
   const columns = [
     { key: "name", label: "User Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
-    {
-      key: "is_favourite",
-      label: "Favorite",
+    { 
+      key: "verification", 
+      label: "Verification",
+      // 🌟 تحويل الـ Column إلى Switch وإرسال الطلب عند ضغطه
       render: (row) => (
-        <button
-          onClick={() => handleToggleFavorite(row.id, row.is_favourite)}
-          className="p-2 hover:bg-teal-50 rounded-full transition-all cursor-pointer flex justify-center items-center"
-          title={row.is_favourite ? "Remove from Favorites" : "Add to Favorites"}
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              row.is_favourite
-                ? "text-red-500 fill-red-500" // قلب أحمر ممتلئ إذا كان مفضلاً
-                : "text-gray-400 hover:text-red-500" // قلب مفرغ عند التحويم عليه
-            }`}
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={row.verification === 1}
+            onCheckedChange={() => handleToggleVerification(row)}
           />
-        </button>
-      ),
+          <span className={`text-xs font-semibold ${row.verification === 1 ? "text-green-600" : "text-gray-400"}`}>
+            {row.verification === 1 ? "Verified" : "Unverified"}
+          </span>
+        </div>
+      )
     },
     {
       key: "actions",
@@ -456,20 +443,20 @@ const Users = () => {
         searchKeys={["name", "email", "phone"]}
         showFilter={true}
         filterOptions={filterOptionsForUsers}
-        
+
         isBackendPagination={true}
         serverSide={true}
-        
+
         currentPage={currentPage}
         backendCurrentPage={currentPage}
-        
+
         totalPages={totalPages}
         backendTotalPages={totalPages}
-        
-        totalItems={totalItems} 
+
+        totalItems={totalItems}
         totalCount={totalItems}
         total={totalItems}
-        
+
         onPageChange={(page) => {
           setCurrentPage(page);
           fetchUsers(page, searchQuery);
@@ -478,7 +465,7 @@ const Users = () => {
           setCurrentPage(page);
           fetchUsers(page, searchQuery);
         }}
-        
+
         onSearchChange={(val) => {
           setSearchQuery(val);
           setCurrentPage(1);

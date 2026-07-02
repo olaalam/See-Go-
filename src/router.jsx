@@ -56,6 +56,7 @@ import OnlineUsers from "./Pages/Users/OnlineUsers";
 import HelpGroupsPage from "./Pages/HelpGroup/HelpGroup";
 import HelpVideosPage from "./Pages/HelpGroup/HelpVideos";
 import Notification from "./Pages/Notification/Notification";
+import VerificationRequests from "./Pages/Users/VerificationRequests";
 
 const router = createBrowserRouter([
   {
@@ -562,6 +563,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "verification-request",
+        element: (
+          <ProtectedRoute permissionKey="Admin Role">
+            <VerificationRequests />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "online-users",
         element: (
           <ProtectedRoute permissionKey="Admin Role">
@@ -569,7 +578,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-            {
+      {
         path: "help-group",
         element: (
           <ProtectedRoute permissionKey="Admin Role">
@@ -585,7 +594,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      
+
 
       {
         path: "*",

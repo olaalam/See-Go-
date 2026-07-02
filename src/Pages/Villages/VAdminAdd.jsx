@@ -23,6 +23,7 @@ export default function Addvillage_admin() {
     password: "",
     admin_position_id: "",
     status: "active",
+    delete_unit_role:"true",
     // No need for village_id here, as it will come from params
   });
 
@@ -116,6 +117,7 @@ export default function Addvillage_admin() {
         password: formData.password,
         image: formData.image, // Assuming you handle file upload separately
         admin_position_id: parseInt(formData.admin_position_id, 10),
+        delete_unit_role:formData.delete_unit_role === "true" ? 1 : 0,
         status: formData.status === "active" ? 1 : 0,
         village_id: parseInt(villageId, 10), // <<< IMPORTANT: Use villageId from params here
       };
@@ -144,6 +146,7 @@ export default function Addvillage_admin() {
           password: "",
           image: null,
           admin_position_id: "",
+          delete_unit_role:"true",
           status: "active",
           // village_id: "", // No longer needed here
         });
@@ -152,8 +155,7 @@ export default function Addvillage_admin() {
         navigate(`/villages/single-page-v/${villageId}`); // Example: Navigate to a list of admins for THIS village
       } else {
         toast.error(
-          `Failed to add village admin: ${
-            data?.message || response.statusText
+          `Failed to add village admin: ${data?.message || response.statusText
           }`,
           {
             position: "top-right",
@@ -188,7 +190,7 @@ export default function Addvillage_admin() {
       name: "admin_position_id",
       options: positionOptions,
     },
-        { type: "file", name: "image"},
+    { type: "file", placeholder: "image" },
 
     // REMOVED: No longer need the "Select Village" dropdown
     // {
@@ -197,15 +199,16 @@ export default function Addvillage_admin() {
     //   name: "village_id",
     //   options: villageOptions,
     // },
+    { name: "delete_unit_role", placeholder: "Delete Unit Role", type: "switch" },
     {
-                type: "switch",
-                name: "status",
-                placeholder: "Status",
-                returnType: "binary",
-                activeLabel: "Active",
-                inactiveLabel: "Inactive",
+      type: "switch",
+      name: "status",
+      placeholder: "Status",
+      returnType: "binary",
+      activeLabel: "Active",
+      inactiveLabel: "Inactive",
 
-            },
+    },
   ];
 
   return (

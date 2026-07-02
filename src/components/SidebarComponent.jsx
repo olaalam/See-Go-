@@ -110,6 +110,13 @@ const navItems = [
         icon: <Users size={20} />,
         permissionKey: "User",
       },
+      {
+        label: "Verification Request",
+        to: "/verification-request",
+        icon: <Users size={20} />,
+        permissionKey: "User",
+      },
+
     ],
     dropdownIcon: <ChevronDown size={20} />,
   },
@@ -246,13 +253,13 @@ export function AppSidebar() {
     if (userData) {
       try {
         const user = JSON.parse(userData);
-        
+
         console.log("Full user data:", user);
-        
+
         // التحقق من البيانات المتاحة
         const userRoles = user?.roles || [];
         const providerOnly = user?.admin?.provider_only === 1;
-        
+
         console.log("User roles:", userRoles);
         console.log("Provider only?", providerOnly);
 
@@ -301,18 +308,18 @@ export function AppSidebar() {
   // تحويل البيانات من array إلى object
   const convertRolesToObject = (rolesArray) => {
     const rolesObject = {};
-    
+
     rolesArray.forEach(role => {
       const module = role.module;
       const action = role.action;
-      
+
       if (!rolesObject[module]) {
         rolesObject[module] = [];
       }
-      
+
       rolesObject[module].push(action);
     });
-    
+
     return rolesObject;
   };
 
@@ -320,23 +327,23 @@ export function AppSidebar() {
   const hasPermission = (roles, moduleKey, permission = "view") => {
     console.log(`Checking permission for module: ${moduleKey}, permission: ${permission}`);
     console.log("Available roles:", Object.keys(roles));
-    
+
     if (!roles || !moduleKey) {
       console.log("No roles or moduleKey provided");
       return false;
     }
-    
+
     const modulePermissions = roles[moduleKey];
     if (!modulePermissions) {
       console.log(`No permissions found for module: ${moduleKey}`);
       return false;
     }
-    
+
     console.log(`Permissions for ${moduleKey}:`, modulePermissions);
-    
+
     const hasAccess = modulePermissions.includes(permission) || modulePermissions.includes("all");
     console.log(`Access granted: ${hasAccess}`);
-    
+
     return hasAccess;
   };
 
@@ -356,10 +363,10 @@ export function AppSidebar() {
             console.log(`Item ${item.label} has no permission key, skipping`);
             return null;
           }
-          
+
           const hasAccess = hasPermission(roles, item.permissionKey);
           console.log(`Item ${item.label} (${item.permissionKey}): ${hasAccess ? 'ALLOWED' : 'DENIED'}`);
-          
+
           return hasAccess ? item : null;
         }
       })
@@ -392,11 +399,10 @@ export function AppSidebar() {
                         onClick={() => handleGroupClick(item.label)}
                         className={`flex justify-between items-center gap-3 !px-4 !py-2 text-white transition-all duration-200 text-sm font-medium w-full
                                     ${isSidebarOpen ? "rounded-full" : ""}
-                                    ${
-                                      isGroupOpen
-                                        ? "bg-white text-bg-primary shadow-md"
-                                        : "hover:bg-white hover:text-bg-primary"
-                                    }`}
+                                    ${isGroupOpen
+                            ? "bg-white text-bg-primary shadow-md"
+                            : "hover:bg-white hover:text-bg-primary"
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           {item.icon}
@@ -404,9 +410,8 @@ export function AppSidebar() {
                         </div>
                         {item.dropdownIcon && (
                           <span
-                            className={`transition-transform duration-200 ${
-                              isGroupOpen ? "rotate-180" : ""
-                            }`}
+                            className={`transition-transform duration-200 ${isGroupOpen ? "rotate-180" : ""
+                              }`}
                           >
                             {item.dropdownIcon}
                           </span>
@@ -424,16 +429,14 @@ export function AppSidebar() {
                                     <SidebarMenuButton
                                       isActive={isActive}
                                       className={`flex justify-start items-center gap-3 !px-4 !py-2 text-white transition-all duration-200 text-sm font-medium
-                                                  ${
-                                                    isSidebarOpen
-                                                      ? "rounded-full"
-                                                      : ""
-                                                  }
-                                                  ${
-                                                    isActive
-                                                      ? "bg-white text-bg-primary shadow-md"
-                                                      : "hover:bg-white hover:text-bg-primary"
-                                                  }`}
+                                                  ${isSidebarOpen
+                                          ? "rounded-full"
+                                          : ""
+                                        }
+                                                  ${isActive
+                                          ? "bg-white text-bg-primary shadow-md"
+                                          : "hover:bg-white hover:text-bg-primary"
+                                        }`}
                                     >
                                       {childItem.icon}
                                       <span className="text-base">
@@ -458,11 +461,10 @@ export function AppSidebar() {
                           isActive={isActive}
                           className={`flex justify-start items-center gap-3 !px-4 !py-2 text-white transition-all duration-200 text-sm font-medium
                                       ${isSidebarOpen ? "rounded-full" : ""}
-                                      ${
-                                        isActive
-                                          ? "bg-white text-bg-primary shadow-md"
-                                          : "hover:bg-white hover:text-bg-primary"
-                                      }`}
+                                      ${isActive
+                              ? "bg-white text-bg-primary shadow-md"
+                              : "hover:bg-white hover:text-bg-primary"
+                            }`}
                         >
                           {item.icon}
                           <span className="text-base">{item.label}</span>
