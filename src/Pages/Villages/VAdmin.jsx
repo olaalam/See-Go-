@@ -229,9 +229,9 @@ export default function VAdmin() {
           prev.map((admin) =>
             admin.id === row.id
               ? {
-                  ...admin,
-                  status: newStatus === 1 ? "Active" : "Inactive",
-                }
+                ...admin,
+                status: newStatus === 1 ? "Active" : "Inactive",
+              }
               : admin,
           ),
         );
@@ -448,14 +448,13 @@ export default function VAdmin() {
                     value={selectedRow?.phone}
                     onChange={(val) => onChange("phone", val)}
                   />
-                  {/* Password field - use type="password" if you allow editing 
                   <InputField
                     label="Password (leave blank to keep current)"
                     id="password"
                     type="password" // Important for password input
                     value={selectedRow?.password || ""} // Value should be empty for security if not meant to display current
                     onChange={(val) => onChange("password", val)}
-                  />*/}
+                  />
                   {villagePositions.length > 0 && (
                     <div className="w-full">
                       <Label htmlFor="adminPosition" className="text-gray-400">
