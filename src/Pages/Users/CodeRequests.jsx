@@ -199,7 +199,7 @@ const CodeRequests = () => {
         showActions={false}
         showFilter={false}
         showSearch={true}
-        searchKeys={["user_name", "user_email", "village"]}
+        searchKeys={["user_name", "user_email", "village","user_phone"]}
         className="table-compact"
       />
 

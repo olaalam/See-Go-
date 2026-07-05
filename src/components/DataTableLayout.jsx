@@ -34,7 +34,7 @@ export default function DataTable({
   data,
   columns,
   addRoute,
-  onAdd, // This might be a direct function call for adding (e.g., opening a modal)
+  onAdd,
   onEdit,
   onDelete,
   onToggleStatus,
@@ -47,11 +47,17 @@ export default function DataTable({
   showEditButton = true,
   showDeleteButton = true,
   searchKeys = [],
-  onAddClick, // This is potentially a more specific add handler
+  onAddClick,
   filterOptions = [],
   initialPage = 1,
-  // ***** هذا هو الـ prop الجديد الذي أضفته بشكل صحيح *****
-  defaultAddSubscriberType = null, // القيمة الافتراضية null أو أي شيء يدل على عدم التحديد
+  defaultAddSubscriberType = null,
+  // ***** Props الترقيم من الباك إند *****
+  isBackendPagination = false,
+  currentPage: controlledCurrentPage,
+  totalPages: controlledTotalPages,
+  totalCount,
+  onPageChange,
+  onSearchChange,
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [activeFilters, setActiveFilters] = useState(() => {
@@ -64,17 +70,14 @@ export default function DataTable({
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
 
-  // Initialize currentPage with the initialPage prop, ensuring it's at least 1
+  // الحالة للترقيم الداخلي (Client-side)
   const [currentPage, setCurrentPage] = useState(Math.max(1, initialPage));
-  const [itemsPerPage] = useState(10); // Items per page is fixed at 10
+  const [itemsPerPage] = useState(10);
 
-  // Effect to update currentPage if initialPage prop changes from parent
-  // This will ensure that external changes to initialPage are reflected
   useEffect(() => {
     setCurrentPage(Math.max(1, initialPage));
   }, [initialPage]);
 
-  // Helper function to safely get nested values
   const getNestedValue = (obj, path) => {
     return path
       .split(".")
@@ -82,29 +85,26 @@ export default function DataTable({
   };
 
   const filteredData = useMemo(() => {
+    // إذا كنا في وضع الباك إند، نرجع البيانات كما هي بدون فلترة داخلية
+    if (isBackendPagination) return data;
+
     let currentData = data;
 
-    // Apply search filter
     if (searchValue) {
       const lowerCaseSearchValue = searchValue.toLowerCase();
       currentData = currentData.filter((row) => {
         const matches = searchKeys.some((key) => {
           const value = getNestedValue(row, key);
-
           if (value === null || value === undefined || typeof value === "object") {
             return false;
           }
-
           const searchableString = String(value).toLowerCase();
-          const isMatch = searchableString.includes(lowerCaseSearchValue);
-
-          return isMatch;
+          return searchableString.includes(lowerCaseSearchValue);
         });
         return matches;
       });
     }
 
-    // Apply accordion filters
     Object.entries(activeFilters).forEach(([filterKey, filterValue]) => {
       if (filterValue !== "all") {
         currentData = currentData.filter((row) => {
@@ -121,26 +121,63 @@ export default function DataTable({
     });
 
     return currentData;
-  }, [data, searchValue, activeFilters, searchKeys]);
+  }, [data, searchValue, activeFilters, searchKeys, isBackendPagination]);
+const getPaginationItems = (current, total) => {
+  const delta = 2; // عدد الصفحات التي تظهر حول الصفحة الحالية
+  const range = [];
+  const rangeWithDots = [];
+  let l;
 
-  // --- Pagination Logic ---
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage); // Corrected to use startIndex + itemsPerPage
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+      range.push(i);
+    }
+  }
 
-  // Ensure currentPage doesn't exceed totalPages if data shrinks
+  for (let i of range) {
+    if (l) {
+      if (i - l === 2) {
+        rangeWithDots.push(l + 1);
+      } else if (i - l !== 1) {
+        rangeWithDots.push("...");
+      }
+    }
+    rangeWithDots.push(i);
+    l = i;
+  }
+  return rangeWithDots;
+};
+  // --- منطق الترقيم ---
+  const totalPagesLocal = Math.ceil(filteredData.length / itemsPerPage);
+  
+  // حساب الصفحة الحالية لغرض العرض
+  const displayCurrentPage = isBackendPagination ? (controlledCurrentPage || 1) : currentPage;
+  
+  // تحديد الـ startIndex لترقيم الصفوف
+  const startIndex = (displayCurrentPage - 1) * itemsPerPage;
+  
+  // البيانات المعروضة
+  const paginatedData = isBackendPagination ? data : filteredData.slice(startIndex, startIndex + itemsPerPage);
+
+  // تحديثات العرض بناءً على وضع الترقيم
+  const displayTotalPages = isBackendPagination ? (controlledTotalPages || 1) : totalPagesLocal;
+  const displayTotalCount = isBackendPagination ? totalCount : filteredData.length;
+
   useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (totalPages === 0 && currentPage !== 1) { // If no data, go to page 1
+    if (!isBackendPagination && currentPage > totalPagesLocal && totalPagesLocal > 0) {
+      setCurrentPage(totalPagesLocal);
+    } else if (!isBackendPagination && totalPagesLocal === 0 && currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [currentPage, totalPages, filteredData.length]); // Added filteredData.length to dependencies
+  }, [currentPage, totalPagesLocal, filteredData.length, isBackendPagination]);
 
   const handlePageChange = (page) => {
-    // Only update if the new page is valid
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+    if (isBackendPagination) {
+      onPageChange?.(page);
+    } else {
+      if (page >= 1 && page <= totalPagesLocal) {
+        setCurrentPage(page);
+      }
     }
   };
 
@@ -155,7 +192,7 @@ export default function DataTable({
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
     if (checked) {
-      setSelectedRows(paginatedData.map((row) => row.id)); // Select only visible rows
+      setSelectedRows(paginatedData.map((row) => row.id));
     } else {
       setSelectedRows([]);
     }
@@ -166,25 +203,29 @@ export default function DataTable({
       ...prev,
       [filterKey]: value,
     }));
-    setCurrentPage(1); // Reset to page 1 when filter changes
+    if (!isBackendPagination) setCurrentPage(1);
   };
 
   return (
     <div className="w-full !p-3 space-y-6">
       <div className="flex justify-between !mb-6 items-center flex-wrap gap-4">
-        {/* Search Input + Total */}
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Input
             placeholder="Search..."
             className="w-full md:!ms-3 sm:!ms-0 !ps-3 sm:w-64 max-w-sm border-bg-primary focus:border-bg-primary focus:ring-bg-primary rounded-[10px]"
             value={searchValue}
             onChange={(e) => {
-              setSearchValue(e.target.value);
-              setCurrentPage(1); // Reset to page 1 on search
+              const val = e.target.value;
+              setSearchValue(val);
+              if (isBackendPagination) {
+                onSearchChange?.(val);
+              } else {
+                setCurrentPage(1);
+              }
             }}
           />
           <span className="text-sm font-semibold text-bg-primary whitespace-nowrap">
-            Total: {filteredData.length}
+            Total: {displayTotalCount}
           </span>
         </div>
 
@@ -219,21 +260,14 @@ export default function DataTable({
             </div>
           )}
 
-          {/* Add Button */}
           {showAddButton && (
             <Button
               onClick={() => {
-                // الأولوية لـ onAddClick إذا كان موجودًا (محددًا بشكل صريح لدالة فتح)
                 if (onAddClick) {
                   onAddClick();
-                }
-                // ثم لـ onAdd إذا كان موجودًا (للتوافق مع استخدامات سابقة قديمة)
-                else if (onAdd) {
+                } else if (onAdd) {
                   onAdd();
-                }
-                // وأخيرًا، إذا كان addRoute موجودًا، قم بالتنقل باستخدام navigate
-                else if (addRoute) {
-                  console.log("Navigating via addRoute:", addRoute, "with type:", defaultAddSubscriberType);
+                } else if (addRoute) {
                   navigate(addRoute, { state: { initialType: defaultAddSubscriberType } });
                 }
               }}
@@ -244,7 +278,6 @@ export default function DataTable({
             </Button>
           )}
 
-          {/* Delete Selected Button */}
           {showDeleteButtonInHeader && (
             <Button
               onClick={() => onDeleteInHeader(selectedRows)}
@@ -262,7 +295,6 @@ export default function DataTable({
         <Table className="!min-w-[600px]">
           <TableHeader>
             <TableRow>
-              {/* New TableHead for row number */}
               <TableHead className="text-bg-primary font-semibold w-12">
                 #
               </TableHead>
@@ -298,9 +330,6 @@ export default function DataTable({
             {paginatedData.length > 0 ? (
               paginatedData.map((row, index) => (
                 <TableRow key={row.id || index}>
-                  {" "}
-                  {/* Use row.id if available, fallback to index */}
-                  {/* New TableCell for row number */}
                   <TableCell className="!px-2 !py-1 text-sm">
                     {startIndex + index + 1}
                   </TableCell>
@@ -366,21 +395,13 @@ export default function DataTable({
                         (() => {
                           const url = getNestedValue(row, col.key);
                           if (!url) return "N/A";
-
                           const displayText =
                             url.length > 20
                               ? `${url.substring(0, 10)}...${url.substring(
                                   url.length - 10
                                 )}`
                               : url;
-
-                          // Corrected URL for Google Maps.
-                          // Assuming `url` might be a raw coordinate string or a direct map link.
-                          // If `url` is already a complete Google Maps URL, use it.
-                          // If it's coordinates, you might want to format it as a search query.
                           const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(url)}`;
-
-
                           return (
                             <div className="relative w-[120px] truncate group">
                               <a
@@ -472,49 +493,45 @@ export default function DataTable({
         </Table>
         <div className="w-full !mb-10 max-w-[1200px] mx-auto">
           <Pagination className="!mb-2 flex justify-center items-center m-auto">
-            <PaginationContent className="text-bg-primary font-semibold flex gap-2">
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={clsx("text-bg-primary", {
-                    "opacity-50 cursor-not-allowed": currentPage === 1,
-                  })}
-                />
-              </PaginationItem>
-              {/* Render pagination items only if totalPages > 0 */}
-              {totalPages > 0 && Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      onClick={() => handlePageChange(page)}
-                      // Use a direct `href` if you want it to be a real link, but for SPA, `onClick` is better.
-                      // Ensure `aria-current` is set for accessibility.
-                      aria-current={currentPage === page ? "page" : undefined}
-                      className={clsx(
-                        "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg",
-                        {
-                          "bg-bg-primary text-white hover:bg-bg-primary":
-                            currentPage === page,
-                          "text-bg-primary": currentPage !== page,
-                        }
-                      )}
-                    >
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                )
-              )}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className={clsx("text-bg-primary", {
-                    "opacity-50 cursor-not-allowed": currentPage === totalPages || totalPages === 0,
-                  })}
-                />
-              </PaginationItem>
-            </PaginationContent>
+<PaginationContent className="text-bg-primary font-semibold flex gap-1">
+  <PaginationItem>
+    <PaginationPrevious
+      onClick={() => handlePageChange(displayCurrentPage - 1)}
+      disabled={displayCurrentPage === 1}
+      className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === 1 })}
+    />
+  </PaginationItem>
+
+  {getPaginationItems(displayCurrentPage, displayTotalPages).map((page, index) => (
+    <PaginationItem key={index}>
+      {page === "..." ? (
+        <span className="px-3 py-1 text-gray-500">...</span>
+      ) : (
+        <PaginationLink
+          onClick={() => handlePageChange(page)}
+          aria-current={displayCurrentPage === page ? "page" : undefined}
+          className={clsx(
+            "border border-gray-400 hover:bg-gray-200 transition-all px-3 py-1 rounded-lg cursor-pointer",
+            {
+              "bg-bg-primary text-white hover:bg-bg-primary": displayCurrentPage === page,
+              "text-bg-primary": displayCurrentPage !== page,
+            }
+          )}
+        >
+          {page}
+        </PaginationLink>
+      )}
+    </PaginationItem>
+  ))}
+
+  <PaginationItem>
+    <PaginationNext
+      onClick={() => handlePageChange(displayCurrentPage + 1)}
+      disabled={displayCurrentPage === displayTotalPages || displayTotalPages === 0}
+      className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === displayTotalPages || displayTotalPages === 0 })}
+    />
+  </PaginationItem>
+</PaginationContent>
           </Pagination>
         </div>
       </div>

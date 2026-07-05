@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo } from "react"; // Added useMemo
+import { useEffect, useState, useMemo } from "react";
 import DataTable from "@/components/DataTableLayout";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,62 +26,60 @@ const Users = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
   const [users, setUsers] = useState([]);
-  const [villages, setVillages] = useState([]); // Kept for potential future use or if needed elsewhere
+  const [villages, setVillages] = useState([]);
   const token = localStorage.getItem("token");
   const [selectedRow, setselectedRow] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // State to manage save button loading state
+  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
-  const [permissions, setPermissions] = useState([]); // State for permissions
+  const [permissions, setPermissions] = useState([]);
   const apiUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
+
+  // 🌟 1. حالات الترقيم (Pagination States) بناءً على ريسبونس لارافيل
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0); // عشان يعرض Total: 919 بدل 15
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
-  // الحصول على الصلاحيات من localStorage
+
   const getUserPermissions = () => {
     try {
       const permissions = localStorage.getItem("userPermission");
       const parsed = permissions ? JSON.parse(permissions) : [];
-
-      const flatPermissions = parsed.map(
-        (perm) => `${perm.module}:${perm.action}`,
-      );
-      console.log("Flattened permissions:", flatPermissions);
-      return flatPermissions;
+      return parsed.map((perm) => `${perm.module}:${perm.action}`);
     } catch (error) {
       console.error("Error parsing user permissions:", error);
       return [];
     }
   };
 
-  // التحقق من وجود صلاحية معينة
   const hasPermission = (permission) => {
     const match = permission.match(/^User(.*)$/i);
     if (!match) return false;
-
     const permKey = match[1].toLowerCase();
     const fullPerm = `User:${permKey}`;
-
     return permissions.includes(fullPerm);
   };
 
-  // Load permissions on component mount
   useEffect(() => {
     const userPermissions = getUserPermissions();
     setPermissions(userPermissions);
   }, []);
+
   const fetchVillages = async () => {
     try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/village", {
+      const res = await fetch(`${apiUrl}/admin/village`, {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
-      const formatted = result.villages.map((v) => {
+      const formatted = result?.villages?.map((v) => {
         const trans = v.translations.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
           return acc;
@@ -91,22 +89,37 @@ const Users = () => {
           name: trans[lang]?.name || v.name,
         };
       });
-      setVillages(formatted);
+      setVillages(formatted || []);
     } catch (err) {
       console.error("Error fetching villages:", err);
     }
   };
 
-  const fetchUsers = async () => {
+  // 🌟 2. دالة جلب البيانات مع الترقيم والبحث
+  const fetchUsers = async (page = 1, search = "") => {
     dispatch(showLoader());
     try {
-      const res = await fetch("https://bcknd.sea-go.org/admin/user", {
+      // بناء الرابط مع رقم الصفحة وكلمة البحث
+      const url = new URL(`${apiUrl}/admin/user/users`);
+      url.searchParams.append("page", page);
+      if (search) url.searchParams.append("search", search);
+
+      const res = await fetch(url.toString(), {
         headers: getAuthHeaders(),
       });
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
 
-      const formatted = result?.users?.map((u) => {
+      // 🌟 قراءة هيكل بيانات لارافيل (Laravel Pagination Structure)
+      const userData = result?.users || {};
+      const usersArray = userData.data || [];
+
+      // تحديث بيانات الترقيم من الباك إند مباشرة
+      setCurrentPage(userData.current_page || 1);
+      setTotalPages(userData.last_page || 1);
+      setTotalItems(userData.total || 0);
+
+      const formatted = usersArray.map((u) => {
         const trans = u.translations?.reduce((acc, t) => {
           acc[t.locale] = { ...(acc[t.locale] || {}), [t.key]: t.value };
           return acc;
@@ -128,19 +141,12 @@ const Users = () => {
           rawName,
           email: u.email || "—",
           phone: u.phone || "—",
-
-          /*  birthDate : u.birthDate
-              ? new Date(u.birthDate).toLocaleDateString()
-              : "—",
-            rawBirthDate: u.birthDate || "", */
           gender: (trans?.[lang]?.gender || u.gender || "—").toLowerCase(),
-          // Normalize user_type to lowercase for consistent filtering
           user_type: (
             trans?.[lang]?.user_type ||
             u.user_type ||
             "—"
           ).toLowerCase(),
-          // Normalize status to lowercase for consistent filtering
           status: u.status === 1 ? "active" : "inactive",
           img: u.image_link ? (
             <img
@@ -153,8 +159,7 @@ const Users = () => {
               <AvatarFallback>{u.name?.charAt(0)}</AvatarFallback>
             </Avatar>
           ),
-          password: "", // This might be a security concern if you're pulling and then resending passwords. Ideally, passwords are not sent back to the frontend.
-
+          password: "",
           rent_from: u.rent_from || "",
           rent_to: u.rent_to || "",
         };
@@ -167,9 +172,10 @@ const Users = () => {
     }
   };
 
+  // جلب أول صفحة عند فتح الشاشة
   useEffect(() => {
-    fetchUsers();
-    fetchVillages(); // Fetch villages if needed for other parts of the component or future features
+    fetchUsers(1, "");
+    fetchVillages();
   }, []);
 
   const handleEdit = (user) => {
@@ -190,7 +196,6 @@ const Users = () => {
       phone,
       gender,
       password,
-      // rawBirthDate,
       user_type,
       status,
       rent_from,
@@ -213,7 +218,6 @@ const Users = () => {
       phone,
       gender,
       password,
-      // birthDate: rawBirthDate,
       user_type,
       rent_from,
       rent_to,
@@ -221,22 +225,18 @@ const Users = () => {
     };
 
     try {
-      const res = await fetch(
-        `https://bcknd.sea-go.org/admin/user/update/${id}`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(updatedUser),
-        },
-      );
+      const res = await fetch(`${apiUrl}/admin/user/update/${id}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedUser),
+      });
 
       if (res.ok) {
         toast.success("User updated successfully!");
-        fetchUsers();
+        fetchUsers(currentPage, searchQuery); // تحديث نفس الصفحة الحالية
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
-        // Check what the API actually returns
         const errorData = await res.json();
         console.error("API error:", errorData);
         toast.error("Failed to update user.");
@@ -248,8 +248,8 @@ const Users = () => {
       setIsSaving(false);
     }
   };
+
   const handleDeleteConfirm = async () => {
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("UserDelete")) {
       toast.error("You don't have permission to delete User");
       return;
@@ -257,12 +257,12 @@ const Users = () => {
     setIsDeleting(true);
     try {
       const res = await fetch(
-        `https://bcknd.sea-go.org/admin/user/delete/${selectedRow.id}`,
+        `${apiUrl}/admin/user/delete/${selectedRow.id}`,
         { method: "DELETE", headers: getAuthHeaders() },
       );
       if (res.ok) {
         toast.success("User deleted successfully!");
-        setUsers(users.filter((u) => u.id !== selectedRow.id));
+        fetchUsers(currentPage, searchQuery);
         setIsDeleteOpen(false);
       } else toast.error("Failed to delete user!");
     } catch (err) {
@@ -275,21 +275,19 @@ const Users = () => {
   const onChange = (key, value) => {
     setselectedRow((prev) => ({
       ...prev,
-      // Ensure user_type and status are normalized to lowercase when set
       [key]:
         key === "user_type" || key === "status" ? value.toLowerCase() : value,
     }));
   };
 
   const handleToggleStatus = async (row, newStatus) => {
-    // لا يزال من الجيد عمل هذا الفحص هنا أيضًا كطبقة حماية إضافية
     if (!hasPermission("UserStatus")) {
-      toast.error("You don't have permission to change  User");
+      toast.error("You don't have permission to change User");
       return;
     }
     try {
       const res = await fetch(
-        `https://bcknd.sea-go.org/admin/user/status/${row.id}?status=${newStatus}`,
+        `${apiUrl}/admin/user/status/${row.id}?status=${newStatus}`,
         { method: "PUT", headers: getAuthHeaders() },
       );
       if (res.ok) {
@@ -297,7 +295,7 @@ const Users = () => {
         setUsers((prev) =>
           prev.map((u) =>
             u.id === row.id
-              ? { ...u, status: newStatus === 1 ? "active" : "inactive" } // Normalize status
+              ? { ...u, status: newStatus === 1 ? "active" : "inactive" }
               : u,
           ),
         );
@@ -306,18 +304,18 @@ const Users = () => {
       toast.error("Error updating status.", err);
     }
   };
-  // 2. دالة عمل Force Logout باستخدام fetch العادي
+
   const handleForceLogout = async (userId) => {
     dispatch(showLoader());
     try {
       const response = await fetch(`${apiUrl}/admin/user/logout_user/${userId}`, {
-        method: "GET", // تم الإبقاء عليها GET بناءً على مسار الـ API الخاص بكِ
+        method: "GET",
         headers: getAuthHeaders(),
       });
 
       if (response.ok) {
         toast.success("User logged out successfully!");
-        await fetchUsers(); // إعادة تحديث الجدول فوراً بعد الطرد
+        await fetchUsers(currentPage, searchQuery);
       } else {
         const errorData = await response.json();
         console.error("Force logout failed:", errorData);
@@ -330,25 +328,16 @@ const Users = () => {
       dispatch(hideLoader());
     }
   };
-  // Dynamically generate filter options for user_type and combine with status options
-  const userTypeOptions = useMemo(() => {
-    // Memoize this to prevent unnecessary re-renders
-    return Array.from(new Set(users.map((user) => user.user_type)))
-      .filter((type) => type !== "—") // Filter out placeholder values if any
-      .map((type) => ({
-        value: type,
-        label: type.charAt(0).toUpperCase() + type.slice(1),
-      })); // Capitalize for display
-  }, [users]);
 
-  // Restructure filter options for the accordion
   const filterOptionsForUsers = [
     {
       label: "Account Type",
       key: "user_type",
       options: [
         { value: "all", label: "All Account Types" },
-        ...userTypeOptions,
+        { value: "owner", label: "Owner" },
+        { value: "visitor", label: "Visitor" },
+        { value: "rent", label: "Renter" },
       ],
     },
     {
@@ -366,7 +355,6 @@ const Users = () => {
     { key: "name", label: "User Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
-    // { key: "birthDate", label: "Birth Date" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
     {
@@ -385,12 +373,8 @@ const Users = () => {
       ),
     },
     { key: "status", label: "Status" },
-
   ];
-  console.log("Has UserAdd permission:", hasPermission("UserAdd"));
-  console.log("Has UserEdit permission:", hasPermission("UserEdit"));
-  console.log("Has UserDelete permission:", hasPermission("UserDelete"));
-  console.log("Has UserStatus permission:", hasPermission("UserStatus"));
+
   return (
     <div className="p-4">
       {isLoading && <FullPageLoader />}
@@ -398,18 +382,49 @@ const Users = () => {
       <DataTable
         data={users}
         columns={columns}
-        showAddButton={hasPermission("UserAdd")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showAddButton={hasPermission("UserAdd")}
         addRoute="/users/add"
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
-        showEditButton={hasPermission("UserEdit")} // هذا يتحكم في إرسال الـ prop من الأساس
-        showDeleteButton={hasPermission("UserDelete")} // هذا يتحكم في إرسال الـ prop من الأساس
+        showEditButton={hasPermission("UserEdit")}
+        showDeleteButton={hasPermission("UserDelete")}
         showActions={hasPermission("UserEdit") || hasPermission("UserDelete")}
         searchKeys={["name", "email", "phone"]}
         showFilter={true}
-        // filterKey is no longer needed here, DataTable will manage it
-        filterOptions={filterOptionsForUsers} // Pass combined filter options
+        filterOptions={filterOptionsForUsers}
+        
+        // 🌟 3. تمرير الخصائص للجدول عشان يعرض Total: 919 ويتنقل بين الـ 62 صفحة
+        // قمت بتمرير الأسماء الشائعة للـ props عشان تشتغل أياً كانت الطريقة اللي مكتوب بيها DataTableLayout
+        isBackendPagination={true}
+        serverSide={true}
+        
+        currentPage={currentPage}
+        backendCurrentPage={currentPage}
+        
+        totalPages={totalPages}
+        backendTotalPages={totalPages}
+        
+        totalItems={totalItems} // ده اللي هيخلي كلمة Total: 15 تتغير لـ Total: 919
+        totalCount={totalItems}
+        total={totalItems}
+        
+        // دالة تغيير الصفحة لما تضغطي على رقم 2، 3، إلخ
+        onPageChange={(page) => {
+          setCurrentPage(page);
+          fetchUsers(page, searchQuery);
+        }}
+        onBackendPageChange={(page) => {
+          setCurrentPage(page);
+          fetchUsers(page, searchQuery);
+        }}
+        
+        // دالة البحث من الباك إند
+        onSearchChange={(val) => {
+          setSearchQuery(val);
+          setCurrentPage(1);
+          fetchUsers(1, val);
+        }}
       />
       {selectedRow && (
         <>
@@ -421,11 +436,11 @@ const Users = () => {
             isSaving={isSaving}
             selectedRow={selectedRow}
           >
-            <div className="max-h-[70vh] md:grid-cols-2 lg:grid-cols-3 !p-4 o[scrollbar-width:none]  [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="max-h-[70vh] md:grid-cols-2 lg:grid-cols-3 !p-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <InputField
                 label="Name"
                 id="name"
-                value={selectedRow.rawName} // Use rawName for editing
+                value={selectedRow.rawName}
                 onChange={(val) => onChange("rawName", val)}
               />
               <InputField
@@ -447,63 +462,6 @@ const Users = () => {
                 value={selectedRow.password}
                 onChange={(val) => onChange("password", val)}
               />
-              {/*  <InputField
-                label="Birth Date"
-                id="birthDate"
-                type="date"
-                value={selectedRow.rawBirthDate}
-                onChange={(val) => onChange("rawBirthDate", val)}
-              /> */}
-
-              {/* Account Type Select - Uncomment and use if needed for editing */}
-              {/*
-              <div>
-              <Label htmlFor="user_type" className="text-gray-400 !pb-1">
-              Account Type
-              </Label>
-              <Select
-              value={selectedRow.user_type}
-              onValueChange={(val) => onChange("user_type", val)}
-              >
-              <SelectTrigger className="!my-2 text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
-              <SelectValue placeholder="Select Account Type" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
-              <SelectItem className="text-bg-primary " value="owner">
-              Owner
-              </SelectItem>
-              <SelectItem className="text-bg-primary " value="visitor">
-              Visitor
-              </SelectItem>
-              <SelectItem className="text-bg-primary " value="rent">
-              Renter
-              </SelectItem>
-              </SelectContent>
-              </Select>
-              </div>
-              */}
-
-              {/* Rent From/To fields - Uncomment if needed */}
-              {/*
-              {selectedRow.user_type === "rent" && (
-                <>
-                <InputField
-                label="Rent From"
-                id="rent_from"
-                type="date"
-                value={selectedRow.rent_from}
-                onChange={(val) => onChange("rent_from", val)}
-                />
-                <InputField
-                label="Rent To"
-                id="rent_to"
-                type="date"
-                value={selectedRow.rent_to}
-                onChange={(val) => onChange("rent_to", val)}
-                />
-                </>
-                )}
-                */}
 
               <Label htmlFor="gender" className="text-gray-400 !pb-1">
                 Gender
@@ -532,7 +490,7 @@ const Users = () => {
             onOpenChange={setIsDeleteOpen}
             onDelete={handleDeleteConfirm}
             isDeleting={isDeleting}
-            name={selectedRow.rawName} // Use rawName for display in delete dialog
+            name={selectedRow.rawName}
           />
         </>
       )}
