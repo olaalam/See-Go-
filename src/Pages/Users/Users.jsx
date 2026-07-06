@@ -96,13 +96,17 @@ const Users = () => {
   };
 
   // 🌟 2. دالة جلب البيانات مع الترقيم والبحث
-  const fetchUsers = async (page = 1, search = "") => {
+const fetchUsers = async (page = 1, search = "") => {
     dispatch(showLoader());
     try {
-      // بناء الرابط مع رقم الصفحة وكلمة البحث
+      // ✅ تعديل بناء الرابط عشان يبعت الـ search key بشكل صحيح للباك إند
       const url = new URL(`${apiUrl}/admin/user/users`);
       url.searchParams.append("page", page);
-      if (search) url.searchParams.append("search", search);
+      
+      // لو فيه كلمة بحث، هنضيفها كـ query parameter: ?page=1&search=ahmed
+      if (search && search.trim() !== "") {
+        url.searchParams.append("search", search.trim());
+      }
 
       const res = await fetch(url.toString(), {
         headers: getAuthHeaders(),
@@ -173,10 +177,18 @@ const Users = () => {
   };
 
   // جلب أول صفحة عند فتح الشاشة
-  useEffect(() => {
-    fetchUsers(1, "");
+useEffect(() => {
     fetchVillages();
   }, []);
+
+  // 🌟 Debounce Search: يستنى 500ms بعد آخر حرف اتكتب قبل ما يبعت للباك إند
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchUsers(1, searchQuery); // دايماً البحث بيبدأ من الصفحة الأولى
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleEdit = (user) => {
     setselectedRow(user);
@@ -420,10 +432,9 @@ const Users = () => {
         }}
         
         // دالة البحث من الباك إند
-        onSearchChange={(val) => {
+onSearchChange={(val) => {
           setSearchQuery(val);
           setCurrentPage(1);
-          fetchUsers(1, val);
         }}
       />
       {selectedRow && (
