@@ -37,13 +37,10 @@ export default function SinglePageU() {
           phone: json.user.phone,
           email: json.user.email,
           user_type: json.user.user_type,
-
         };
         setStatus(json.user.status === 1 ? "Active" : "Inactive");
 
-        console.log(transformedData);
-
-        console.log("Full response:", json);
+        console.log("User data:", transformedData);
 
         setUserData(transformedData);
       } catch (err) {

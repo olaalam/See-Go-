@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { FaPhone, FaEnvelope, FaUser, FaHome, FaMapPin, FaMoneyBillWave } from "react-icons/fa";
-import Loading from "@/components/Loading";
+import { FaMapPin, FaUsers } from "react-icons/fa";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import Loading from "@/components/Loading";
+import RenterTab from "./RenterTab";
 
 export default function Owner() {
+  const { id } = useParams();
   const [propertiesList, setPropertiesList] = useState([]);
+  const [rentsList, setRentsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { id } = useParams();
 
   useEffect(() => {
-    async function fetchOwnerAndPropertyData() {
+    async function fetchUnitsData() {
       if (!id) {
         setLoading(false);
         setError("No user ID available to fetch data.");
@@ -26,7 +28,7 @@ export default function Owner() {
         }
 
         const res = await fetch(
-          `https://bcknd.sea-go.org/admin/user/item/${id}`,
+          `https://bcknd.sea-go.org/admin/user/units/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -40,52 +42,32 @@ export default function Owner() {
         }
 
         const json = await res.json();
-
-        // --- Start of the fix ---
-        const properties = json.properties || [];
-        const offers = json.offers || [];
-
-        // Map offers to their respective properties
-        const propertiesWithOffers = properties.map((property) => {
-          const associatedOffers = offers.filter(
-            (offer) =>
-              offer.village === property.village && offer.unit === property.unit
-          );
-          return { ...property, offers: associatedOffers };
-        });
-        // --- End of the fix ---
-
-        if (propertiesWithOffers.length > 0) {
-          setPropertiesList(propertiesWithOffers);
-        } else {
-          setPropertiesList([]);
-        }
+        
+        console.log("Units API Response:", json);
+        
+        setPropertiesList(json.property || []);
+        setRentsList(json.rents || []);
       } catch (err) {
-        console.error("Error fetching data:", err.message);
-        setError("Failed to load owner or property data.");
+        console.error("Error fetching units data:", err.message);
+        setError("Failed to load properties and rentals data.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchOwnerAndPropertyData();
+    fetchUnitsData();
   }, [id]);
 
-  if (loading) return <Loading />;
-  if (error)
-    return (
-      <p className="text-center text-red-500 text-lg font-semibold">{error}</p>
-    );
-  if (propertiesList.length === 0)
-    return (
-      <p className="text-center text-gray-500 text-lg font-medium">
-        No properties associated with this user.
-      </p>
-    );
+  const OwnerContent = () => {
+    if (propertiesList.length === 0)
+      return (
+        <p className="text-center text-gray-500 text-lg font-medium">
+          No properties associated with this user.
+        </p>
+      );
 
-  return (
-    <div className="min-h-screen !p-6">
-      <div className=" !p-6 rounded-lg space-y-6 !mb-5  ">
+    return (
+      <div className="!p-6 rounded-lg space-y-6 !mb-5">
         {propertiesList.map((property) => (
           <Card
             key={property.id}
@@ -94,55 +76,30 @@ export default function Owner() {
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {property.cover_image && (
+                  {property.image_id_link && 
+                   !property.image_id_link.includes("400 Bad Request") && 
+                   property.image_id_link !== "https://bcknd.sea-go.org/storage" && (
                     <img
-                      src={property.cover_image}
-                      alt="Village Cover"
+                      src={property.image_id_link}
+                      alt="Property"
                       className="w-16 h-16 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
                     />
                   )}
                   <h3 className="text-lg font-semibold text-bg-primary">
                     {property.village || "N/A"}
                   </h3>
                 </div>
-                {/* Check if property.offers exists and map through them */}
-<div className="flex flex-col gap-2">
-  {property.offers && property.offers.length > 0 ? (
-    <ul className="space-y-1">
-      {property.offers.map((offer) => (
-        <li key={offer.id} className="flex flex-col gap-1 text-sm">
-          {offer.price_day && (
-            <div className="flex items-center gap-2">
-              <FaMoneyBillWave className="w-4 h-4 text-cyan-600" />
-              <span className="text-gray-700 font-medium">
-                Rent/Day: {offer.price_day} EGP
-              </span>
-            </div>
-          )}
-          {offer.price_month && (
-            <div className="flex items-center gap-2">
-              <FaMoneyBillWave className="w-4 h-4 text-cyan-600" />
-              <span className="text-gray-700 font-medium">
-                Rent/Month: {offer.price_month} EGP
-              </span>
-            </div>
-          )}
-          {offer.price && (
-            <div className="flex items-center gap-2">
-              <FaMoneyBillWave className="w-4 h-4 text-cyan-600" />
-              <span className="text-gray-700 font-medium">
-                For Sale: {offer.price} EGP
-              </span>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <span className="text-sm text-gray-500 italic">No offers available</span>
-  )}
-</div>
-                      
+                {property.people && (
+                  <div className="flex items-center gap-2">
+                    <FaUsers className="w-4 h-4 text-[#297878]" />
+                    <span className="text-gray-700 font-medium">
+                      {property.people} People
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2 text-gray-700">
                 {property.unit && (
@@ -156,6 +113,45 @@ export default function Owner() {
           </Card>
         ))}
       </div>
+    );
+  };
+
+  if (loading) return <Loading />;
+  if (error)
+    return (
+      <p className="text-center text-red-500 text-lg font-semibold">{error}</p>
+    );
+
+  return (
+    <div className="min-h-screen !p-6">
+      <Tabs defaultValue="owner" className="w-full">
+        <TabsList className="flex flex-wrap !ms-3 w-[90%] gap-3 bg-transparent !my-6">
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                      data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                      hover:bg-teal-100 hover:text-teal-700"
+            value="owner"
+          >
+            Owner ({propertiesList.length})
+          </TabsTrigger>
+          <TabsTrigger
+            className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                      data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                      hover:bg-teal-100 hover:text-teal-700"
+            value="renter"
+          >
+            Renter ({rentsList.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="owner">
+          <OwnerContent />
+        </TabsContent>
+
+        <TabsContent value="renter">
+          <RenterTab rentsList={rentsList} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
