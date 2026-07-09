@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   HelpCircle,
   Video,
+  Bell,
 } from "lucide-react";
 
 import {
@@ -36,6 +37,12 @@ import { useEffect, useState } from "react";
 
 const navItems = [
   { label: "Home", to: "/", icon: <Home size={20} />, permissionKey: "Home" },
+  {
+    label: "Notification",
+    to: "/notification",
+    icon: <Bell size={20} />,
+    permissionKey: "Admin",
+  },
   {
     label: "Businesses",
     icon: <Building2 size={20} />,

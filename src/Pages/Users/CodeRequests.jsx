@@ -8,8 +8,6 @@ import { showLoader, hideLoader } from "@/Store/LoaderSpinner";
 import FullPageLoader from "@/components/Loading";
 import { Users, Check, X, AlertTriangle } from "lucide-react";
 
-// تم الاستغناء عن استيراد DeleteDialog واستبداله بـ Modal مخصص وديناميكي بالأسفل
-
 const CodeRequests = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector((state) => state.loader.isLoading);
@@ -17,6 +15,9 @@ const CodeRequests = () => {
   const [permissions, setPermissions] = useState([]);
   const token = localStorage.getItem("token");
   
+  // حالة فلترة القرى المضافة
+  const [selectedVillage, setSelectedVillage] = useState("");
+
   // حالات التحكم في مودال التأكيد الديناميكي
   const [selectedRow, setSelectedRow] = useState(null);
   const [isActionOpen, setIsActionOpen] = useState(false);
@@ -118,30 +119,36 @@ const CodeRequests = () => {
       setIsProcessing(false);
     }
   };
+
   const formatDate = (dateString) => {
-  if (!dateString) return "-";
-  
-  const date = new Date(dateString);
-  
-  // التحقق من أن النص الممرر هو تاريخ صالح
-  if (isNaN(date.getTime())) return dateString;
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
 
-  // استخراج عناصر التاريخ والوقت
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  
-  let hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  
-  // تحويل الوقت إلى نظام 12 ساعة
-  hours = hours % 12;
-  hours = hours ? hours : 12; // الساعة 0 تصبح 12
-  const formattedHours = String(hours).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    hours = hours % 12;
+    hours = hours ? hours : 12; 
+    const formattedHours = String(hours).padStart(2, '0');
 
-  return `${year}-${month}-${day} ${formattedHours}:${minutes} ${ampm}`;
-};
+    return `${year}-${month}-${day} ${formattedHours}:${minutes} ${ampm}`;
+  };
+
+  // استخراج قائمة بأسماء القرى الفريدة وغير الفارغة بشكل ديناميكي من البيانات المجلوبة
+  const uniqueVillages = Array.from(
+    new Set(users.map((u) => u.village).filter(Boolean))
+  );
+
+  // تصفية المصفوفة بناءً على القرية المختارة قبل إرسالها للجدول
+  const filteredUsers = selectedVillage
+    ? users.filter((u) => u.village === selectedVillage)
+    : users;
 
   const columns = [
     { key: "id", label: "ID" },
@@ -150,12 +157,12 @@ const CodeRequests = () => {
     { key: "user_email", label: "Email" },
     { key: "village", label: "Village" },
     { key: "ip_address", label: "IP Address" },
-{ 
-    key: "created_at", 
-    label: "Requested At",
-    // التعديل هنا: نأخذ القيمة ونمررها لدالة التنسيق
-    render: (row) => <span className="text-gray-600 font-medium">{formatDate(row.created_at)}</span>
-  },    {
+    { 
+      key: "created_at", 
+      label: "Requested At",
+      render: (row) => <span className="text-gray-600 font-medium">{formatDate(row.created_at)}</span>
+    },    
+    {
       key: "actions",
       label: "Actions",
       render: (row) => (
@@ -185,13 +192,36 @@ const CodeRequests = () => {
       {isLoading && <FullPageLoader />}
       <ToastContainer />
 
-      <div className="flex items-center gap-2 !mb-6">
-        <Users className="w-6 h-6 text-bg-primary" />
-        <h2 className="text-xl font-semibold text-gray-800">code Requests</h2>
+      {/* شريط يحتوي على العنوان وأداة الفلترة متراصين بشكل متجاوب */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 !mb-6">
+        <div className="flex items-center gap-2">
+          <Users className="w-6 h-6 text-bg-primary" />
+          <h2 className="text-xl font-semibold text-gray-800">code Requests</h2>
+        </div>
+
+        {/* فلتر القرى المنسدل */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="village-filter" className="text-sm font-medium text-gray-600">
+            Filter by Village:
+          </label>
+          <select
+            id="village-filter"
+            value={selectedVillage}
+            onChange={(e) => setSelectedVillage(e.target.value)}
+            className="border border-gray-300 rounded-lg p-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 min-w-[160px]"
+          >
+            <option value="">All Villages</option>
+            {uniqueVillages.map((village) => (
+              <option key={village} value={village}>
+                {village}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <DataTable
-        data={users}
+        data={filteredUsers} 
         columns={columns}
         showAddButton={false}
         showDeleteButton={false}
@@ -208,7 +238,6 @@ const CodeRequests = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 !p-6 relative animate-scale-up">
             
-            {/* زر الإغلاق العلوي الجانبي */}
             <button 
               onClick={() => setIsActionOpen(false)} 
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -216,7 +245,6 @@ const CodeRequests = () => {
               <X className="w-5 h-5" />
             </button>
 
-            {/* أيقونة الحالة والعنوان المتغير */}
             <div className="flex items-start gap-3">
               <div className={`!p-2 rounded-full ${currentStatusAction === "approve" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
                 {currentStatusAction === "approve" ? <Check className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
@@ -232,7 +260,6 @@ const CodeRequests = () => {
               </div>
             </div>
 
-            {/* أزرار التحكم السفلية المتغيرة */}
             <div className="!mt-6 flex justify-end gap-3">
               <button
                 type="button"

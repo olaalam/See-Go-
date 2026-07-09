@@ -25,7 +25,8 @@ export default function AddVillage() {
       zone: "",
       status: "",
       image: null,
-      units_num: "", // Added state initialization
+      units_num: "",
+      logo: null, 
     },
     ar: {
       name: "",
@@ -66,7 +67,8 @@ export default function AddVillage() {
   }, []);
 
   const handleFieldChange = (lang, name, value) => {
-    if (name === "image" && value instanceof File) {
+    // 🛠️ تم تصحيح الشرط هنا من && إلى || ليعمل الـ FileReader بشكل سليم مع الصورة واللوجو
+    if ((name === "image" || name === "logo") && value instanceof File) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData((prev) => ({
@@ -100,7 +102,7 @@ export default function AddVillage() {
       name: formData.en.name,
       description: formData.en.description,
       zone_id: formData.en.zone,
-    units_num: formData.en.units_num ? Number(formData.en.units_num) : 0,
+      units_num: formData.en.units_num ? Number(formData.en.units_num) : 0,
       lat: pickUpData.lat.toString(),
       lng: pickUpData.lng.toString(),
       location_map: pickUpData.location_map,
@@ -109,6 +111,7 @@ export default function AddVillage() {
       image: formData.en.image,
       ar_name: formData.ar.name,
       ar_description: formData.ar.description,
+      logo: formData.en.logo,
     };
 
     try {
@@ -136,7 +139,8 @@ export default function AddVillage() {
             zone: "",
             status: "",
             image: null,
-            units_num: "", // Reset after successful submit
+            units_num: "",
+            logo: "",
           },
           ar: {
             name: "",
@@ -186,8 +190,9 @@ export default function AddVillage() {
       placeholder: "Limit of Units",
       name: "units_num",
       lang: "en",
-    }, // Added field configuration block
-    { type: "file", name: "image", lang: "en" },
+    }, 
+    // 🛠️ تم إضافة الـ placeholder هنا ليعمل كعنوان للحقل
+    { type: "file", placeholder: "Village Image", name: "image", lang: "en" },
     {
       type: "input",
       placeholder: " (اختياري) الوصف",
@@ -209,6 +214,8 @@ export default function AddVillage() {
       inactiveLabel: "Inactive",
       lang: "en",
     },
+    // 🛠️ تم إضافة الـ placeholder هنا ليعمل كعنوان للوجو القرية
+    { type: "file", placeholder: "Village Logo", name: "logo", lang: "en" },
   ];
 
   return (

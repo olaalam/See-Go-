@@ -273,6 +273,19 @@ const Villages = () => {
               <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
             </Avatar>
           );
+                  const logo =
+          village?.logo_link && !imageErrors[village.id] ? (
+            <img
+              src={village?.logo_link}
+              alt={nameEn}
+              className="w-12 h-12 rounded-md object-cover aspect-square"
+              onError={() => handleImageError(village.id)}
+            />
+          ) : (
+            <Avatar className="w-12 h-12">
+              <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          );
 
         const map = village.location || "—";
         const population = village.population_count || "—";
@@ -294,10 +307,12 @@ const Villages = () => {
           zone_id: village.zone_id,
           zone: zoneName,
           searchableZone: zoneName,
+          logo,
           map,
           units_num,
           population,
           image_link: village.image_link,
+          logo_link: village.logo_link,
           location_map: village.location_map || "",
           lat: village.lat || 31.2001,
           lng: village.lng || 29.9187,
@@ -401,50 +416,58 @@ const Villages = () => {
           : value,
     }));
   };
-
-  const handleImageChange = async (event) => {
+const handleFileChange = async (event, fieldType) => {
     const file = event.target.files[0];
+    
+    // تحديد مفاتيح الـ state بناءً على نوع الحقل (image أو logo)
+    const isLogo = fieldType === "logo";
+    const fileKey = isLogo ? "logoFile" : "imageFile";
+    const base64Key = isLogo ? "logoBase64" : "imageBase64";
+    const newBase64Key = isLogo ? "newLogoBase64" : "newImageBase64";
+    const linkKey = isLogo ? "logo_link" : "image_link";
+    const hasNewKey = isLogo ? "hasNewLogo" : "hasNewImage";
+
     if (!file) {
       setSelectedRow((prev) => ({
         ...prev,
-        imageFile: null,
-        imageBase64: null,
-        newImageBase64: null,
-        image_link: prev.image_link,
-        hasNewImage: false,
+        [fileKey]: null,
+        [base64Key]: null,
+        [newBase64Key]: null,
+        [linkKey]: prev[linkKey],
+        [hasNewKey]: false,
       }));
       return;
     }
 
     try {
-      validateImageFile(file);
+      validateImageFile(file); // تأكدي أن هذه الدالة تقبل اللوجو أيضاً
 
       const dataURL = await convertFileToBase64(file);
       const base64Only = extractBase64FromDataURL(dataURL);
 
       if (!base64Only) {
-        throw new Error("Failed to extract base64 data from image");
+        throw new Error(`Failed to extract base64 data from ${fieldType}`);
       }
 
       const previewURL = URL.createObjectURL(file);
 
       setSelectedRow((prev) => ({
         ...prev,
-        imageFile: file,
-        imageBase64: dataURL,
-        newImageBase64: base64Only,
-        image_link: previewURL,
-        hasNewImage: true,
+        [fileKey]: file,
+        [base64Key]: dataURL,
+        [newBase64Key]: base64Only,
+        [linkKey]: previewURL,
+        [hasNewKey]: true,
       }));
 
-      console.log("Image processed successfully:", {
+      console.log(`${fieldType} processed successfully:`, {
         fileName: file.name,
         fileSize: file.size,
         base64Length: base64Only.length,
       });
     } catch (error) {
-      console.error("Error processing image:", error);
-      toast.error(error.message || "Error processing image file");
+      console.error(`Error processing ${fieldType}:`, error);
+      toast.error(error.message || `Error processing ${fieldType} file`);
       event.target.value = "";
     }
   };
@@ -468,7 +491,9 @@ const Villages = () => {
       numberOfUnits,
       newImageBase64,
       hasNewImage,
-      units_num
+      units_num,
+      newLogoBase64,
+      hasNewLogo,
     } = selectedRow;
 
     // Validation
@@ -518,7 +543,7 @@ const Villages = () => {
       updatedVillage.ar_description = descriptionAr || "";
     }
 
-    if (hasNewImage && newImageBase64) {
+if (hasNewImage && newImageBase64) {
       console.log(
         "Adding new image to update data, base64 length:",
         newImageBase64.length,
@@ -526,6 +551,25 @@ const Villages = () => {
       updatedVillage.image = selectedRow.imageBase64;
     }
 
+    // 💡 التعديل هنا: إضافة اللوجو الجديد للـ object المرسل للباك إند
+    if (hasNewLogo && newLogoBase64) {
+      console.log(
+        "Adding new logo to update data, base64 length:",
+        newLogoBase64.length,
+      );
+      updatedVillage.logo = selectedRow.logoBase64; // إرسال البيس 64 الخاص باللوجو
+    }
+
+    // للـ debugging - شوفي إيه اللي بيتبعت
+    console.log("Sending update data:", {
+      ...updatedVillage,
+      image: updatedVillage.image
+        ? `[base64 data: ${updatedVillage.image.length} chars]`
+        : "no image",
+      logo: updatedVillage.logo
+        ? `[base64 data: ${updatedVillage.logo.length} chars]`
+        : "no logo",
+    });
     // للـ debugging - شوفي إيه اللي بيتبعت
     console.log("Sending update data:", {
       ...updatedVillage,
@@ -666,6 +710,7 @@ const Villages = () => {
   const columns = [
     { key: "name", label: "Village Name" },
     { key: "img", label: "Image" },
+    { key: "logo", label: "Logo" },
     { key: "description", label: "Description" },
     { key: "units_num", label: "UnitsNum" },
     { key: "numberOfUnits", label: "Number of Units" },
@@ -855,7 +900,37 @@ const Villages = () => {
                 }}
                 placeholder="Search or select location on map"
               />
+              {/* ⬇️ حقل إدخال وعرض شعار القرية (Logo) الجديد ⬇️ */}
+              <label htmlFor="logo" className="text-gray-400 mt-4 block">
+                Village Logo
+              </label>
 
+              {/* عرض اللوجو الحالي إن وجد */}
+              {selectedRow?.logo_link && (
+                <div className="flex items-center gap-4 mb-2 mt-1">
+                  <img
+                    src={selectedRow.logo_link}
+                    alt="Current Logo"
+                    className="w-12 h-12 rounded-md object-contain border p-1 bg-slate-50"
+                  />
+                  {selectedRow.hasNewLogo && (
+                    <span className="text-sm text-green-600">
+                      New logo selected
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <Input
+                type="file"
+                id="logo"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/svg+xml"
+                className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
+                onChange={(e) => handleFileChange(e, "logo")}// تأكدي من وجود هذه الدالة في الملف لقراءة الملف وتحويله لـ Base64
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: JPEG, PNG, SVG, WebP (max 2MB)
+              </p>
               {/* <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
                 Number of Units
               </label>
@@ -881,6 +956,7 @@ const Villages = () => {
                 placeholder="Enter units number"
               />
 
+              {/* حقل إدخال وعرض صورة القرية (Image) الجديدة ⬆️ */}
               <label htmlFor="image" className="text-gray-400">
                 Image
               </label>
@@ -891,6 +967,7 @@ const Villages = () => {
                     alt="Current"
                     className="w-12 h-12 rounded-md object-cover border"
                   />
+
                   {selectedRow.hasNewImage && (
                     <span className="text-sm text-green-600">
                       New image selected
@@ -898,12 +975,13 @@ const Villages = () => {
                   )}
                 </div>
               )}
+
               <Input
                 type="file"
                 id="image"
                 accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                 className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                onChange={handleImageChange}
+                onChange={(e) => handleFileChange(e, "image")}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Supported formats: JPEG, PNG, GIF, WebP (max 5MB)

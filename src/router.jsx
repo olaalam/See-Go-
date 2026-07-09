@@ -46,13 +46,14 @@ import MallAdd from "./Pages/Mall/MallAdd";
 import SinglePageM from "./Pages/Mall/SinglePageM";
 import MAdminAdd from "./Pages/Mall/MServiceAdd";
 import InvoiceCard from "./Pages/Invoice/Invoice";
-import AdminRole from "./Pages/AdminRole.jsx/AdminRole";
-import AdminRoleAdd from "./Pages/AdminRole.jsx/AdminRoleDialog";
+import AdminRole from "./Pages/AdminRole/AdminRole";
+import AdminRoleAdd from "./Pages/AdminRole/AdminRoleDialog";
 import LoginRequest from "./Pages/Users/LoginRequest";
 import CodeRequests from "./Pages/Users/CodeRequests";
 import OnlineUsers from "./Pages/Users/OnlineUsers";
 import HelpGroupsPage from "./Pages/HelpGroup/HelpGroup";
 import HelpVideosPage from "./Pages/HelpGroup/HelpVideos";
+import Notification from "./Pages/Notification/Notification";
 
 const router = createBrowserRouter([
   {
@@ -81,6 +82,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute permissionKey="Home">
             <Home />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "notification",
+        element: (
+          <ProtectedRoute permissionKey="Admin">
+            <Notification />
           </ProtectedRoute>
         ),
       },
