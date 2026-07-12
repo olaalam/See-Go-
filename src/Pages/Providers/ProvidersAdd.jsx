@@ -9,6 +9,9 @@ import FullPageLoader from "@/components/Loading";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import PickUpMap from "@/components/PickUpMap";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function AddProvider() {
   const dispatch = useDispatch();
@@ -39,6 +42,16 @@ export default function AddProvider() {
       description: "",
     },
   });
+
+  const [workHours, setWorkHours] = useState([
+    { day: "monday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "tuesday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "wednesday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "thursday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "friday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "saturday", from: "", to: "", is_24_hours: false, is_closed: false },
+    { day: "sunday", from: "", to: "", is_24_hours: false, is_closed: false },
+  ]);
 
   const [pickUpData, setPickUpData] = useState({
     location_map: "",
@@ -140,6 +153,28 @@ export default function AddProvider() {
     }
   };
 
+  const handleWorkHourChange = (index, field, value) => {
+    setWorkHours((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      
+      // If is_24_hours is checked, clear from/to times
+      if (field === "is_24_hours" && value) {
+        updated[index].from = "";
+        updated[index].to = "";
+      }
+      
+      // If is_closed is checked, clear everything
+      if (field === "is_closed" && value) {
+        updated[index].from = "";
+        updated[index].to = "";
+        updated[index].is_24_hours = false;
+      }
+      
+      return updated;
+    });
+  };
+
   const handleSubmit = async () => {
     dispatch(showLoader());
 
@@ -165,6 +200,9 @@ export default function AddProvider() {
     if (formData.ar.name) body.append("ar_name", formData.ar.name);
     if (formData.ar.description)
       body.append("ar_description", formData.ar.description);
+
+    // Append work_hours as JSON
+    body.append("work_hours", JSON.stringify(workHours));
 
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/provider/add", {
@@ -245,8 +283,8 @@ export default function AddProvider() {
       lang: "en",
     },
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
-    { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
-    { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
+    // { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
+    // { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     { type: "switch", name: "status", placeholder: "Status", lang: "en" },
     {
@@ -271,9 +309,80 @@ export default function AddProvider() {
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
         Add Service Provider
       </h2>
+      
 
       <div className="w-[90%] !ms-4">
         <Add fields={fields} values={formData} onChange={handleFieldChange} />
+        
+        {/* Work Hours Section */}
+        <div className="!mt-8">
+          <h3 className="text-lg font-semibold text-bg-primary !mb-4">Work Hours</h3>
+          <div className="space-y-4">
+            {workHours.map((daySchedule, index) => (
+              <Card key={daySchedule.day} className="bg-[#f3fbfa] border-none shadow-sm">
+                <CardContent className="!p-4">
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* Day Name */}
+                    <div className="col-span-2">
+                      <Label className="capitalize font-semibold text-bg-primary">
+                        {daySchedule.day}
+                      </Label>
+                    </div>
+
+                    {/* From Time */}
+                    <div className="col-span-2">
+                      <Input
+                        type="time"
+                        value={daySchedule.from}
+                        onChange={(e) =>
+                          handleWorkHourChange(index, "from", e.target.value)
+                        }
+                        disabled={daySchedule.is_24_hours || daySchedule.is_closed}
+                        className="!ps-2"
+                      />
+                    </div>
+
+                    {/* To Time */}
+                    <div className="col-span-2">
+                      <Input
+                        type="time"
+                        value={daySchedule.to}
+                        onChange={(e) =>
+                          handleWorkHourChange(index, "to", e.target.value)
+                        }
+                        disabled={daySchedule.is_24_hours || daySchedule.is_closed}
+                        className="!ps-2"
+                      />
+                    </div>
+
+                    {/* 24 Hours Switch */}
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Switch
+                        checked={daySchedule.is_24_hours}
+                        onCheckedChange={(checked) =>
+                          handleWorkHourChange(index, "is_24_hours", checked)
+                        }
+                        disabled={daySchedule.is_closed}
+                      />
+                      <Label className="text-sm">24 Hours</Label>
+                    </div>
+
+                    {/* Closed Switch */}
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Switch
+                        checked={daySchedule.is_closed}
+                        onCheckedChange={(checked) =>
+                          handleWorkHourChange(index, "is_closed", checked)
+                        }
+                      />
+                      <Label className="text-sm">Closed</Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
 
         <div className="!mt-6">
           <label className="block text-sm font-medium text-gray-700  !mb-2">
@@ -293,6 +402,7 @@ export default function AddProvider() {
           />
           <PickUpMap tourPickUp={pickUpData} setTourPickUp={setPickUpData} />
         </div>
+
       </div>
 
       <div className="!my-6">
