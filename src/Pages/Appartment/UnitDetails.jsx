@@ -45,7 +45,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useTranslation } from "react-i18next";
 import axios from "axios";
 import UnitCodeManager from "./UnitCodeManager";
 import UnitRenters from "./UnitRenters";
@@ -54,23 +53,26 @@ import DeleteDialog from "@/components/DeleteDialog";
 const formatDate = (dateString) => {
   return dateString
     ? new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
     : "N/A";
 };
 
 const UnitDetails = () => {
-  const { t } = useTranslation();
+  const t = (key) => key;
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
+  const baseUrl =
+    import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
   const apiUrl = baseUrl.endsWith("/admin") ? baseUrl : `${baseUrl}/admin`;
   const { id } = useParams();
   const isLoading = useSelector((state) => state.loader.isLoading);
 
   // 🔑 جلب الـ Token من الـ Redux
-  const token = useSelector((state) => state.auth?.token || localStorage.getItem("token"));
+  const token = useSelector(
+    (state) => state.auth?.token || localStorage.getItem("token"),
+  );
 
   const [activeTab, setActiveTab] = useState("overview");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -87,7 +89,11 @@ const UnitDetails = () => {
   });
   const { changeState, loadingChange } = useChangeState();
   // أضف هذا السطر مع الـ hooks الخاصة بجلب البيانات
-  const { data: ownersResponse, loading: loadingOwners, refetch: refetchOwners } = useGet({
+  const {
+    data: ownersResponse,
+    loading: loadingOwners,
+    refetch: refetchOwners,
+  } = useGet({
     url: `${apiUrl}/appartment/unit_owners?appartment_id=${id}`,
   });
   const handleToggleType = async (user, currentType) => {
@@ -95,23 +101,25 @@ const UnitDetails = () => {
     if (currentType === "super") {
       newType = "follower";
     } else {
-      const currentSuperOwner = data?.owners?.find((o) => o.user_type === "super");
+      const currentSuperOwner = data?.owners?.find(
+        (o) => o.user_type === "super",
+      );
       if (currentSuperOwner && currentSuperOwner.id !== user.id) {
         await changeState(
           `${apiUrl}/appartment_profile/update/${currentSuperOwner.id}?user_type=follower`,
-          `${currentSuperOwner.name} demoted to follower.`
+          `${currentSuperOwner.name} demoted to follower.`,
         );
       }
       newType = "super";
     }
 
     const response = await changeState(
-      `${apiUrl}/appartment_profile/update/${user.id}?user_type=${newType}`
+      `${apiUrl}/appartment_profile/update/${user.id}?user_type=${newType}`,
     );
     if (response) {
       refetch();
       toast.success(
-        t("UserTypeChanged", { name: user.name || "User", type: newType })
+        `User type changed: ${user.name || "User"} is now ${newType}`,
       );
     }
   };
@@ -137,18 +145,20 @@ const UnitDetails = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (response.status === 200 || response.data) {
-        toast.success(t("OwnerDeletedSuccessfully", { name: userToDelete.name || "User" }));
+        toast.success(
+          `Owner deleted successfully: ${userToDelete.name || "User"}`,
+        );
         setIsDeleteDialogOpen(false);
         refetchOwners(); // تحديث قائمة الملاك من الـ API الجديد
         refetch(); // تحديث بيانات الشقة (اختياري)
       }
     } catch (error) {
       console.error("Error deleting owner:", error);
-      toast.error(error.response?.data?.message || t("FailedToDeleteOwner"));
+      toast.error(error.response?.data?.message || "Failed to delete owner");
     } finally {
       setIsDeleting(false);
       setUserToDelete(null);
@@ -166,15 +176,21 @@ const UnitDetails = () => {
     // Fetch aggregated report (owners/rents) to display counts in tabs
     const fetchReport = async () => {
       try {
-        const resp = await axios.get(`${apiUrl}/appartment/unit_report?appartment_id=${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const resp = await axios.get(
+          `${apiUrl}/appartment/unit_report?appartment_id=${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const rpt = resp?.data || {};
         setOwnersCount(Number(rpt.owner ?? rpt.owners ?? 0));
         setRentersCount(Number(rpt.rents ?? rpt.rent ?? rentersCount));
       } catch (err) {
         // silently ignore — we still show derived counts
-        console.warn("Failed to fetch unit_report:", err?.response?.data || err.message);
+        console.warn(
+          "Failed to fetch unit_report:",
+          err?.response?.data || err.message,
+        );
       }
     };
 
@@ -199,7 +215,7 @@ const UnitDetails = () => {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-2xl font-semibold text-muted-foreground">
-            {t("Nodataavailableforthisunit")}
+            No data available for this unit
           </h2>
         </motion.div>
       </div>
@@ -216,70 +232,75 @@ const UnitDetails = () => {
     return ownerName && ownerName.toLowerCase() !== "unknown";
   });
   const validRenters = (renters || []).filter(
-    (renter) => renter.user !== null && renter.user_id !== null
+    (renter) => renter.user !== null && renter.user_id !== null,
   );
 
-const renderUserCard = (owner, isOwner = true) => (
-  <motion.div
-    key={owner.id}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
-    className="h-full"
-  >
-    <Card className="h-full relative !p-4 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
-      <div>
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary/50" />
-        <CardHeader className="flex flex-row items-center !space-x-4 !pb-2">
-          <Avatar className="h-14 w-14 ring-2 ring-primary/20">
-            <AvatarImage
-              src={owner.user?.image_link || "/default-avatar.png"}
-            />
-            <AvatarFallback>
-              <User className="h-6 w-6 text-primary" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <CardTitle className="flex items-center justify-between text-lg">
-              <span>{owner.user?.name || t("Unassigned")}</span>
-              <Badge
-                variant={owner.user_type === "super" ? "default" : "outline"}
-                className="flex items-center gap-1 !px-3 !py-1"
-              >
-                {owner.user_type === "super" && <Crown className="h-3 w-3" />}
-                {/* تم تعديل هذا السطر ليظهر "SUPER" أو "USER" فقط بدلاً من "FOLLOWER" */}
-                {owner.user_type === "super" ? "SUPER" : "USER"}
-              </Badge>
-            </CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {isOwner ? t("Owner") : t("Renter")}
+  const renderUserCard = (owner, isOwner = true) => (
+    <motion.div
+      key={owner.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="h-full"
+    >
+      <Card className="h-full relative !p-4 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+        <div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary/50" />
+          <CardHeader className="flex flex-row items-center !space-x-4 !pb-2">
+            <Avatar className="h-14 w-14 ring-2 ring-primary/20">
+              <AvatarImage
+                src={owner.user?.image_link || "/default-avatar.png"}
+              />
+              <AvatarFallback>
+                <User className="h-6 w-6 text-primary" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <CardTitle className="flex items-center justify-between text-lg">
+                <span>{owner.user?.name || "Unassigned"}</span>
+                <Badge
+                  variant={owner.user_type === "super" ? "default" : "outline"}
+                  className="flex items-center gap-1 !px-3 !py-1"
+                >
+                  {owner.user_type === "super" && <Crown className="h-3 w-3" />}
+                  {/* تم تعديل هذا السطر ليظهر "SUPER" أو "USER" فقط بدلاً من "FOLLOWER" */}
+                  {owner.user_type === "super" ? "SUPER" : "USER"}
+                </Badge>
+              </CardTitle>
+              <div className="text-sm text-muted-foreground">
+                {isOwner ? "Owner" : "Renter"}
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <span>{owner.user?.phone || t("Nophone")}</span>
-          </div>
-        </CardContent>
-      </div>
-      
-      {/* قسم زر الحذف */}
-      {isOwner && (
-        <CardFooter className="flex justify-end gap-2 mt-4 !p-0">
-           <Button
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <span>{owner.user?.phone || "No phone"}</span>
+            </div>
+          </CardContent>
+        </div>
+
+        {/* قسم زر الحذف */}
+        {isOwner && (
+          <CardFooter className="flex justify-end gap-2 mt-4 !p-0">
+            <Button
               variant="destructive"
               className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700"
-              onClick={() => openDeleteConfirmation(owner.user_id || owner.id, owner.user?.name)}
+              onClick={() =>
+                openDeleteConfirmation(
+                  owner.user_id || owner.id,
+                  owner.user?.name,
+                )
+              }
             >
               <Trash2 className="h-4 w-4" />
-              {t("Delete")}
+              Delete
             </Button>
-        </CardFooter>
-      )}
-    </Card>
-  </motion.div>
-);
+          </CardFooter>
+        )}
+      </Card>
+    </motion.div>
+  );
 
   return (
     <div className="container mx-auto !py-12 !px-4 max-w-7xl">
@@ -314,7 +335,7 @@ const renderUserCard = (owner, isOwner = true) => (
                       <Maximize className="h-4 w-4 text-gray-600" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{t("ViewApartmentImage")}</TooltipContent>
+                  <TooltipContent>View Apartment Image</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
@@ -332,23 +353,32 @@ const renderUserCard = (owner, isOwner = true) => (
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full bg-gray-100 rounded-lg !p-1 grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2 !p-2">
+            <TabsTrigger
+              value="overview"
+              className="flex items-center gap-2 !p-2"
+            >
               <Home className="h-4 w-4" />
-              {t("Overview")}
+              Overview
             </TabsTrigger>
 
-            <TabsTrigger value="owners" className="flex items-center gap-2 !p-2">
+            <TabsTrigger
+              value="owners"
+              className="flex items-center gap-2 !p-2"
+            >
               <User className="h-4 w-4" />
-              {t("Owners")} ({ownersCount ?? validOwners.length})
+              Owners ({ownersCount ?? validOwners.length})
             </TabsTrigger>
 
-            <TabsTrigger value="renters" className="flex items-center gap-2 !p-2">
+            <TabsTrigger
+              value="renters"
+              className="flex items-center gap-2 !p-2"
+            >
               <Users className="h-4 w-4" />
-              {t("Renters")} ({rentersCount})
+              Renters ({rentersCount})
             </TabsTrigger>
             <TabsTrigger value="code" className="flex items-center gap-2 !p-2">
               <Users className="h-4 w-4" />
-              {t("Code")}
+              Code
             </TabsTrigger>
           </TabsList>
 
@@ -356,38 +386,52 @@ const renderUserCard = (owner, isOwner = true) => (
             <TabsContent value="overview" className="!mt-6">
               <Card className="!p-4 border border-gray-200 ">
                 <CardHeader>
-                  <CardTitle className="text-xl">{t("ApartmentDetails")}</CardTitle>
+                  <CardTitle className="text-xl">Apartment Details</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex items-center gap-3">
                       <Home className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("UnitName")}</p>
-                        <p className="text-base font-semibold">{appartment?.unit || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Unit Name
+                        </p>
+                        <p className="text-base font-semibold">
+                          {appartment?.unit || "N/A"}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <ImageIcon className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("Type")}</p>
+                        <p className="text-sm text-muted-foreground">Type</p>
                         <p className="text-base font-semibold">
-                          {appartment?.appartment_type_id === 1 ? "Villa" : "Apartment"}
+                          {appartment?.appartment_type_id === 1
+                            ? "Villa"
+                            : "Apartment"}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <MapPin className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("Location")}</p>
-                        <p className="text-base font-semibold">{appartment?.location || "Not specified"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Location
+                        </p>
+                        <p className="text-base font-semibold">
+                          {appartment?.location || "Not specified"}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <CalendarDays className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("CreatedDate")}</p>
-                        <p className="text-base font-semibold">{formatDate(appartment?.created_at)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Created Date
+                        </p>
+                        <p className="text-base font-semibold">
+                          {formatDate(appartment?.created_at)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -395,17 +439,17 @@ const renderUserCard = (owner, isOwner = true) => (
               </Card>
             </TabsContent>
 
-<TabsContent value="owners" className="!mt-6">
-  <motion.div>
-    {allOwners.length > 0 ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-        {allOwners.map((owner) => renderUserCard(owner, true))}
-      </div>
-    ) : (
-      <p className="text-center">{t("No Owners Found")}</p>
-    )}
-  </motion.div>
-</TabsContent>
+            <TabsContent value="owners" className="!mt-6">
+              <motion.div>
+                {allOwners.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+                    {allOwners.map((owner) => renderUserCard(owner, true))}
+                  </div>
+                ) : (
+                  <p className="text-center">No Owners Found</p>
+                )}
+              </motion.div>
+            </TabsContent>
 
             <TabsContent value="renters" className="!mt-6">
               <motion.div
@@ -431,7 +475,7 @@ const renderUserCard = (owner, isOwner = true) => (
                   refetchCodes={refetchCodes}
                 />
               ) : (
-                <p className="text-center p-4">{t("NoCodesFound")}</p>
+                <p className="text-center p-4">No Codes Found</p>
               )}
             </TabsContent>
           </AnimatePresence>
@@ -450,7 +494,7 @@ const renderUserCard = (owner, isOwner = true) => (
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden">
           <DialogHeader className="!p-4 !pb-0">
-            <DialogTitle>{t("ApartmentImage")}</DialogTitle>
+            <DialogTitle>Apartment Image</DialogTitle>
           </DialogHeader>
           {currentImage && (
             <div className="flex justify-center items-center !p-2">
