@@ -11,8 +11,10 @@ import Villages from "./Pages/Villages/Villages";
 import VillageAdd from "./Pages/Villages/VillageAdd";
 import SinglePageV from "./Pages/Villages/SinglePageV";
 import VAdminAdd from "./Pages/Villages/VAdminAdd";
-import Units from "./Pages/Units/Units";
-import UnitsAdd from "./Pages/Units/UnitsAdd";
+import Appartments from "./Pages/Appartment/Appartments";
+import AppartmentsAdd from "./Pages/Appartment/AppartmentsAdd";
+import UnitDetails from "./Pages/Appartment/UnitDetails";
+import UnitCode from "./Pages/Appartment/UnitCode";
 import Users from "./Pages/Users/Users";
 import UsersAdd from "./Pages/Users/UsersAdd";
 import ProtectedRoute from "./Auth/ProtectedRoute";
@@ -187,7 +189,7 @@ const router = createBrowserRouter([
             index: true,
             element: (
               <ProtectedRoute permissionKey="Appartment Type">
-                <Units />
+                <Appartments />
               </ProtectedRoute>
             ),
           },
@@ -195,7 +197,23 @@ const router = createBrowserRouter([
             path: "add",
             element: (
               <ProtectedRoute permissionKey="Appartment Type">
-                <UnitsAdd />
+                <AppartmentsAdd />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "details/:id",
+            element: (
+              <ProtectedRoute permissionKey="Appartment Type">
+                <UnitDetails />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "create_code",
+            element: (
+              <ProtectedRoute permissionKey="Appartment Type">
+                <UnitCode />
               </ProtectedRoute>
             ),
           },

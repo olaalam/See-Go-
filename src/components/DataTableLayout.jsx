@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,31 +51,53 @@ export default function DataTable({
   filterOptions = [],
   initialPage = 1,
   defaultAddSubscriberType = null,
-  // ***** Props الترقيم من الباك إند *****
   isBackendPagination = false,
   currentPage: controlledCurrentPage,
   totalPages: controlledTotalPages,
   totalCount,
   onPageChange,
   onSearchChange,
+  onFilterChange,
+  initialFilters = {},
+  additionalLink,
+  additionalLinkLabel,
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [activeFilters, setActiveFilters] = useState(() => {
-    const initialFilters = {};
+    const initialFiltersData = {};
     filterOptions.forEach((group) => {
-      initialFilters[group.key] = "all";
+      initialFiltersData[group.key] = initialFilters[group.key] || "all";
     });
-    return initialFilters;
+    return initialFiltersData;
   });
   const [selectedRows, setSelectedRows] = useState([]);
   const navigate = useNavigate();
-
-  // الحالة للترقيم الداخلي (Client-side)
   const [currentPage, setCurrentPage] = useState(Math.max(1, initialPage));
   const [itemsPerPage] = useState(10);
 
+  // استخدام useRef لتجنب اللوب في الـ useEffect
+  const prevFiltersRef = useRef(initialFilters);
+
   useEffect(() => {
-    setCurrentPage(Math.max(1, initialPage));
+    // التحقق مما إذا كانت الفلاتر تغيرت فعلياً قبل التحديث
+    const hasChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(initialFilters);
+    
+    if (hasChanged) {
+      prevFiltersRef.current = initialFilters;
+      setActiveFilters((prev) => {
+        const updated = { ...prev };
+        filterOptions.forEach((group) => {
+          updated[group.key] = initialFilters[group.key] || "all";
+        });
+        return updated;
+      });
+    }
+  }, [filterOptions, initialFilters]);
+
+  useEffect(() => {
+    if (currentPage !== initialPage) {
+      setCurrentPage(Math.max(1, initialPage));
+    }
   }, [initialPage]);
 
   const getNestedValue = (obj, path) => {
@@ -85,7 +107,6 @@ export default function DataTable({
   };
 
   const filteredData = useMemo(() => {
-    // إذا كنا في وضع الباك إند، نرجع البيانات كما هي بدون فلترة داخلية
     if (isBackendPagination) return data;
 
     let currentData = data;
@@ -122,8 +143,9 @@ export default function DataTable({
 
     return currentData;
   }, [data, searchValue, activeFilters, searchKeys, isBackendPagination]);
+
   const getPaginationItems = (current, total) => {
-    const delta = 2; // عدد الصفحات التي تظهر حول الصفحة الحالية
+    const delta = 2;
     const range = [];
     const rangeWithDots = [];
     let l;
@@ -147,29 +169,21 @@ export default function DataTable({
     }
     return rangeWithDots;
   };
-  // --- منطق الترقيم ---
+
   const totalPagesLocal = Math.ceil(filteredData.length / itemsPerPage);
-
-  // حساب الصفحة الحالية لغرض العرض
   const displayCurrentPage = isBackendPagination ? (controlledCurrentPage || 1) : currentPage;
-
-  // تحديد الـ startIndex لترقيم الصفوف
   const startIndex = (displayCurrentPage - 1) * itemsPerPage;
-
-  // البيانات المعروضة
   const paginatedData = isBackendPagination ? data : filteredData.slice(startIndex, startIndex + itemsPerPage);
-
-  // تحديثات العرض بناءً على وضع الترقيم
   const displayTotalPages = isBackendPagination ? (controlledTotalPages || 1) : totalPagesLocal;
   const displayTotalCount = isBackendPagination ? totalCount : filteredData.length;
 
   useEffect(() => {
-    if (!isBackendPagination && currentPage > totalPagesLocal && totalPagesLocal > 0) {
+    if (!isBackendPagination && totalPagesLocal > 0 && currentPage > totalPagesLocal) {
       setCurrentPage(totalPagesLocal);
     } else if (!isBackendPagination && totalPagesLocal === 0 && currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [currentPage, totalPagesLocal, filteredData.length, isBackendPagination]);
+  }, [currentPage, totalPagesLocal, isBackendPagination]);
 
   const handlePageChange = (page) => {
     if (isBackendPagination) {
@@ -203,7 +217,12 @@ export default function DataTable({
       ...prev,
       [filterKey]: value,
     }));
-    if (!isBackendPagination) setCurrentPage(1);
+    
+    if (isBackendPagination) {
+      onFilterChange?.(filterKey, value);
+    } else {
+      setCurrentPage(1);
+    }
   };
 
   return (
@@ -233,21 +252,21 @@ export default function DataTable({
           {showFilter && filterOptions.length > 0 && (
             <div className="flex gap-3 flex-wrap">
               {filterOptions.map((group) => (
-                <div key={group.key} className="w-[150px]">
+                <div key={group.key} className="w-[180px]">
                   <Select
-                    value={activeFilters[group.key]}
+                    value={activeFilters[group.key] || "all"}
                     onValueChange={(val) =>
                       handleAccordionFilterChange(group.key, val)
                     }
                   >
-                    <SelectTrigger className="text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px]">
+                    <SelectTrigger className="text-bg-primary w-full !p-4 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[10px] bg-white">
                       <SelectValue placeholder={group.label} />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary">
+                    <SelectContent className="bg-white border !p-3 border-bg-primary rounded-[10px] text-bg-primary z-50">
                       {group.options.map((option) => (
                         <SelectItem
                           key={option.value}
-                          className="text-bg-primary"
+                          className="text-bg-primary cursor-pointer hover:bg-slate-50"
                           value={option.value}
                         >
                           {option.label}
@@ -278,6 +297,15 @@ export default function DataTable({
             </Button>
           )}
 
+          {additionalLink && (
+            <Button
+              onClick={() => navigate(additionalLink)}
+              className="bg-bg-primary cursor-pointer text-white hover:bg-teal-700 rounded-[10px] !p-3"
+            >
+              {additionalLinkLabel || "Create Code"}
+            </Button>
+          )}
+
           {showDeleteButtonInHeader && (
             <Button
               onClick={() => onDeleteInHeader(selectedRows)}
@@ -295,34 +323,24 @@ export default function DataTable({
         <Table className="!min-w-[600px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="text-bg-primary font-semibold w-12">
-                #
-              </TableHead>
+              <TableHead className="text-bg-primary font-semibold w-12">#</TableHead>
               {showRowSelection && (
                 <TableHead className="text-bg-primary font-semibold w-12">
                   <input
                     type="checkbox"
-                    checked={
-                      selectedRows.length === paginatedData.length &&
-                      paginatedData.length > 0
-                    }
+                    checked={selectedRows.length === paginatedData.length && paginatedData.length > 0}
                     onChange={handleSelectAll}
                     className="w-4 h-4 text-bg-primary border-gray-300 rounded focus:ring-bg-primary"
                   />
                 </TableHead>
               )}
               {columns.map((col, index) => (
-                <TableHead
-                  key={index}
-                  className="text-bg-primary font-semibold"
-                >
+                <TableHead key={index} className="text-bg-primary font-semibold">
                   {col.label}
                 </TableHead>
               ))}
               {(showEditButton || showDeleteButton || showActions) && (
-                <TableHead className="text-bg-primary font-semibold">
-                  Action
-                </TableHead>
+                <TableHead className="text-bg-primary font-semibold">Action</TableHead>
               )}
             </TableRow>
           </TableHeader>
@@ -330,9 +348,7 @@ export default function DataTable({
             {paginatedData.length > 0 ? (
               paginatedData.map((row, index) => (
                 <TableRow key={row.id || index}>
-                  <TableCell className="!px-2 !py-1 text-sm">
-                    {startIndex + index + 1}
-                  </TableCell>
+                  <TableCell className="!px-2 !py-1 text-sm">{startIndex + index + 1}</TableCell>
                   {showRowSelection && (
                     <TableCell className="!px-2 !py-1">
                       <input
@@ -351,38 +367,23 @@ export default function DataTable({
                       key={idx}
                       className={clsx(
                         "!px-2 !py-1 text-sm whitespace-normal break-words",
-                        col.key === "img" &&
-                        "h-full min-h-[60px] flex justify-center items-center"
+                        col.key === "img" && "h-full min-h-[60px] flex justify-center items-center"
                       )}
                     >
                       {col.key === "status" ? (
                         <div className="flex justify-center items-center gap-2">
                           <Switch
-                            checked={
-                              String(
-                                getNestedValue(row, col.key)
-                              )?.toLowerCase() === "active"
-                            }
-                            onCheckedChange={(checked) =>
-                              onToggleStatus?.(row, checked ? 1 : 0)
-                            }
+                            checked={String(getNestedValue(row, col.key))?.toLowerCase() === "active"}
+                            onCheckedChange={(checked) => onToggleStatus?.(row, checked ? 1 : 0)}
                             className={clsx(
                               "relative inline-flex h-6 w-11 rounded-full transition-colors focus:outline-none",
-                              String(
-                                getNestedValue(row, col.key)
-                              )?.toLowerCase() === "active"
-                                ? "bg-bg-primary"
-                                : "bg-gray-300"
+                              String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "bg-bg-primary" : "bg-gray-300"
                             )}
                           >
                             <span
                               className={clsx(
                                 "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
-                                String(
-                                  getNestedValue(row, col.key)
-                                )?.toLowerCase() === "active"
-                                  ? "translate-x-5"
-                                  : "translate-x-1"
+                                String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "translate-x-5" : "translate-x-1"
                               )}
                             />
                           </Switch>
@@ -395,21 +396,11 @@ export default function DataTable({
                         (() => {
                           const url = getNestedValue(row, col.key);
                           if (!url) return "N/A";
-                          const displayText =
-                            url.length > 20
-                              ? `${url.substring(0, 10)}...${url.substring(
-                                url.length - 10
-                              )}`
-                              : url;
-                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(url)}`;
+                          const displayText = url.length > 20 ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}` : url;
+                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`;
                           return (
                             <div className="relative w-[120px] truncate group">
-                              <a
-                                href={mapLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 hover:underline"
-                              >
+                              <a href={mapLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">
                                 {displayText}
                               </a>
                               {url.length > 20 && (
@@ -431,41 +422,19 @@ export default function DataTable({
                     <TableCell className="!py-3">
                       <div className="flex justify-center items-center gap-2">
                         {showEditButton && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              onEdit?.(row);
-                            }}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onEdit?.(row)}>
                             <Edit className="w-4 h-4 text-bg-primary" />
                           </Button>
                         )}
                         {showDeleteButton && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDelete?.(row)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => onDelete?.(row)}>
                             <Trash className="w-4 h-4 text-red-600" />
                           </Button>
                         )}
                         {showRowSelection && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRowSelect(row);
-                            }}
-                          >
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleRowSelect(row); }}>
                             <CheckSquare
-                              className={clsx(
-                                "w-4 h-4",
-                                selectedRows.includes(row.id)
-                                  ? "text-bg-primary"
-                                  : "text-gray-400"
-                              )}
+                              className={clsx("w-4 h-4", selectedRows.includes(row.id) ? "text-bg-primary" : "text-gray-400")}
                             />
                           </Button>
                         )}
@@ -477,12 +446,7 @@ export default function DataTable({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={
-                    columns.length +
-                    1 +
-                    (showRowSelection ? 1 : 0) +
-                    (showEditButton || showDeleteButton || showActions ? 1 : 0)
-                  }
+                  colSpan={columns.length + 1 + (showRowSelection ? 1 : 0) + (showEditButton || showDeleteButton || showActions ? 1 : 0)}
                   className="text-center text-gray-500 py-4"
                 >
                   No data found
@@ -501,7 +465,6 @@ export default function DataTable({
                   className={clsx("cursor-pointer", { "opacity-50": displayCurrentPage === 1 })}
                 />
               </PaginationItem>
-
               {getPaginationItems(displayCurrentPage, displayTotalPages).map((page, index) => (
                 <PaginationItem key={index}>
                   {page === "..." ? (
@@ -523,7 +486,6 @@ export default function DataTable({
                   )}
                 </PaginationItem>
               ))}
-
               <PaginationItem>
                 <PaginationNext
                   onClick={() => handlePageChange(displayCurrentPage + 1)}

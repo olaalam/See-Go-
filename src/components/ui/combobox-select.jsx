@@ -23,15 +23,27 @@ export function ComboboxSelect({
   value,
   onValueChange,
   placeholder = "Select...",
-  name, // Add name prop to pass to onChange
+  name,
 }) {
   const [open, setOpen] = React.useState(false);
+  const inputRef = React.useRef(null);
 
-  // Find the selected label for display
+  React.useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
+
   const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (isOpen) setTimeout(() => inputRef.current?.focus(), 0);
+      }}
+      modal={true}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -43,18 +55,25 @@ export function ComboboxSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
-          <CommandList> {/* Wrap CommandGroup with CommandList for scroll */}
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0 z-[9999]"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 10);
+        }}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <Command shouldFilter={true}>
+          <CommandInput autoFocus ref={inputRef} placeholder={`Search ${placeholder.toLowerCase()}...`} />
+          <CommandList>
             <CommandEmpty>No {placeholder.toLowerCase()} found.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label} // Use label for command item value for search
+                  value={option.label}
                   onSelect={() => {
-                    onValueChange(name, option.value); // Pass name and value
+                    onValueChange(name, option.value);
                     setOpen(false);
                   }}
                 >

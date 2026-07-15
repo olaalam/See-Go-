@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, MapPin } from "lucide-react";
-import { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo, memo } from "react";
 import { Switch } from "@/components/ui/switch";
 import MapModal from "@/components/MapModel";
 import MapLocationPicker from "./MapLocationPicker";
@@ -238,7 +238,11 @@ export default function Add({ fields, values, onChange }) {
   );
 }
 
-const ComboboxComponent = ({
+
+// ملحوظة: شلنا الـ comparator المخصص بتاع الـ memo لأنه كان بيمنع الريندر
+// لما الـ value يفضل زي ما هو، وده كان بيخلي الكومبوننت يحتفظ بنسخة قديمة (Stale)
+// من onValueChange/options لو الأب عمل ريندر لأي سبب تاني (زي تغيير سويتش في نفس الصفحة).
+const ComboboxComponent = memo(({
   options,
   value,
   onValueChange,
@@ -247,10 +251,26 @@ const ComboboxComponent = ({
   commonInputClass,
 }) => {
   const [open, setOpen] = useState(false);
-  const selectedLabel = options.find((option) => option.value === value)?.label;
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
+
+  const selectedLabel = options.find(
+    (option) => String(option.value) === String(value)
+  )?.label;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (isOpen) setTimeout(() => inputRef.current?.focus(), 0);
+      }}
+      modal={true}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -265,9 +285,19 @@ const ComboboxComponent = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder={`Search ${placeholder}...`} />
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0 z-[9999]"
+        side="bottom"
+        align="start"
+        sideOffset={5}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 10);
+        }}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <Command shouldFilter={true}>
+          <CommandInput autoFocus ref={inputRef} placeholder={`Search ${placeholder}...`} />
           <CommandList>
             <CommandEmpty>No option found.</CommandEmpty>
             <CommandGroup>
@@ -275,15 +305,15 @@ const ComboboxComponent = ({
                 <CommandItem
                   key={option.value}
                   value={option.label}
-                  onSelect={() => {
-                    onValueChange(option.value);
+                  onSelect={(currentValue) => {
+                    onValueChange(currentValue === value ? "" : option.value);
                     setOpen(false);
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0",
+                      String(value) === String(option.value) ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {option.label}
@@ -295,4 +325,4 @@ const ComboboxComponent = ({
       </PopoverContent>
     </Popover>
   );
-};
+});
