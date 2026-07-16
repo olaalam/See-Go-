@@ -23,8 +23,8 @@ export default function AddProvider() {
   const [allVillages, setAllVillages] = useState([]);
   const [services, setServices] = useState([]);
   const [zones, setZones] = useState([]);
-  const [zonesVillages, setZonesVillages] = useState([]); // المضاف حديثاً
-  const [malls, setMalls] = useState([]); // المضاف حديثاً
+  const [zonesVillages, setZonesVillages] = useState([]); 
+  const [malls, setMalls] = useState([]); 
   const [filteredVillages, setFilteredVillages] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -35,8 +35,8 @@ export default function AddProvider() {
       service_id: "",
       village: "",
       zone: "",
-      zone_village: "", // المضاف حديثاً
-      mall: "", // المضاف حديثاً
+      zone_village: "", 
+      mall: "", 
       status: "",
       image: null,
       open_from: "",
@@ -105,13 +105,22 @@ export default function AddProvider() {
           );
         }
 
-        // جلب وحفظ الـ zones_village والـ malls المضافين حديثاً
         if (data.zones_village) {
           setZonesVillages(
-            data.zones_village.map((zv) => ({
-              label: Array.isArray(zv.name) ? (zv.name[0] || "—") : (zv.name || "—"),
-              value: zv.id.toString(),
-            }))
+            data.zones_village.map((zv) => {
+              let labelText = "—";
+              if (zv.name) {
+                if (typeof zv.name === "object") {
+                  labelText = zv.name.en || zv.name.ar || "—";
+                } else {
+                  labelText = zv.name;
+                }
+              }
+              return {
+                label: labelText,
+                value: zv.id.toString(),
+              };
+            })
           );
         }
 
@@ -207,7 +216,6 @@ export default function AddProvider() {
     body.append("village_id", formData.en.village);
     body.append("zone_id", formData.en.zone);
     
-    // إرفاق الحقول الجديدة إذا تم تحديدها
     if (formData.en.zone_village) {
       body.append("zone_village_id", formData.en.zone_village);
     }
@@ -222,7 +230,12 @@ export default function AddProvider() {
     body.append("location_map", pickUpData.location_map);
     body.append("location", `${pickUpData.lat},${pickUpData.lng}`);
 
-    const formatTime = (time) => (time?.length === 5 ? `${time}:00` : time);
+    // دالة مساعدة لضمان الصيغة H:i:s
+    const formatTime = (time) => {
+      if (!time) return "";
+      return time.length === 5 ? `${time}:00` : time;
+    };
+
     body.append("open_from", formatTime(formData.en.open_from));
     body.append("open_to", formatTime(formData.en.open_to));
 
@@ -231,7 +244,14 @@ export default function AddProvider() {
     if (formData.ar.description)
       body.append("ar_description", formData.ar.description);
 
-    body.append("work_hours", JSON.stringify(workHours));
+    // تفكيك وحل مشكلة مصفوفة مواعيد العمل للـ FormData مع تعديل صيغة الوقت
+    workHours.forEach((hour, index) => {
+      body.append(`work_hours[${index}][day]`, hour.day);
+      body.append(`work_hours[${index}][from]`, formatTime(hour.from));
+      body.append(`work_hours[${index}][to]`, formatTime(hour.to));
+      body.append(`work_hours[${index}][is_24_hours]`, hour.is_24_hours ? "1" : "0");
+      body.append(`work_hours[${index}][is_closed]`, hour.is_closed ? "1" : "0");
+    });
 
     try {
       const res = await fetch("https://bcknd.sea-go.org/admin/provider/add", {
@@ -312,7 +332,6 @@ export default function AddProvider() {
       options: filteredVillages,
       lang: "en",
     },
-    // حقول الاختيار الجديدة تم ربطها كـ dropdowns
     {
       type: "select",
       placeholder: "Zone Village (Optional)",
