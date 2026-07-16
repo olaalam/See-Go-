@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Add from "@/components/AddFieldSection";
@@ -22,6 +23,8 @@ export default function AddProvider() {
   const [allVillages, setAllVillages] = useState([]);
   const [services, setServices] = useState([]);
   const [zones, setZones] = useState([]);
+  const [zonesVillages, setZonesVillages] = useState([]); // المضاف حديثاً
+  const [malls, setMalls] = useState([]); // المضاف حديثاً
   const [filteredVillages, setFilteredVillages] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -32,8 +35,10 @@ export default function AddProvider() {
       service_id: "",
       village: "",
       zone: "",
+      zone_village: "", // المضاف حديثاً
+      mall: "", // المضاف حديثاً
       status: "",
-      image: null, // This will now store the Base64 string or null
+      image: null,
       open_from: "",
       open_to: "",
     },
@@ -99,9 +104,28 @@ export default function AddProvider() {
             }))
           );
         }
+
+        // جلب وحفظ الـ zones_village والـ malls المضافين حديثاً
+        if (data.zones_village) {
+          setZonesVillages(
+            data.zones_village.map((zv) => ({
+              label: Array.isArray(zv.name) ? (zv.name[0] || "—") : (zv.name || "—"),
+              value: zv.id.toString(),
+            }))
+          );
+        }
+
+        if (data.malls) {
+          setMalls(
+            data.malls.map((m) => ({
+              label: m.name,
+              value: m.id.toString(),
+            }))
+          );
+        }
       } catch (error) {
         console.error("Error fetching data for dropdowns:", error);
-        toast.error("Failed to load dropdown options.", error);
+        toast.error("Failed to load dropdown options.");
       }
     };
 
@@ -133,15 +157,15 @@ export default function AddProvider() {
           ...prev,
           [lang]: {
             ...prev[lang],
-            [name]: reader.result, // Store Base64 string
+            [name]: reader.result,
           },
         }));
       };
       reader.onerror = (error) => {
         console.error("Error converting image to Base64:", error);
-        toast.error("Failed to process image.", error);
+        toast.error("Failed to process image.");
       };
-      reader.readAsDataURL(value); // Read file as Data URL (Base64)
+      reader.readAsDataURL(value);
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -158,13 +182,11 @@ export default function AddProvider() {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       
-      // If is_24_hours is checked, clear from/to times
       if (field === "is_24_hours" && value) {
         updated[index].from = "";
         updated[index].to = "";
       }
       
-      // If is_closed is checked, clear everything
       if (field === "is_closed" && value) {
         updated[index].from = "";
         updated[index].to = "";
@@ -184,6 +206,15 @@ export default function AddProvider() {
     body.append("service_id", formData.en.service_id);
     body.append("village_id", formData.en.village);
     body.append("zone_id", formData.en.zone);
+    
+    // إرفاق الحقول الجديدة إذا تم تحديدها
+    if (formData.en.zone_village) {
+      body.append("zone_village_id", formData.en.zone_village);
+    }
+    if (formData.en.mall) {
+      body.append("mall_id", formData.en.mall);
+    }
+
     body.append("phone", formData.en.phone);
     body.append("status", formData.en.status === "active" ? "1" : "0");
     body.append("lat", pickUpData.lat.toString());
@@ -195,13 +226,11 @@ export default function AddProvider() {
     body.append("open_from", formatTime(formData.en.open_from));
     body.append("open_to", formatTime(formData.en.open_to));
 
-    // Append the Base64 string directly
     if (formData.en.image) body.append("image", formData.en.image);
     if (formData.ar.name) body.append("ar_name", formData.ar.name);
     if (formData.ar.description)
       body.append("ar_description", formData.ar.description);
 
-    // Append work_hours as JSON
     body.append("work_hours", JSON.stringify(workHours));
 
     try {
@@ -209,7 +238,6 @@ export default function AddProvider() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          // No 'Content-Type' header needed for FormData, browser sets it automatically
         },
         body,
       });
@@ -226,13 +254,15 @@ export default function AddProvider() {
               status: "",
               village: "",
               zone: "",
+              zone_village: "",
+              mall: "",
               image: null,
               open_from: "",
               open_to: "",
             },
             ar: {
-              name: "", description: ""
-
+              name: "", 
+              description: ""
             },
           });
           setPickUpData({ location_map: "", lat: 31.2001, lng: 29.9187 });
@@ -247,7 +277,7 @@ export default function AddProvider() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("An error occurred.", err, { autoClose: 3000 });
+      toast.error("An error occurred.", { autoClose: 3000 });
     } finally {
       dispatch(hideLoader());
     }
@@ -282,9 +312,22 @@ export default function AddProvider() {
       options: filteredVillages,
       lang: "en",
     },
+    // حقول الاختيار الجديدة تم ربطها كـ dropdowns
+    {
+      type: "select",
+      placeholder: "Zone Village (Optional)",
+      name: "zone_village",
+      options: zonesVillages,
+      lang: "en",
+    },
+    {
+      type: "select",
+      placeholder: "Mall (Optional)",
+      name: "mall",
+      options: malls,
+      lang: "en",
+    },
     { type: "input", placeholder: "Phone", name: "phone", lang: "en" },
-    // { type: "time", placeholder: "Open From", name: "open_from", lang: "en" },
-    // { type: "time", placeholder: "Open To", name: "open_to", lang: "en" },
     { type: "file", name: "image", lang: "en" },
     { type: "switch", name: "status", placeholder: "Status", lang: "en" },
     {
@@ -309,7 +352,6 @@ export default function AddProvider() {
       <h2 className="text-bg-primary text-center !pb-10 text-xl font-semibold !mb-10">
         Add Service Provider
       </h2>
-      
 
       <div className="w-[90%] !ms-4">
         <Add fields={fields} values={formData} onChange={handleFieldChange} />
@@ -322,14 +364,12 @@ export default function AddProvider() {
               <Card key={daySchedule.day} className="bg-[#f3fbfa] border-none shadow-sm">
                 <CardContent className="!p-4">
                   <div className="grid grid-cols-12 gap-4 items-center">
-                    {/* Day Name */}
                     <div className="col-span-2">
                       <Label className="capitalize font-semibold text-bg-primary">
                         {daySchedule.day}
                       </Label>
                     </div>
 
-                    {/* From Time */}
                     <div className="col-span-2">
                       <Input
                         type="time"
@@ -342,7 +382,6 @@ export default function AddProvider() {
                       />
                     </div>
 
-                    {/* To Time */}
                     <div className="col-span-2">
                       <Input
                         type="time"
@@ -355,7 +394,6 @@ export default function AddProvider() {
                       />
                     </div>
 
-                    {/* 24 Hours Switch */}
                     <div className="col-span-3 flex items-center gap-2">
                       <Switch
                         checked={daySchedule.is_24_hours}
@@ -367,7 +405,6 @@ export default function AddProvider() {
                       <Label className="text-sm">24 Hours</Label>
                     </div>
 
-                    {/* Closed Switch */}
                     <div className="col-span-3 flex items-center gap-2">
                       <Switch
                         checked={daySchedule.is_closed}

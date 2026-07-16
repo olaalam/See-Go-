@@ -9,7 +9,6 @@ import {
   Phone,
   Clock,
   Globe,
-  Heart, // استيراد أيقونة القلب للتاب الجديد
 } from "lucide-react";
 import VAdmin from "@/Pages/Villages/VAdmin";
 import PAdmin from "@/Pages/Providers/PAdmin";
@@ -23,8 +22,12 @@ import InvoiceList from "@/Pages/Invoice/InvoiceList";
 import OnlineAdmins from "@/Pages/Villages/OnlineAdmins";
 import OnlineUsers from "@/Pages/Users/OnlineUsers";
 import PReviews from "@/Pages/Providers/PReviews";
-import UserFavorites from "@/Pages/Users/UserFavorites"; // استيراد المكون الجديد هنا
+import UserFavorites from "@/Pages/Users/UserFavorites";
 import GateKeeper from "@/Pages/Villages/GateKeeper";
+
+// 🌟 استيراد صفحة الـ VillageZones الجديدة
+import VillageZones from "@/Pages/Villages/VillageZones"; 
+
 const formatTime = (time) => {
   if (!time) return "";
   try {
@@ -86,7 +89,6 @@ export default function VillageDetailsCard({
                           hover:bg-teal-100 hover:text-teal-700" value="services">
                 Services
               </TabsTrigger>
-              {/* التاب الجديد المضاف لصفحة اليوزر المفضلة */}
               <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="favorites">
@@ -149,6 +151,14 @@ export default function VillageDetailsCard({
                                 hover:bg-teal-100 hover:text-teal-700" value="units">
                     Units
                   </TabsTrigger>
+
+                  {/* 🌟 1. زر التاب الجديد لعرض الـ Zones */}
+                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700" value="zones">
+                    Zones
+                  </TabsTrigger>
+
                   <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="invoice">
@@ -176,7 +186,6 @@ export default function VillageDetailsCard({
         </TabsList>
 
         <TabsContent value="info">
-          {/* محتوى الـ Info كما هو بدون تغيير */}
           <Card className="!p-8 bg-[#f3fbfa] !ms-10 w-full shadow-none border-none">
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -272,7 +281,6 @@ export default function VillageDetailsCard({
           <>
             <TabsContent value="owner"><Owner data={data} /></TabsContent>
             <TabsContent value="services"><Services data={data} /></TabsContent>
-            {/* استدعاء محتوى المفضلة وتمرير الـ userId */}
             <TabsContent value="favorites">
               <UserFavorites userId={id} />
             </TabsContent>
@@ -304,6 +312,12 @@ export default function VillageDetailsCard({
             {entityType === "village" && (
               <>
                 <TabsContent value="units"><Units /></TabsContent>
+                
+                {/* 🌟 2. محتوى التاب الجديد وتمرير الـ id الخاص بالقرية */}
+                <TabsContent value="zones">
+                  <VillageZones villageId={id} />
+                </TabsContent>
+
                 <TabsContent value="invoice">
                   <InvoiceList {...invoiceProps} />
                 </TabsContent>

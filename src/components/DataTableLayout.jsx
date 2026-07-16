@@ -335,7 +335,13 @@ export default function DataTable({
                 </TableHead>
               )}
               {columns.map((col, index) => (
-                <TableHead key={index} className="text-bg-primary font-semibold">
+                <TableHead
+                  key={index}
+                  className={clsx(
+                    "text-bg-primary font-semibold",
+                    (col.key === "img" || col.key === "logo") && "w-20 min-w-[80px]"
+                  )}
+                >
                   {col.label}
                 </TableHead>
               ))}
@@ -367,7 +373,7 @@ export default function DataTable({
     key={idx}
     className={clsx(
       "!px-2 !py-1 text-sm whitespace-normal break-words",
-      col.key === "img" && "h-full min-h-[60px] flex justify-center items-center"
+      (col.key === "img" || col.key === "logo") && "w-20 min-w-[80px] align-middle"
     )}
   >
     {/* 1. أولاً: لو فيه render مخصص للعمود، شغله فوراً */}
@@ -392,8 +398,8 @@ export default function DataTable({
           />
         </Switch>
       </div>
-    ) : col.key === "img" ? (
-      <div className="flex justify-center items-center w-full h-full min-h-[60px]">
+    ) : col.key === "img" || col.key === "logo" ? (
+      <div className="flex justify-center items-center w-full min-h-[60px]">
         {row[col.key]}
       </div>
     ) : col.key === "map" ? (

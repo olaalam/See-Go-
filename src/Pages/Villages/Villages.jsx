@@ -20,7 +20,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import MapLocationPicker from "@/components/MapLocationPicker";
-import { set } from "react-hook-form";
+import PickUpMap from "@/components/PickUpMap"; 
+import { Plus, Trash2 } from "lucide-react"; 
 
 const Villages = () => {
   const dispatch = useDispatch();
@@ -33,6 +34,9 @@ const Villages = () => {
   const [allVillages, setAllVillages] = useState([]);
   const [zones, setZones] = useState([]);
   const [permissions, setPermissions] = useState([]);
+
+  // State لتعديل وعرض المناطق التابعة للقرية المحددة داخل الـ Edit Mode
+  const [editZones, setEditZones] = useState([]);
 
   // Dialog states
   const [selectedRow, setSelectedRow] = useState(null);
@@ -172,6 +176,12 @@ const Villages = () => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // 🌟 دالة لفتح مودال عرض المناطق
+  const handleOpenViewZones = useCallback((zonesList) => {
+    setViewZonesData(zonesList || []);
+    setIsViewZonesOpen(true);
+  }, []);
+
   // Data fetching
   const fetchZones = async () => {
     try {
@@ -217,40 +227,30 @@ const Villages = () => {
       }
 
       const formatted = result.villages.map((village) => {
-        console.log("Processing village:", village.id, village.translations); // للـ debugging
-
-        // فصل الترجمات حسب اللغة والنوع - same as zones
         const translations = village.translations.reduce((acc, t) => {
           if (!acc[t.locale]) acc[t.locale] = {};
           acc[t.locale][t.key] = t.value;
           return acc;
         }, {});
 
-        console.log("Parsed translations:", translations); // للـ debugging
-
-        // استخراج البيانات بالإنجليزي (للعرض في الجدول)
         const nameEn = translations?.en?.name || village.name || "—";
         const descriptionEn =
           translations?.en?.description || village.description || "—";
 
-        // استخراج البيانات بالعربي (للـ EditDialog)
-        // هنا هنتأكد إن الترجمة العربية موجودة فعلاً
         const nameAr = translations?.ar?.name || null;
         const descriptionAr = translations?.ar?.description || null;
 
-        // Raw name for editing
         const rawName = nameEn;
 
         const nameClickable = (
           <span
             onClick={() => navigate(`/villages/single-page-v/${village.id}`)}
-            className="text-bg-primary hover:text-teal-800 cursor-pointer"
+            className="text-bg-primary hover:text-teal-800 cursor-pointer font-medium"
           >
             {nameEn}
           </span>
         );
 
-        // Get zone information
         const zoneObj = zones.find((z) => z.id === village.zone_id);
         const zoneName =
           zoneObj?.name ||
@@ -273,7 +273,7 @@ const Villages = () => {
               <AvatarFallback>{nameEn?.charAt(0)}</AvatarFallback>
             </Avatar>
           );
-                  const logo =
+        const logo =
           village?.logo_link && !imageErrors[village.id] ? (
             <img
               src={village?.logo_link}
@@ -291,13 +291,25 @@ const Villages = () => {
         const population = village.population_count || "—";
         const units_num = village.units_num || "—";
 
+        // 🌟 زر عرض الـ Zones داخل الـ Row
+        const subZonesButton = (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // يمنع تفعيل الكليك الخاص بالـ Row بأكمله
+              handleOpenViewZones(village.zones || []);
+            }}
+            className="!bg-bg-primary hover:!bg-teal-600 !text-white text-xs !px-3 !py-1.5 rounded-[8px] cursor-pointer font-semibold transition-all duration-200 shadow-sm"
+          >
+            View ({village.zones?.length || 0})
+          </button>
+        );
+
         return {
           id: village.id,
           name: nameClickable,
           rawName,
           nameEn: nameEn,
           description: descriptionEn,
-          // إضافة الحقول العربية (null لو مش موجودة)
           nameAr: nameAr,
           descriptionAr: descriptionAr,
           searchableName: nameEn,
@@ -316,6 +328,8 @@ const Villages = () => {
           location_map: village.location_map || "",
           lat: village.lat || 31.2001,
           lng: village.lng || 29.9187,
+          rawZones: village.zones || [], 
+          subZones: subZonesButton, // 🌟 ربط الزر بالـ Column الجديد
         };
       });
 
@@ -365,16 +379,37 @@ const Villages = () => {
 
     setSelectedRow(editableVillage);
 
-    // التأكد من وجود البيانات وإعطاء قيم افتراضية
+    const parsedZones = village.rawZones ? village.rawZones.map((z) => {
+      const translations = z.translations ? z.translations.reduce((acc, t) => {
+        if (!acc[t.locale]) acc[t.locale] = {};
+        acc[t.locale][t.key] = t.value;
+        return acc;
+      }, {}) : {};
+
+      return {
+        id: z.id || null,
+        name: {
+          en: translations?.en?.name || z.name?.en || z.name || "",
+          ar: translations?.ar?.name || z.name?.ar || "",
+        },
+        description: {
+          en: translations?.en?.description || z.description?.en || z.description || "",
+          ar: translations?.ar?.description || z.description?.ar || "",
+        },
+        lat: z.lat || "31.2001",
+        lng: z.lng || "29.9187",
+      };
+    }) : [];
+
+    setEditZones(parsedZones);
+
     const locationData = {
       location_map: village.location_map || village.map || "",
       lat: village.lat || 31.2001,
       lng: village.lng || 29.9187,
     };
 
-    console.log("Setting location data:", locationData);
     setEditLocationData(locationData);
-
     setIsEditOpen(true);
   };
 
@@ -382,6 +417,54 @@ const Villages = () => {
     setIsEditOpen(false);
     setSelectedRow(null);
     setEditLocationData({ location_map: "", lat: 31.2001, lng: 29.9187 });
+    setEditZones([]); 
+  };
+
+  // دوال إدارة الـ Zones داخل مودال التعديل
+  const handleEditZoneChange = (index, field, lang, value) => {
+    setEditZones((prev) => {
+      const updated = [...prev];
+      if (lang) {
+        updated[index][field] = {
+          ...updated[index][field],
+          [lang]: value,
+        };
+      } else {
+        updated[index][field] = value;
+      }
+      return updated;
+    });
+  };
+
+  const handleEditZoneMapChange = (index, nextState) => {
+    setEditZones((prev) => {
+      const updated = [...prev];
+      const current = {
+        lat: Number(prev[index].lat) || 31.2001,
+        lng: Number(prev[index].lng) || 29.9187,
+        location_map: "",
+      };
+      const next = typeof nextState === "function" ? nextState(current) : nextState;
+      updated[index].lat = next.lat.toString();
+      updated[index].lng = next.lng.toString();
+      return updated;
+    });
+  };
+
+  const addEditZoneField = () => {
+    setEditZones((prev) => [
+      ...prev,
+      {
+        name: { en: "", ar: "" },
+        description: { en: "", ar: "" },
+        lat: "31.2001",
+        lng: "29.9187",
+      },
+    ]);
+  };
+
+  const removeEditZoneField = (index) => {
+    setEditZones((prev) => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -391,8 +474,6 @@ const Villages = () => {
         lat: selectedRow.lat || 31.2001,
         lng: selectedRow.lng || 29.9187,
       };
-
-      console.log("Syncing location data from selectedRow:", locationData);
       setEditLocationData(locationData);
     }
   }, [selectedRow, isEditOpen]);
@@ -416,10 +497,10 @@ const Villages = () => {
           : value,
     }));
   };
-const handleFileChange = async (event, fieldType) => {
+
+  const handleFileChange = async (event, fieldType) => {
     const file = event.target.files[0];
     
-    // تحديد مفاتيح الـ state بناءً على نوع الحقل (image أو logo)
     const isLogo = fieldType === "logo";
     const fileKey = isLogo ? "logoFile" : "imageFile";
     const base64Key = isLogo ? "logoBase64" : "imageBase64";
@@ -440,7 +521,7 @@ const handleFileChange = async (event, fieldType) => {
     }
 
     try {
-      validateImageFile(file); // تأكدي أن هذه الدالة تقبل اللوجو أيضاً
+      validateImageFile(file);
 
       const dataURL = await convertFileToBase64(file);
       const base64Only = extractBase64FromDataURL(dataURL);
@@ -460,11 +541,6 @@ const handleFileChange = async (event, fieldType) => {
         [hasNewKey]: true,
       }));
 
-      console.log(`${fieldType} processed successfully:`, {
-        fileName: file.name,
-        fileSize: file.size,
-        base64Length: base64Only.length,
-      });
     } catch (error) {
       console.error(`Error processing ${fieldType}:`, error);
       toast.error(error.message || `Error processing ${fieldType} file`);
@@ -496,7 +572,6 @@ const handleFileChange = async (event, fieldType) => {
       hasNewLogo,
     } = selectedRow;
 
-    // Validation
     if (!id) {
       toast.error("Village ID is missing");
       return;
@@ -518,6 +593,19 @@ const handleFileChange = async (event, fieldType) => {
       return;
     }
 
+    const formattedZones = editZones.map((z) => ({
+      name: {
+        en: z.name?.en || "",
+        ar: z.name?.ar || "",
+      },
+      description: {
+        en: z.description?.en || "",
+        ar: z.description?.ar || "",
+      },
+      lat: z.lat ? Number(z.lat) : 0,
+      lng: z.lng ? Number(z.lng) : 0,
+    }));
+
     const updatedVillage = {
       id,
       name: name.trim(),
@@ -530,9 +618,9 @@ const handleFileChange = async (event, fieldType) => {
       lat: editLocationData.lat.toString(),
       lng: editLocationData.lng.toString(),
       location_map: editLocationData.location_map,
+      zones: formattedZones, 
     };
 
-    // إضافة الحقول العربية بس لو موجودة أصلاً في الداتا - same logic as zones
     if (selectedRow.nameAr !== null && selectedRow.nameAr !== undefined) {
       updatedVillage.ar_name = nameAr || "";
     }
@@ -543,40 +631,13 @@ const handleFileChange = async (event, fieldType) => {
       updatedVillage.ar_description = descriptionAr || "";
     }
 
-if (hasNewImage && newImageBase64) {
-      console.log(
-        "Adding new image to update data, base64 length:",
-        newImageBase64.length,
-      );
+    if (hasNewImage && newImageBase64) {
       updatedVillage.image = selectedRow.imageBase64;
     }
 
-    // 💡 التعديل هنا: إضافة اللوجو الجديد للـ object المرسل للباك إند
     if (hasNewLogo && newLogoBase64) {
-      console.log(
-        "Adding new logo to update data, base64 length:",
-        newLogoBase64.length,
-      );
-      updatedVillage.logo = selectedRow.logoBase64; // إرسال البيس 64 الخاص باللوجو
+      updatedVillage.logo = selectedRow.logoBase64;
     }
-
-    // للـ debugging - شوفي إيه اللي بيتبعت
-    console.log("Sending update data:", {
-      ...updatedVillage,
-      image: updatedVillage.image
-        ? `[base64 data: ${updatedVillage.image.length} chars]`
-        : "no image",
-      logo: updatedVillage.logo
-        ? `[base64 data: ${updatedVillage.logo.length} chars]`
-        : "no logo",
-    });
-    // للـ debugging - شوفي إيه اللي بيتبعت
-    console.log("Sending update data:", {
-      ...updatedVillage,
-      image: updatedVillage.image
-        ? `[base64 data: ${updatedVillage.image.length} chars]`
-        : "no image",
-    });
 
     try {
       const response = await fetch(
@@ -595,8 +656,6 @@ if (hasNewImage && newImageBase64) {
         await fetchVillages();
         handleCloseEdit();
       } else {
-        console.error("Update failed:", responseData);
-
         if (responseData.errors && responseData.errors.image) {
           toast.error(
             "Image validation failed: " + responseData.errors.image.join(", "),
@@ -741,7 +800,7 @@ if (hasNewImage && newImageBase64) {
   ];
 
   return (
-    <div className="p-4">
+    <div className="!p-4">
       {isLoading && <FullPageLoader />}
       <ToastContainer position="top-right" autoClose={3000} />
 
@@ -785,7 +844,6 @@ if (hasNewImage && newImageBase64) {
             onChange={onChange}
           >
             <div className="max-h-[50vh] md:grid-cols-2 lg:grid-cols-3 !p-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              {/* الحقول الإنجليزية */}
               <label htmlFor="name" className="text-gray-400 !pb-3">
                 Village Name (English)
               </label>
@@ -807,7 +865,6 @@ if (hasNewImage && newImageBase64) {
                 className="!my-2 text-bg-primary !p-4"
               />
 
-              {/* الحقول العربية - بس لو الـ village أصلاً له ترجمة عربية */}
               {selectedRow?.nameAr !== null &&
                 selectedRow?.nameAr !== undefined && (
                   <>
@@ -900,18 +957,131 @@ if (hasNewImage && newImageBase64) {
                 }}
                 placeholder="Search or select location on map"
               />
-              {/* ⬇️ حقل إدخال وعرض شعار القرية (Logo) الجديد ⬇️ */}
-              <label htmlFor="logo" className="text-gray-400 mt-4 block">
+
+              {/* قسم تعديل الـ Zones التفاعلي للمودال */}
+              <div className="!mt-8 !mb-6 col-span-full border-t !pt-6 border-gray-100">
+                <div className="flex justify-between items-center !mb-4">
+                  <h3 className="text-md font-semibold text-bg-primary">Village Zones (المناطق التابعة للقرية)</h3>
+                  <button
+                    type="button"
+                    onClick={addEditZoneField}
+                    className="bg-bg-primary hover:bg-teal-600 text-white flex items-center gap-1 text-xs cursor-pointer rounded-[10px] !px-3 !py-2 transition-all duration-200"
+                  >
+                    <Plus className="w-4 h-4" /> Add Zone
+                  </button>
+                </div>
+
+                {editZones.length === 0 ? (
+                  <p className="text-xs text-gray-400 !mb-4 italic">No zones added yet. Click "Add Zone" to include zones.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {editZones.map((zone, index) => (
+                      <div key={index} className="bg-[#fcfdfd] !p-4 rounded-[15px] border border-teal-50 relative">
+                        <button
+                          type="button"
+                          onClick={() => removeEditZoneField(index)}
+                          className="absolute top-3 right-3 text-red-500 hover:text-red-700 transition-colors !p-1 cursor-pointer"
+                          title="Remove Zone"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1">Zone Name (EN)</label>
+                            <Input
+                              type="text"
+                              placeholder="e.g. Zone A"
+                              value={zone.name?.en || ""}
+                              onChange={(e) => handleEditZoneChange(index, "name", "en", e.target.value)}
+                              className="!ps-2 border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1 text-right">اسم المنطقة (AR)</label>
+                            <Input
+                              type="text"
+                              placeholder="مثال: منطقة أ"
+                              value={zone.name?.ar || ""}
+                              onChange={(e) => handleEditZoneChange(index, "name", "ar", e.target.value)}
+                              className="!ps-2 text-right border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1">Zone Description (EN)</label>
+                            <Input
+                              type="text"
+                              placeholder="e.g. Near Main Gate"
+                              value={zone.description?.en || ""}
+                              onChange={(e) => handleEditZoneChange(index, "description", "en", e.target.value)}
+                              className="!ps-2 border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1 text-right">وصف المنطقة (AR)</label>
+                            <Input
+                              type="text"
+                              placeholder="مثال: بالقرب من البوابة الرئيسية"
+                              value={zone.description?.ar || ""}
+                              onChange={(e) => handleEditZoneChange(index, "description", "ar", e.target.value)}
+                              className="!ps-2 text-right border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1">Latitude (Lat)</label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="31.2001"
+                              value={zone.lat}
+                              onChange={(e) => handleEditZoneChange(index, "lat", null, e.target.value)}
+                              className="!ps-2 border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-400 !mb-1">Longitude (Lng)</label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="29.9187"
+                              value={zone.lng}
+                              onChange={(e) => handleEditZoneChange(index, "lng", null, e.target.value)}
+                              className="!ps-2 border-gray-200 focus:border-bg-primary"
+                            />
+                          </div>
+
+                          <div className="!mt-4 col-span-1 md:col-span-2">
+                            <label className="block text-xs font-medium text-gray-400 !mb-2">
+                              Pick Zone Location on Map
+                            </label>
+                            <PickUpMap 
+                              tourPickUp={{
+                                lat: Number(zone.lat) || 31.2001,
+                                lng: Number(zone.lng) || 29.9187,
+                                location_map: ""
+                              }}
+                              setTourPickUp={(nextState) => handleEditZoneMapChange(index, nextState)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <label htmlFor="logo" className="text-gray-400 !mt-4 block">
                 Village Logo
               </label>
 
-              {/* عرض اللوجو الحالي إن وجد */}
               {selectedRow?.logo_link && (
-                <div className="flex items-center gap-4 mb-2 mt-1">
+                <div className="flex items-center gap-4 !mb-2 !mt-1">
                   <img
                     src={selectedRow.logo_link}
                     alt="Current Logo"
-                    className="w-12 h-12 rounded-md object-contain border p-1 bg-slate-50"
+                    className="w-12 h-12 rounded-md object-contain border !p-1 bg-slate-50"
                   />
                   {selectedRow.hasNewLogo && (
                     <span className="text-sm text-green-600">
@@ -926,23 +1096,12 @@ if (hasNewImage && newImageBase64) {
                 id="logo"
                 accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/svg+xml"
                 className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
-                onChange={(e) => handleFileChange(e, "logo")}// تأكدي من وجود هذه الدالة في الملف لقراءة الملف وتحويله لـ Base64
+                onChange={(e) => handleFileChange(e, "logo")}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 !mt-1">
                 Supported formats: JPEG, PNG, SVG, WebP (max 2MB)
               </p>
-              {/* <label htmlFor="numberOfUnits" className="text-gray-400 !pb-3">
-                Number of Units
-              </label>
-              <Input
-                id="numberOfUnits"
-                type="number"
-                min="0"
-                value={selectedRow?.numberOfUnits || ""}
-                onChange={(e) => onChange("numberOfUnits", e.target.value)}
-                className="!my-2 text-bg-primary !p-4"
-              /> */}
-              {/* حقل إدخال عدد الوحدات (units_num) */}
+
               <label htmlFor="units_num" className="text-gray-400 !pb-3">
                 Units Number
               </label>
@@ -956,12 +1115,11 @@ if (hasNewImage && newImageBase64) {
                 placeholder="Enter units number"
               />
 
-              {/* حقل إدخال وعرض صورة القرية (Image) الجديدة ⬆️ */}
               <label htmlFor="image" className="text-gray-400">
                 Image
               </label>
               {selectedRow?.image_link && (
-                <div className="flex items-center gap-4 mb-2">
+                <div className="flex items-center gap-4 !mb-2">
                   <img
                     src={selectedRow.image_link}
                     alt="Current"
@@ -983,7 +1141,7 @@ if (hasNewImage && newImageBase64) {
                 className="!my-2 text-bg-primary !ps-2 border border-bg-primary focus:outline-none focus:ring-2 focus:ring-bg-primary rounded-[5px]"
                 onChange={(e) => handleFileChange(e, "image")}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 !mt-1">
                 Supported formats: JPEG, PNG, GIF, WebP (max 5MB)
               </p>
             </div>
