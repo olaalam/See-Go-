@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { LogOut } from "lucide-react";
+import { LogOut, Heart } from "lucide-react"; // 🌟 تم إضافة Heart هنا
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -37,10 +37,10 @@ const Users = () => {
   const [permissions, setPermissions] = useState([]);
   const apiUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
 
-  // 🌟 1. حالات الترقيم (Pagination States) بناءً على ريسبونس لارافيل
+  // 🌟 1. حالات الترقيم (Pagination States)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0); // عشان يعرض Total: 919 بدل 15
+  const [totalItems, setTotalItems] = useState(0); 
   const [searchQuery, setSearchQuery] = useState("");
 
   const getAuthHeaders = () => ({
@@ -95,15 +95,13 @@ const Users = () => {
     }
   };
 
-  // 🌟 2. دالة جلب البيانات مع الترقيم والبحث
-const fetchUsers = async (page = 1, search = "") => {
+  // 🌟 2. جلب البيانات وتحديد حالة المفضلة لكل مستخدم
+  const fetchUsers = async (page = 1, search = "") => {
     dispatch(showLoader());
     try {
-      // ✅ تعديل بناء الرابط عشان يبعت الـ search key بشكل صحيح للباك إند
       const url = new URL(`${apiUrl}/admin/user/users`);
       url.searchParams.append("page", page);
       
-      // لو فيه كلمة بحث، هنضيفها كـ query parameter: ?page=1&search=ahmed
       if (search && search.trim() !== "") {
         url.searchParams.append("search", search.trim());
       }
@@ -114,11 +112,9 @@ const fetchUsers = async (page = 1, search = "") => {
       const result = await res.json();
       const lang = localStorage.getItem("lang") || "en";
 
-      // 🌟 قراءة هيكل بيانات لارافيل (Laravel Pagination Structure)
       const userData = result?.users || {};
       const usersArray = userData.data || [];
 
-      // تحديث بيانات الترقيم من الباك إند مباشرة
       setCurrentPage(userData.current_page || 1);
       setTotalPages(userData.last_page || 1);
       setTotalItems(userData.total || 0);
@@ -166,6 +162,8 @@ const fetchUsers = async (page = 1, search = "") => {
           password: "",
           rent_from: u.rent_from || "",
           rent_to: u.rent_to || "",
+          // 🌟 قراءة حالة المفضلة: إذا كانت غير فارغة (not null) يتم اعتبارها true
+          is_favourite: !!u.favourite, 
         };
       });
       setUsers(formatted);
@@ -176,15 +174,48 @@ const fetchUsers = async (page = 1, search = "") => {
     }
   };
 
-  // جلب أول صفحة عند فتح الشاشة
-useEffect(() => {
+  // 🌟 3. دالة إضافة / حذف من المفضلة عبر الـ API
+  const handleToggleFavorite = async (userId, currentStatus) => {
+    dispatch(showLoader());
+    try {
+      // الـ API الخاص بالإشارة المرجعية (Favorite Toggle)
+      // ملحوظة: الـ API مصمم كـ POST، لو كان الـ API بالباك إند مبني كـ GET، يمكنك تبديل الـ method لـ "GET"
+      const res = await fetch(`${apiUrl}/admin/user/make_user_favourite/${userId}`, {
+        method: "GET", 
+        headers: getAuthHeaders(),
+      });
+
+      if (res.ok) {
+        toast.success(
+          currentStatus 
+            ? "User removed from favorites successfully!" 
+            : "User added to favorites successfully!"
+        );
+        
+        // تحديث الحالة فوراً في الـ State دون الحاجة لإعادة تحميل الصفحة بالكامل
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, is_favourite: !currentStatus } : u
+          )
+        );
+      } else {
+        toast.error("Failed to update favorite status!");
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+      toast.error("An error occurred while updating favorite status!");
+    } finally {
+      dispatch(hideLoader());
+    }
+  };
+
+  useEffect(() => {
     fetchVillages();
   }, []);
 
-  // 🌟 Debounce Search: يستنى 500ms بعد آخر حرف اتكتب قبل ما يبعت للباك إند
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchUsers(1, searchQuery); // دايماً البحث بيبدأ من الصفحة الأولى
+      fetchUsers(1, searchQuery); 
     }, 500);
 
     return () => clearTimeout(timer);
@@ -245,7 +276,7 @@ useEffect(() => {
 
       if (res.ok) {
         toast.success("User updated successfully!");
-        fetchUsers(currentPage, searchQuery); // تحديث نفس الصفحة الحالية
+        fetchUsers(currentPage, searchQuery); 
         setIsEditOpen(false);
         setselectedRow(null);
       } else {
@@ -308,7 +339,7 @@ useEffect(() => {
           prev.map((u) =>
             u.id === row.id
               ? { ...u, status: newStatus === 1 ? "active" : "inactive" }
-              : u,
+              : u
           ),
         );
       } else toast.error("Failed to update status.");
@@ -363,12 +394,32 @@ useEffect(() => {
     },
   ];
 
+  // 🌟 4. إضافة عمود المفضلة (Favorite) إلى الـ columns
   const columns = [
     { key: "name", label: "User Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
     { key: "user_type", label: "Account Type" },
     { key: "gender", label: "Gender" },
+    {
+      key: "is_favourite",
+      label: "Favorite",
+      render: (row) => (
+        <button
+          onClick={() => handleToggleFavorite(row.id, row.is_favourite)}
+          className="p-2 hover:bg-teal-50 rounded-full transition-all cursor-pointer flex justify-center items-center"
+          title={row.is_favourite ? "Remove from Favorites" : "Add to Favorites"}
+        >
+          <Heart
+            className={`w-5 h-5 transition-colors ${
+              row.is_favourite
+                ? "text-red-500 fill-red-500" // قلب أحمر ممتلئ إذا كان مفضلاً
+                : "text-gray-400 hover:text-red-500" // قلب مفرغ عند التحويم عليه
+            }`}
+          />
+        </button>
+      ),
+    },
     {
       key: "actions",
       label: "Actions",
@@ -406,8 +457,6 @@ useEffect(() => {
         showFilter={true}
         filterOptions={filterOptionsForUsers}
         
-        // 🌟 3. تمرير الخصائص للجدول عشان يعرض Total: 919 ويتنقل بين الـ 62 صفحة
-        // قمت بتمرير الأسماء الشائعة للـ props عشان تشتغل أياً كانت الطريقة اللي مكتوب بيها DataTableLayout
         isBackendPagination={true}
         serverSide={true}
         
@@ -417,11 +466,10 @@ useEffect(() => {
         totalPages={totalPages}
         backendTotalPages={totalPages}
         
-        totalItems={totalItems} // ده اللي هيخلي كلمة Total: 15 تتغير لـ Total: 919
+        totalItems={totalItems} 
         totalCount={totalItems}
         total={totalItems}
         
-        // دالة تغيير الصفحة لما تضغطي على رقم 2، 3، إلخ
         onPageChange={(page) => {
           setCurrentPage(page);
           fetchUsers(page, searchQuery);
@@ -431,8 +479,7 @@ useEffect(() => {
           fetchUsers(page, searchQuery);
         }}
         
-        // دالة البحث من الباك إند
-onSearchChange={(val) => {
+        onSearchChange={(val) => {
           setSearchQuery(val);
           setCurrentPage(1);
         }}

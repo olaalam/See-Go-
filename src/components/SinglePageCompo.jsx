@@ -9,6 +9,7 @@ import {
   Phone,
   Clock,
   Globe,
+  Heart, // استيراد أيقونة القلب للتاب الجديد
 } from "lucide-react";
 import VAdmin from "@/Pages/Villages/VAdmin";
 import PAdmin from "@/Pages/Providers/PAdmin";
@@ -22,7 +23,8 @@ import InvoiceList from "@/Pages/Invoice/InvoiceList";
 import OnlineAdmins from "@/Pages/Villages/OnlineAdmins";
 import OnlineUsers from "@/Pages/Users/OnlineUsers";
 import PReviews from "@/Pages/Providers/PReviews";
-
+import UserFavorites from "@/Pages/Users/UserFavorites"; // استيراد المكون الجديد هنا
+import GateKeeper from "@/Pages/Villages/GateKeeper";
 const formatTime = (time) => {
   if (!time) return "";
   try {
@@ -48,7 +50,6 @@ export default function VillageDetailsCard({
   const isProviderPage = location.pathname.includes("/providers/");
   const isMallSinglePage = location.pathname.startsWith("/mall/single-page-m/");
 
-  // Determine the correct ID and type for InvoiceList
   const getInvoiceProps = () => {
     if (entityType === "village" || (!isProviderPage && !entityType)) {
       return { villageId: id, entityType: "village" };
@@ -64,9 +65,8 @@ export default function VillageDetailsCard({
   if (!data) return null;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
+    <div className="w-[90%] mx-auto p-4">
       <Tabs defaultValue="info" className="w-full">
-        {/* تم تحويل الكلاس إلى flex flex-wrap ليتناسب مع زيادة عدد التابات ديناميكياً */}
         <TabsList className="flex flex-wrap !ms-3 w-[90%] gap-3 bg-transparent !my-6">
           <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                       data-[state=active]:bg-bg-primary data-[state=active]:text-white
@@ -85,6 +85,12 @@ export default function VillageDetailsCard({
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="services">
                 Services
+              </TabsTrigger>
+              {/* التاب الجديد المضاف لصفحة اليوزر المفضلة */}
+              <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                          data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                          hover:bg-teal-100 hover:text-teal-700" value="favorites">
+                Favorites
               </TabsTrigger>
             </>
           ) : isMallSinglePage ? (
@@ -117,6 +123,7 @@ export default function VillageDetailsCard({
                           hover:bg-teal-100 hover:text-teal-700" value="invoice">
                 Invoices
               </TabsTrigger>
+
               <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                           data-[state=active]:bg-bg-primary data-[state=active]:text-white
                           hover:bg-teal-100 hover:text-teal-700" value="reviews">
@@ -147,13 +154,17 @@ export default function VillageDetailsCard({
                                 hover:bg-teal-100 hover:text-teal-700" value="invoice">
                     Invoices
                   </TabsTrigger>
-                  {/* تاب المستخدمين المتصلين بالقرية */}
+                                <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                                data-[state=active]:bg-bg-primary data-[state=active]:text-white
+                                hover:bg-teal-100 hover:text-teal-700" value="gate-keeper">
+                    Gate Keeper
+                  </TabsTrigger>
                   <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="online-admins">
                     Online Admins
                   </TabsTrigger>
-                                    <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
+                  <TabsTrigger className="rounded-[10px] border text-bg-primary py-2 px-4 transition-all
                                 data-[state=active]:bg-bg-primary data-[state=active]:text-white
                                 hover:bg-teal-100 hover:text-teal-700" value="online-users">
                     Online Users
@@ -165,6 +176,7 @@ export default function VillageDetailsCard({
         </TabsList>
 
         <TabsContent value="info">
+          {/* محتوى الـ Info كما هو بدون تغيير */}
           <Card className="!p-8 bg-[#f3fbfa] !ms-10 w-full shadow-none border-none">
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -260,6 +272,10 @@ export default function VillageDetailsCard({
           <>
             <TabsContent value="owner"><Owner data={data} /></TabsContent>
             <TabsContent value="services"><Services data={data} /></TabsContent>
+            {/* استدعاء محتوى المفضلة وتمرير الـ userId */}
+            <TabsContent value="favorites">
+              <UserFavorites userId={id} />
+            </TabsContent>
           </>
         )}
 
@@ -291,11 +307,13 @@ export default function VillageDetailsCard({
                 <TabsContent value="invoice">
                   <InvoiceList {...invoiceProps} />
                 </TabsContent>
-                {/* محتوى الـ Online Users وتمرير الـ villageId كميكانيزم تصفية لو تطلب السيرفر ذلك */}
+                <TabsContent value="gate-keeper">
+                  <GateKeeper villageId={id} />
+                </TabsContent>
                 <TabsContent value="online-admins">
                   <OnlineAdmins villageId={id} />
                 </TabsContent>
-                                <TabsContent value="online-users">
+                <TabsContent value="online-users">
                   <OnlineUsers villageId={id} />
                 </TabsContent>
               </>

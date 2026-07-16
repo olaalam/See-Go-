@@ -362,62 +362,64 @@ export default function DataTable({
                       />
                     </TableCell>
                   )}
-                  {columns.map((col, idx) => (
-                    <TableCell
-                      key={idx}
-                      className={clsx(
-                        "!px-2 !py-1 text-sm whitespace-normal break-words",
-                        col.key === "img" && "h-full min-h-[60px] flex justify-center items-center"
-                      )}
-                    >
-                      {col.key === "status" ? (
-                        <div className="flex justify-center items-center gap-2">
-                          <Switch
-                            checked={String(getNestedValue(row, col.key))?.toLowerCase() === "active"}
-                            onCheckedChange={(checked) => onToggleStatus?.(row, checked ? 1 : 0)}
-                            className={clsx(
-                              "relative inline-flex h-6 w-11 rounded-full transition-colors focus:outline-none",
-                              String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "bg-bg-primary" : "bg-gray-300"
-                            )}
-                          >
-                            <span
-                              className={clsx(
-                                "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
-                                String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "translate-x-5" : "translate-x-1"
-                              )}
-                            />
-                          </Switch>
-                        </div>
-                      ) : col.key === "img" ? (
-                        <div className="flex justify-center items-center w-full h-full min-h-[60px]">
-                          {row[col.key]}
-                        </div>
-                      ) : col.key === "map" ? (
-                        (() => {
-                          const url = getNestedValue(row, col.key);
-                          if (!url) return "N/A";
-                          const displayText = url.length > 20 ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}` : url;
-                          const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`;
-                          return (
-                            <div className="relative w-[120px] truncate group">
-                              <a href={mapLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">
-                                {displayText}
-                              </a>
-                              {url.length > 20 && (
-                                <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-pre-wrap max-w-xs break-words">
-                                  {url}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()
-                      ) : col.render ? (
-                        col.render(row)
-                      ) : (
-                        getNestedValue(row, col.key)
-                      )}
-                    </TableCell>
-                  ))}
+{columns.map((col, idx) => (
+  <TableCell
+    key={idx}
+    className={clsx(
+      "!px-2 !py-1 text-sm whitespace-normal break-words",
+      col.key === "img" && "h-full min-h-[60px] flex justify-center items-center"
+    )}
+  >
+    {/* 1. أولاً: لو فيه render مخصص للعمود، شغله فوراً */}
+    {col.render ? (
+      col.render(row)
+    ) : col.key === "status" && col.type === "switch" ? ( 
+      /* 2. ثانياً: السويتش يشتغل فقط لو مبعوت له type: "switch" */
+      <div className="flex justify-center items-center gap-2">
+        <Switch
+          checked={String(getNestedValue(row, col.key))?.toLowerCase() === "active"}
+          onCheckedChange={(checked) => onToggleStatus?.(row, checked ? 1 : 0)}
+          className={clsx(
+            "relative inline-flex h-6 w-11 !p-2 rounded-full transition-colors focus:outline-none",
+            String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "bg-bg-primary" : "bg-gray-300"
+          )}
+        >
+          <span
+            className={clsx(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 !p-2",
+              String(getNestedValue(row, col.key))?.toLowerCase() === "active" ? "translate-x-5" : "translate-x-1"
+            )}
+          />
+        </Switch>
+      </div>
+    ) : col.key === "img" ? (
+      <div className="flex justify-center items-center w-full h-full min-h-[60px]">
+        {row[col.key]}
+      </div>
+    ) : col.key === "map" ? (
+      (() => {
+        const url = getNestedValue(row, col.key);
+        if (!url) return "N/A";
+        const displayText = url.length > 20 ? `${url.substring(0, 10)}...${url.substring(url.length - 10)}` : url;
+        const mapLink = url.startsWith("http") ? url : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(url)}`;
+        return (
+          <div className="relative w-[120px] truncate group">
+            <a href={mapLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">
+              {displayText}
+            </a>
+            {url.length > 20 && (
+              <div className="absolute z-10 hidden group-hover:block bg-gray-800 text-white text-xs !p-2 rounded whitespace-pre-wrap max-w-xs break-words">
+                {url}
+              </div>
+            )}
+          </div>
+        );
+      })()
+    ) : (
+      getNestedValue(row, col.key)
+    )}
+  </TableCell>
+))}
                   {(showEditButton || showDeleteButton || showActions) && (
                     <TableCell className="!py-3">
                       <div className="flex justify-center items-center gap-2">
