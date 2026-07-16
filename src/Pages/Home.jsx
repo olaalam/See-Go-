@@ -10,6 +10,7 @@ import {
   FaHome,
   FaBuilding,
   FaUserCheck,
+  FaUserShield, // تم إضافة أيقونة حماية المستخدم (Verification) هنا
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
@@ -23,11 +24,13 @@ const Home = () => {
     pending_payment: 0,
     service_providers: 0,
     maintenance_providers: 0,
+    verification_users: 0, // تم إضافة هذا الحقل هنا لاستقبال القيمة
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [permissions, setPermissions] = useState([]); // State for permissions
+  const [imageErrors, setImageErrors] = useState({}); // تم تعريف الحالة لتفادي أخطاء الدالة بالأسفل
 
   useEffect(() => {
     const fetchHomeStats = async () => {
@@ -179,7 +182,16 @@ if (!hasPermission("Home")) {
           </div>
         </Link>
 
-
+        {/* Verification Users - الكارت الجديد المضاف */}
+        <Link to={"/verification-users"} className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
+          <div className="!p-4 flex items-center justify-center">
+            <FaUserShield className="text-6xl text-[#0E7490]" />
+          </div>
+          <div className="!p-2">
+            <div className="text-3xl font-bold">{homeStats.verification_users}</div>
+            <div className="">Verification Users</div>
+          </div>
+        </Link>
 
         {/* Pending Payments */}
         <Link to={"/payments"}  className="bg-[#F2FAFA] text-bg-primary !p-2 rounded-2xl shadow flex items-start border-r-4 border-bg-primary">
