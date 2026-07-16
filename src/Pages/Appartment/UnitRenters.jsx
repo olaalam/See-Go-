@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Search } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useGet } from "@/Hooks/UseGet";
 import FullPageLoader from "@/components/Loading";
 import { Input } from "@/components/ui/input";
@@ -10,14 +9,13 @@ import RentGroupCard from "@/components/Rent/RentGroupCard";
 import { useParams } from "react-router-dom";
 
 const UnitRenters = ({ appartmentId, apiUrl, onCountChange }) => {
-  const { t } = useTranslation();
   const [rentData, setRentData] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { id } = useParams();
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { data, loading, refetch } = useGet({
     url: `${apiUrl}/appartment/unit_renters?appartment_id=${id}`,
-    type: true
+    type: true,
   });
 
   // Debounce search
@@ -32,7 +30,7 @@ const UnitRenters = ({ appartmentId, apiUrl, onCountChange }) => {
   const fetchRents = () => {
     const body = {
       appartment_id: appartmentId,
-      ...(debouncedSearch && { search: debouncedSearch })
+      ...(debouncedSearch && { search: debouncedSearch }),
     };
     refetch(body);
   };
@@ -41,11 +39,11 @@ const UnitRenters = ({ appartmentId, apiUrl, onCountChange }) => {
     fetchRents();
   }, [appartmentId, debouncedSearch]);
 
-useEffect(() => {
+  useEffect(() => {
     // التعديل هنا: الوصول للبيانات مباشرة من data بدلاً من data.data
     if (data) {
       setRentData(data);
-      
+
       // إرسال العدد للـ parent
       if (onCountChange && data.rents_count !== undefined) {
         onCountChange(data.rents_count);
@@ -67,7 +65,7 @@ useEffect(() => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder={t("Search by name, phone, email...")}
+            placeholder="Search by name, phone, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="!pl-10 h-11 bg-white border-slate-200 focus:border-primary"
@@ -76,9 +74,13 @@ useEffect(() => {
         <Card className="text-center !py-12 border border-slate-100 shadow-sm rounded-2xl">
           <CardContent className="flex flex-col items-center justify-center !p-6 text-muted-foreground">
             <Users className="h-12 w-12 text-slate-300 !mb-3" />
-            <h3 className="text-lg font-bold text-slate-700">{t("No Renters Found")}</h3>
+            <h3 className="text-lg font-bold text-slate-700">
+              No Renters Found
+            </h3>
             <p className="text-sm font-medium text-slate-400 !mt-1">
-              {searchQuery ? t("No results found for your search") : t("Norentersfoundforthisunit")}
+              {searchQuery
+                ? "No results found for your search"
+                : "No renters found for this unit"}
             </p>
           </CardContent>
         </Card>
@@ -92,7 +94,7 @@ useEffect(() => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder={t("Search by name, phone, email...")}
+          placeholder="Search by name, phone, email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="!pl-10 h-11 bg-white border-slate-200 focus:border-primary"

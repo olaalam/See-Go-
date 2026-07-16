@@ -9,23 +9,24 @@ import { useNavigate } from "react-router-dom";
 import TitleSection from "@/components/TitleSection";
 import { useGet } from "@/Hooks/UseGet";
 import Add from "@/components/AddFieldSection"; // المكون المشترك[cite: 16]
-import { useTranslation } from "react-i18next";
 import { formatDateForBackend } from "@/utils/rentHelpers";
 
 export default function UnitCode() {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
+  const baseUrl =
+    import.meta.env.VITE_API_BASE_URL || "https://bcknd.sea-go.org";
   const apiUrl = baseUrl.endsWith("/admin") ? baseUrl : `${baseUrl}/admin`;
 
-  const { postData, loadingPost, response } = usePost({ url: `${apiUrl}/appartment/create_code` });
+  const { postData, loadingPost, response } = usePost({
+    url: `${apiUrl}/appartment/create_code`,
+  });
   const { loading: loadingAppartment, data: AppartmentData } = useGet({
-    url: `${apiUrl}/appartment/appartement_list`
+    url: `${apiUrl}/appartment/appartement_list`,
   });
 
   const [allAppartments, setAllAppartments] = useState([]);
   const [generatedCode, setGeneratedCode] = useState("");
   const isLoading = useSelector((state) => state.loader.isLoading);
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   const [formData, setFormData] = useState({
     en: {
@@ -39,8 +40,11 @@ export default function UnitCode() {
   });
 
   useEffect(() => {
-    const rawData = AppartmentData?.data?.data || AppartmentData?.data || AppartmentData;
-    const apartmentsList = Array.isArray(rawData) ? rawData : (rawData?.appartments || rawData?.data || []);
+    const rawData =
+      AppartmentData?.data?.data || AppartmentData?.data || AppartmentData;
+    const apartmentsList = Array.isArray(rawData)
+      ? rawData
+      : rawData?.appartments || rawData?.data || [];
 
     if (Array.isArray(apartmentsList)) {
       const formatted = apartmentsList.map((appartment) => ({
@@ -65,40 +69,72 @@ export default function UnitCode() {
   };
 
   // تعريف الحقول باستخدام useMemo لضمان استقرار المكون[cite: 17]
-  const fields = useMemo(() => [
-    {
-      lang: "en",
-      type: "select",
-      placeholder: t("Type"),
-      name: "type",
-      required: true,
-      options: [
-        { value: "owner", label: t("Owner") },
-        { value: "renter", label: t("Renter") },
-      ],
-    },
-    {
-      lang: "en",
-      type: "select",
-      placeholder: t("Appartment"),
-      name: "appartment",
-      options: allAppartments, // المكون Add سيتولى البحث تلقائياً
-      value: formData.en.appartment,
-    },
-    {
-      lang: "en",
-      type: "input",
-      inputType: "number",
-      placeholder: t("NumberOfPeople"),
-      name: "people",
-      required: true
-    },
-    ...(formData.en.type === "renter" ? [
-      { lang: "en", type: "input", inputType: "date", name: "from", placeholder: t("From"), value: formData.en.from },
-      { lang: "en", type: "input", inputType: "date", name: "to", placeholder: t("To"), value: formData.en.to },
-      { lang: "en", type: "file", placeholder: t("AppartmentImage"), name: "image", accept: "image/*" },
-    ] : [])
-  ], [t, allAppartments, formData.en.appartment, formData.en.type, formData.en.from, formData.en.to]);
+  const fields = useMemo(
+    () => [
+      {
+        lang: "en",
+        type: "select",
+        placeholder: "Type",
+        name: "type",
+        required: true,
+        options: [
+          { value: "owner", label: "Owner" },
+          { value: "renter", label: "Renter" },
+        ],
+      },
+      {
+        lang: "en",
+        type: "select",
+        placeholder: "Apartment",
+        name: "appartment",
+        options: allAppartments, // المكون Add سيتولى البحث تلقائياً
+        value: formData.en.appartment,
+      },
+      {
+        lang: "en",
+        type: "input",
+        inputType: "number",
+        placeholder: "Number of People",
+        name: "people",
+        required: true,
+      },
+      ...(formData.en.type === "renter"
+        ? [
+            {
+              lang: "en",
+              type: "input",
+              inputType: "date",
+              name: "from",
+              placeholder: "From",
+              value: formData.en.from,
+            },
+            {
+              lang: "en",
+              type: "input",
+              inputType: "date",
+              name: "to",
+              placeholder: "To",
+              value: formData.en.to,
+            },
+            {
+              lang: "en",
+              type: "file",
+              placeholder: "Apartment Image",
+              name: "image",
+              accept: "image/*",
+            },
+          ]
+        : []),
+    ],
+    [
+      t,
+      allAppartments,
+      formData.en.appartment,
+      formData.en.type,
+      formData.en.from,
+      formData.en.to,
+    ],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,7 +148,7 @@ export default function UnitCode() {
       body.append("to", formatDateForBackend(formData.en.to));
       if (formData.en.image) body.append("image", formData.en.image);
     }
-    postData(body, t("Appartmentaddedsuccessfully!"));
+    postData(body, "Apartment added successfully!");
   };
 
   return (
@@ -125,22 +161,20 @@ export default function UnitCode() {
 
       {!generatedCode ? (
         <>
-          <Add
-            fields={fields}
-            values={formData}
-            onChange={handleFieldChange}
-          />
+          <Add fields={fields} values={formData} onChange={handleFieldChange} />
           <Button
             onClick={handleSubmit}
             className="bg-bg-primary mt-5 cursor-pointer hover:bg-teal-600 !px-5 !py-6 text-white w-[30%] rounded-[15px]"
             disabled={loadingPost}
           >
-            {loadingPost ? t("Processing") : t("Done")}
+            {loadingPost ? "Processing" : "Done"}
           </Button>
         </>
       ) : (
         <div className="!my-8 p-6 border rounded-2xl bg-white shadow-lg max-w-lg mx-auto text-center">
-          <p className="text-xl font-semibold text-gray-800">{t("YourGeneratedCode")}</p>
+          <p className="text-xl font-semibold text-gray-800">
+            Your Generated Code
+          </p>
           <div className="my-4 p-3 bg-gray-50 border border-teal-400 font-mono text-lg text-teal-700">
             {generatedCode}
           </div>

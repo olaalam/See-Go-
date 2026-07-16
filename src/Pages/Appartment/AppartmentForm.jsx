@@ -1,44 +1,48 @@
 import { useState, useEffect } from "react";
 import { useGet } from "@/Hooks/UseGet";
 import Add from "@/components/AddFieldSection";
-import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom"; 
+import { useSearchParams } from "react-router-dom";
 
-export const useAppartmentForm = (apiUrl, isEdit = false, initialData = null, enabled = false) => {
+export const useAppartmentForm = (
+  apiUrl,
+  isEdit = false,
+  initialData = null,
+  enabled = false,
+) => {
   const [searchParams] = useSearchParams();
-  const urlVillageId = searchParams.get("village_id") || ""; 
+  const urlVillageId = searchParams.get("village_id") || "";
 
   const [formData, setFormData] = useState({
     en: {
       name: "",
       type: "",
       map: "",
-      village_id: urlVillageId, 
+      village_id: urlVillageId,
     },
   });
 
   const shouldFetch = !isEdit || enabled;
 
-  const {
-    loading: loadingTypes,
-    data: typesData,
-  } = useGet(shouldFetch ? { url: `${apiUrl}/appartment/appartement_list` } : {});
+  const { loading: loadingTypes, data: typesData } = useGet(
+    shouldFetch ? { url: `${apiUrl}/appartment/appartement_list` } : {},
+  );
 
-  const {
-    loading: loadingVillages,
-    data: villagesData,
-  } = useGet(shouldFetch ? { url: `${apiUrl}/appartment/village_list` } : {});
+  const { loading: loadingVillages, data: villagesData } = useGet(
+    shouldFetch ? { url: `${apiUrl}/appartment/village_list` } : {},
+  );
 
   const [types, setTypes] = useState([]);
   const [villages, setVillages] = useState([]);
-  const { t } = useTranslation();
 
   useEffect(() => {
     if (isEdit && initialData) {
       setFormData({
         en: {
           name: initialData.name || "",
-          type: initialData.appartment_type_id?.toString() || initialData.type?.toString() || "", 
+          type:
+            initialData.appartment_type_id?.toString() ||
+            initialData.type?.toString() ||
+            "",
           map: initialData.map || "",
           village_id: initialData.village_id?.toString() || "",
         },
@@ -74,7 +78,11 @@ export const useAppartmentForm = (apiUrl, isEdit = false, initialData = null, en
   useEffect(() => {
     if (!shouldFetch || !villagesData) return;
 
-    const rawVillages = villagesData?.villages?.data || villagesData?.villages || villagesData?.data || [];
+    const rawVillages =
+      villagesData?.villages?.data ||
+      villagesData?.villages ||
+      villagesData?.data ||
+      [];
     const list = Array.isArray(rawVillages) ? rawVillages : [];
 
     if (list.length > 0) {
@@ -98,7 +106,7 @@ export const useAppartmentForm = (apiUrl, isEdit = false, initialData = null, en
         fieldName = langOrEvent.target.name;
         fieldValue = langOrEvent.target.value;
         lang = "en";
-      } 
+      }
       // 2. إذا تم تمرير متغيرين فقط (name, value)
       else if (name !== undefined && value === undefined) {
         fieldName = langOrEvent;
@@ -126,7 +134,7 @@ export const useAppartmentForm = (apiUrl, isEdit = false, initialData = null, en
     const body = new FormData();
     body.append("unit", formData.en.name);
     body.append("appartment_type_id", formData.en.type);
-    body.append("village_id", formData.en.village_id); 
+    body.append("village_id", formData.en.village_id);
     if (formData.en.map) {
       body.append("location", formData.en.map);
     }
@@ -134,23 +142,23 @@ export const useAppartmentForm = (apiUrl, isEdit = false, initialData = null, en
   };
 
   const fields = [
-    { type: "input", placeholder: t("UnitName"), name: "name", required: true },
+    { type: "input", placeholder: "Unit Name", name: "name", required: true },
     {
       type: "select",
-      placeholder: t("Type"),
+      placeholder: "Type",
       name: "type",
       options: types,
-      value: formData.en.type, 
+      value: formData.en.type,
     },
     {
       type: "select",
-      placeholder: t("Village"),
+      placeholder: "Village",
       name: "village_id",
       options: villages,
       value: formData.en.village_id,
       disabled: !!urlVillageId && !isEdit,
     },
-    { type: "map", placeholder: t("EnterLocation"), name: "map" },
+    { type: "map", placeholder: "Enter Location", name: "map" },
   ];
 
   const totalLoading = loadingTypes || loadingVillages;
@@ -171,10 +179,8 @@ export const AppartmentFormFields = ({
   handleFieldChange,
   loading,
 }) => {
-  const { t } = useTranslation();
-
   if (loading) {
-    return <div>{t("Loading form data")}</div>;
+    return <div>Loading form data</div>;
   }
 
   return (
@@ -184,7 +190,7 @@ export const AppartmentFormFields = ({
         lang="en"
         values={formData.en}
         // ✅ مرري الدالة مباشرة بدون شروط طول الـ args لتأخذ حريتها الكاملة في التعامل مع الـ Select والـ Inputs
-        onChange={handleFieldChange} 
+        onChange={handleFieldChange}
       />
     </div>
   );
