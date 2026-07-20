@@ -127,7 +127,6 @@ export default function UnitCode() {
         : []),
     ],
     [
-      t,
       allAppartments,
       formData.en.appartment,
       formData.en.type,
