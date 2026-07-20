@@ -35,7 +35,7 @@ export default function UnitCode() {
       people: "",
       from: "",
       to: "",
-      image: null,
+      image: [],
     },
   });
 
@@ -54,6 +54,15 @@ export default function UnitCode() {
       setAllAppartments(formatted);
     }
   }, [AppartmentData]);
+  useEffect(() => {
+    if (response) {
+      // بناءً على الـ Preview في صورتك، الكود يأتي داخل خاصية success مباشرة أو داخل data.success
+      const code = response?.success || response?.data?.success;
+      if (code) {
+        setGeneratedCode(code.toString());
+      }
+    }
+  }, [response]);
 
   // دالة التعامل مع التغييرات الموحدة[cite: 17, 21]
   const handleFieldChange = (lang, name, value) => {
@@ -116,12 +125,13 @@ export default function UnitCode() {
               placeholder: "To",
               value: formData.en.to,
             },
-            {
+{
               lang: "en",
               type: "file",
-              placeholder: "Apartment Image",
-              name: "image",
+              placeholder: "Apartment Images",
+              name: "image", // التعديل هنا
               accept: "image/*",
+              multiple: true, // التعديل هنا: إضافة هذه الخاصية
             },
           ]
         : []),
@@ -135,17 +145,31 @@ export default function UnitCode() {
     ],
   );
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setGeneratedCode("");
     const body = new FormData();
     body.append("appartment_id", formData.en.appartment);
     body.append("type", formData.en.type);
     body.append("people", formData.en.people);
-    if (formData.en.type === "renter") {
+    
+if (formData.en.type === "renter") {
       body.append("from", formatDateForBackend(formData.en.from));
       body.append("to", formatDateForBackend(formData.en.to));
-      if (formData.en.image) body.append("image", formData.en.image);
+      
+      // التعديل هنا: إجبار الإرسال بصيغة مصفوفة image[]
+      if (formData.en.image) {
+        if (formData.en.image instanceof File) {
+          // لو ملف واحد برضه ابعته كـ image[]
+          body.append("image[]", formData.en.image); 
+        } else if (formData.en.image.length > 0) {
+          // لو مصفوفة ملفات
+          const imageArray = Array.from(formData.en.image);
+          imageArray.forEach((img) => {
+            body.append("image[]", img); 
+          });
+        }
+      }
     }
     postData(body, "Apartment added successfully!");
   };
@@ -163,18 +187,18 @@ export default function UnitCode() {
           <Add fields={fields} values={formData} onChange={handleFieldChange} />
           <Button
             onClick={handleSubmit}
-            className="bg-bg-primary mt-5 cursor-pointer hover:bg-teal-600 !px-5 !py-6 text-white w-[30%] rounded-[15px]"
+            className="bg-bg-primary !mt-5 cursor-pointer hover:bg-teal-600 !px-5 !py-6 text-white w-[30%] rounded-[15px]"
             disabled={loadingPost}
           >
             {loadingPost ? "Processing" : "Done"}
           </Button>
         </>
       ) : (
-        <div className="!my-8 p-6 border rounded-2xl bg-white shadow-lg max-w-lg mx-auto text-center">
+        <div className="!my-8 !p-6 border rounded-2xl bg-white shadow-lg max-w-lg !mx-auto text-center">
           <p className="text-xl font-semibold text-gray-800">
             Your Generated Code
           </p>
-          <div className="my-4 p-3 bg-gray-50 border border-teal-400 font-mono text-lg text-teal-700">
+          <div className="!my-4 !p-3 bg-gray-50 border border-teal-400 font-mono text-lg text-teal-700">
             {generatedCode}
           </div>
         </div>
